@@ -1,0 +1,127 @@
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.navbar {
+  background: linear-gradient(180deg, #2d2520 0%, #1f1b18 100%);
+  color: #e8e0d5;
+  padding: 0.75rem 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  border-bottom: 1px solid #3d3530;
+}
+
+.nav-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nav-logo {
+  font-size: 1.4rem;
+  font-weight: bold;
+  color: #c9a227;
+  text-decoration: none;
+  letter-spacing: 0.05em;
+}
+
+.nav-links {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.nav-link {
+  color: #d4c4a8;
+  text-decoration: none;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.nav-link:hover {
+  background-color: rgba(201, 162, 39, 0.15);
+  color: #e8c547;
+}
+
+.main-content {
+  flex: 1;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.version-footer {
+  padding: 0.5rem 1rem;
+  font-size: 0.75rem;
+  color: #8a7f72;
+  text-align: center;
+  border-top: 1px solid #2d2520;
+}
+
+.card {
+  background: #252019;
+  border: 1px solid #3d3530;
+  border-radius: 8px;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.card h2 {
+  color: #c9a227;
+  margin-bottom: 0.75rem;
+  font-size: 1.1rem;
+}
+
+.btn {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  text-decoration: none;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.btn-primary {
+  background: #8b6914;
+  color: #fff;
+}
+.btn-primary:hover {
+  background: #a67c1a;
+}
+
+.btn-secondary {
+  background: #3d3530;
+  color: #d4c4a8;
+}
+.btn-secondary:hover {
+  background: #4d4540;
+}
+
+.btn-danger {
+  background: #6b2a2a;
+  color: #f0d0d0;
+}
+.btn-danger:hover {
+  background: #8b3535;
+}
+
+@media (max-width: 768px) {
+  .nav-container {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .nav-links {
+    justify-content: center;
+  }
+  .main-content {
+    padding: 1rem 0.5rem;
+  }
+}
