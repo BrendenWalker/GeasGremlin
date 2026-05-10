@@ -4,3 +4,6 @@ dist/
 .env.local
 *.log
 .DS_Store
+
+# Local-only DB scripts (not checked in)
+database/local/

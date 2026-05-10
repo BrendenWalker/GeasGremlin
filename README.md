@@ -40,6 +40,29 @@ If your database was migrated from the original system with **uppercase** table/
 
 **Migrations:** If the database already existed with an older schema, run the appropriate migration in `database/` (e.g. `migrate_campaign_character.sql`, `migrate_player_gm.sql` for player/GM communication tables).
 
+### Optional: load a bundled ruleset catalog
+
+Reference data for a game system (classes, races, spells, items, and related rows) can be applied from versioned SQL under [`database/rulesets/`](database/rulesets/). Each file is **idempotent**: run it again after edits to refresh that ruleset’s catalog without separate migration scripts.
+
+Example (after `schema.sql` is applied), using the same connection settings as in repo-root `.env`:
+
+```bash
+psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f database/rulesets/basic-fantasy-enhanced.sql
+```
+
+On Windows PowerShell, set variables or substitute host, port, user, and database name explicitly.
+
+**Regenerate** the Basic Fantasy Enhanced snapshot from your database (needs `DB_*` in `.env`). If there is no `ruleset` row named `Basic Fantasy Enhanced`, the exporter still reads catalog rows using `ruleset_id` from `Default`, or `1` when neither name exists, and writes SQL that **creates** the `Basic Fantasy Enhanced` ruleset and binds all exported rows to it (each upsert includes `ruleset_id`). Override the source partition with `--from-ruleset-id <id>` when your data lives under another id.
+
+```bash
+cd backend
+npm run export-ruleset
+```
+
+Examples: `node scripts/export-ruleset.js --ruleset-name "Your Ruleset" --output ../database/rulesets/your-ruleset.sql` — `node scripts/export-ruleset.js --from-ruleset-id 1`
+
+Do not commit `.env`; it is only read locally when you run the exporter.
+
 ## Local development
 
 ```bash

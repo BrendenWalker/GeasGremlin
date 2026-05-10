@@ -24,6 +24,14 @@ const pool = createDbPool({
 
 testConnection(pool);
 
+/** Subqueries for primary class + labels (characters.class column removed; use character_classes). */
+const SQL_CHAR_CLASS_NAME =
+  '(SELECT string_agg(cl.name, \', \' ORDER BY cc.sort_order, cc.class_id) FROM character_classes cc JOIN classes cl ON cl.id = cc.class_id WHERE cc.character_id = c.id)';
+const SQL_CHAR_PRIMARY_CLASS_ID =
+  '(SELECT cc.class_id FROM character_classes cc WHERE cc.character_id = c.id ORDER BY cc.sort_order, cc.class_id LIMIT 1)';
+const SQL_CHAR_CLASSES_JSON =
+  '(SELECT json_agg(json_build_object(\'class_id\', cc.class_id, \'class_level\', cc.class_level, \'sort_order\', cc.sort_order, \'name\', cl.name) ORDER BY cc.sort_order, cc.class_id) FROM character_classes cc JOIN classes cl ON cl.id = cc.class_id WHERE cc.character_id = c.id)';
+
 // ==================== CAMPAIGNS ====================
 
 app.get('/api/campaigns', async (req, res) => {
@@ -109,11 +117,10 @@ app.delete('/api/campaigns/:id', async (req, res) => {
 app.get('/api/campaigns/:campaignId/characters', async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT c.*, r.name as race_name, cl.name as class_name
+      `SELECT c.*, r.name as race_name, ${SQL_CHAR_CLASS_NAME} AS class_name
        FROM characters c
        INNER JOIN campaign_character cc ON cc.character_id = c.id AND cc.campaign_id = $1
        LEFT JOIN races r ON c.race = r.id
-       LEFT JOIN classes cl ON c.class = cl.id
        ORDER BY c.name`,
       [req.params.campaignId]
     );
@@ -127,11 +134,12 @@ app.get('/api/campaigns/:campaignId/characters', async (req, res) => {
 app.get('/api/characters/:id', async (req, res) => {
   try {
     const charResult = await pool.query(
-      `SELECT c.*, r.name as race_name, cl.name as class_name,
+      `SELECT c.*, r.name as race_name, ${SQL_CHAR_CLASS_NAME} AS class_name,
+       ${SQL_CHAR_PRIMARY_CLASS_ID} AS class,
+       ${SQL_CHAR_CLASSES_JSON} AS character_classes,
        (SELECT COALESCE(array_agg(cc.campaign_id), ARRAY[]::int[]) FROM campaign_character cc WHERE cc.character_id = c.id) AS campaign_ids
        FROM characters c
        LEFT JOIN races r ON c.race = r.id
-       LEFT JOIN classes cl ON c.class = cl.id
        WHERE c.id = $1`,
       [req.params.id]
     );
@@ -157,7 +165,15 @@ app.get('/api/characters/:id', async (req, res) => {
             COALESCE(sc.level, 0) as spell_level
            FROM character_spells cs
            JOIN spells s ON cs.spell_id = s.id
-           LEFT JOIN spell_class sc ON sc.spell_id = cs.spell_id AND sc.class_id = (SELECT class FROM characters WHERE id = $1)
+           LEFT JOIN LATERAL (
+             SELECT MIN(sc2.level) AS level
+             FROM spell_class sc2
+             WHERE sc2.spell_id = cs.spell_id
+               AND EXISTS (
+                 SELECT 1 FROM character_classes cc
+                 WHERE cc.character_id = $1 AND cc.class_id = sc2.class_id
+               )
+           ) sc ON true
            WHERE cs.character_id = $1`,
           [req.params.id]
         ).catch((err) => {
@@ -196,16 +212,27 @@ app.get('/api/characters/:id', async (req, res) => {
     character.items = items.rows;
 
     character.next_level_xp = null;
-    if (character.class) {
-      try {
+    try {
+      const primary = await pool.query(
+        `SELECT cc.class_id, COALESCE(cc.class_level, c.level, 1) AS class_level
+         FROM characters c
+         JOIN character_classes cc ON cc.character_id = c.id
+         WHERE c.id = $1
+         ORDER BY cc.sort_order, cc.class_id
+         LIMIT 1`,
+        [req.params.id]
+      );
+      if (primary.rows[0]) {
+        const clid = primary.rows[0].class_id;
+        const clvl = primary.rows[0].class_level || 1;
         const nextLevel = await pool.query(
           `SELECT xp FROM class_leveling WHERE class_id = $1 AND level = $2`,
-          [character.class, (character.level || 1) + 1]
+          [clid, clvl + 1]
         );
         character.next_level_xp = nextLevel.rows[0] ? nextLevel.rows[0].xp : null;
-      } catch (_) {
-        // class_leveling table may not exist in older schema
       }
+    } catch (_) {
+      // class_leveling / character_classes may not exist in older schema
     }
 
     res.json(character);
@@ -240,19 +267,38 @@ app.post('/api/campaigns/:campaignId/characters', async (req, res) => {
     const idResult = await pool.query('SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM characters');
     const nextId = idResult.rows[0].next_id;
     const result = await pool.query(
-      `INSERT INTO characters (id, name, "user", gender, age, hair, eyes, height, weight, race, class,
+      `INSERT INTO characters (id, name, "user", gender, age, hair, eyes, height, weight, race,
        str, "int", wis, dex, con, chr, hp, notes, quasiclass, level, ac, xp, skillpoints, money)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
        RETURNING *`,
       [nextId, name || 'Unnamed', user || 'TEMP$USER', gender || null, age ?? null, hair || null, eyes || null, height || null, weight || null,
-        race ?? null, classId ?? null, str ?? null, intVal ?? null, wis ?? null, dex ?? null, con ?? null, chr ?? null,
+        race ?? null, str ?? null, intVal ?? null, wis ?? null, dex ?? null, con ?? null, chr ?? null,
         hp ?? null, notes || null, quasiclass ?? null, level ?? 1, ac ?? null, xp ?? 0, skillpoints ?? null, money ?? null]
     );
+    const newId = result.rows[0].id;
     await pool.query(
       'INSERT INTO campaign_character (campaign_id, character_id) VALUES ($1, $2)',
-      [campaignId, result.rows[0].id]
+      [campaignId, newId]
     );
-    const character = result.rows[0];
+    if (classId != null) {
+      await pool.query(
+        `INSERT INTO character_classes (character_id, class_id, class_level, sort_order)
+         VALUES ($1, $2, $3, 0)
+         ON CONFLICT (character_id, class_id) DO UPDATE SET
+           class_level = EXCLUDED.class_level, modified = CURRENT_TIMESTAMP`,
+        [newId, classId, level ?? 1]
+      );
+    }
+    const full = await pool.query(
+      `SELECT c.*, r.name as race_name, ${SQL_CHAR_CLASS_NAME} AS class_name,
+       ${SQL_CHAR_PRIMARY_CLASS_ID} AS class,
+       ${SQL_CHAR_CLASSES_JSON} AS character_classes
+       FROM characters c
+       LEFT JOIN races r ON c.race = r.id
+       WHERE c.id = $1`,
+      [newId]
+    );
+    const character = full.rows[0];
     character.campaign_ids = [parseInt(campaignId, 10)];
     res.status(201).json(character);
   } catch (error) {
@@ -276,14 +322,18 @@ app.post('/api/campaigns/:campaignId/characters', async (req, res) => {
 app.put('/api/characters/:id', async (req, res) => {
   try {
     const id = req.params.id;
-    const current = await pool.query('SELECT * FROM characters WHERE id = $1', [id]);
+    const current = await pool.query(
+      `SELECT c.*, ${SQL_CHAR_PRIMARY_CLASS_ID} AS class
+       FROM characters c WHERE c.id = $1`,
+      [id]
+    );
     if (current.rows.length === 0) {
       return res.status(404).json({ error: 'Character not found' });
     }
     const row = current.rows[0];
     const body = req.body;
     const allowed = [
-      'name', 'user', 'gender', 'age', 'hair', 'eyes', 'height', 'weight', 'race', 'class',
+      'name', 'user', 'gender', 'age', 'hair', 'eyes', 'height', 'weight', 'race',
       'str', 'int', 'wis', 'dex', 'con', 'chr', 'hp', 'notes', 'quasiclass', 'level', 'ac', 'xp', 'skillpoints', 'money',
       'equipped_melee_primary_id', 'equipped_melee_secondary_id', 'equipped_ranged_id', 'equipped_armor_id', 'equipped_shield_id'
     ];
@@ -293,21 +343,58 @@ app.put('/api/characters/:id', async (req, res) => {
         merged[key] = body[key] ?? null;
       }
     }
-    const result = await pool.query(
+    if (Object.prototype.hasOwnProperty.call(body, 'class')) {
+      merged.class = body.class ?? null;
+    }
+    await pool.query(
       `UPDATE characters SET
        name = $1, "user" = $2, gender = $3, age = $4, hair = $5, eyes = $6, height = $7, weight = $8,
-       race = $9, class = $10, str = $11, "int" = $12, wis = $13, dex = $14, con = $15, chr = $16,
-       hp = $17, notes = $18, quasiclass = $19, level = $20, ac = $21, xp = $22, skillpoints = $23, money = $24,
-       equipped_melee_primary_id = $25, equipped_melee_secondary_id = $26, equipped_ranged_id = $27,
-       equipped_armor_id = $28, equipped_shield_id = $29,
+       race = $9, str = $10, "int" = $11, wis = $12, dex = $13, con = $14, chr = $15,
+       hp = $16, notes = $17, quasiclass = $18, level = $19, ac = $20, xp = $21, skillpoints = $22, money = $23,
+       equipped_melee_primary_id = $24, equipped_melee_secondary_id = $25, equipped_ranged_id = $26,
+       equipped_armor_id = $27, equipped_shield_id = $28,
        modified = CURRENT_TIMESTAMP
-       WHERE id = $30 RETURNING *`,
+       WHERE id = $29`,
       [merged.name, merged.user, merged.gender, merged.age, merged.hair, merged.eyes, merged.height, merged.weight,
-        merged.race, merged.class, merged.str, merged.int, merged.wis, merged.dex, merged.con, merged.chr,
+        merged.race, merged.str, merged.int, merged.wis, merged.dex, merged.con, merged.chr,
         merged.hp, merged.notes, merged.quasiclass, merged.level, merged.ac, merged.xp, merged.skillpoints, merged.money,
         merged.equipped_melee_primary_id, merged.equipped_melee_secondary_id, merged.equipped_ranged_id,
         merged.equipped_armor_id, merged.equipped_shield_id,
         id]
+    );
+
+    if (Object.prototype.hasOwnProperty.call(body, 'character_classes') && Array.isArray(body.character_classes)) {
+      await pool.query('DELETE FROM character_classes WHERE character_id = $1', [id]);
+      let ord = 0;
+      for (const cc of body.character_classes) {
+        if (cc == null || cc.class_id == null) continue;
+        await pool.query(
+          `INSERT INTO character_classes (character_id, class_id, class_level, sort_order)
+           VALUES ($1, $2, $3, $4)`,
+          [id, cc.class_id, cc.class_level ?? merged.level ?? 1, cc.sort_order ?? ord]
+        );
+        ord += 1;
+      }
+    } else if (Object.prototype.hasOwnProperty.call(body, 'class')) {
+      await pool.query('DELETE FROM character_classes WHERE character_id = $1', [id]);
+      if (merged.class != null) {
+        await pool.query(
+          `INSERT INTO character_classes (character_id, class_id, class_level, sort_order)
+           VALUES ($1, $2, $3, 0)`,
+          [id, merged.class, merged.level ?? 1]
+        );
+      }
+    }
+
+    const result = await pool.query(
+      `SELECT c.*, r.name as race_name, ${SQL_CHAR_CLASS_NAME} AS class_name,
+       ${SQL_CHAR_PRIMARY_CLASS_ID} AS class,
+       ${SQL_CHAR_CLASSES_JSON} AS character_classes,
+       (SELECT COALESCE(array_agg(cc2.campaign_id), ARRAY[]::int[]) FROM campaign_character cc2 WHERE cc2.character_id = c.id) AS campaign_ids
+       FROM characters c
+       LEFT JOIN races r ON c.race = r.id
+       WHERE c.id = $1`,
+      [id]
     );
     res.json(result.rows[0]);
   } catch (error) {
@@ -429,7 +516,9 @@ app.post('/api/characters/:id/spells', async (req, res) => {
     );
     const row = await pool.query(
       `SELECT cs.*, s.name as spell_name, s.description as spell_description, s.range as spell_range, s.duration as spell_duration,
-        (SELECT level FROM spell_class WHERE spell_id = cs.spell_id AND class_id = (SELECT class FROM characters WHERE id = $1)) as spell_level
+        (SELECT MIN(scm.level) FROM spell_class scm
+         WHERE scm.spell_id = cs.spell_id
+           AND EXISTS (SELECT 1 FROM character_classes ccl WHERE ccl.character_id = $1 AND ccl.class_id = scm.class_id)) as spell_level
        FROM character_spells cs JOIN spells s ON cs.spell_id = s.id WHERE cs.character_id = $1 AND cs.spell_id = $2`,
       [characterId, spell_id]
     );
@@ -462,13 +551,17 @@ app.put('/api/characters/:id/spells/:spellId', async (req, res) => {
 app.post('/api/characters/:id/spells/:spellId/cast', async (req, res) => {
   try {
     const { id: characterId, spellId } = req.params;
-    const char = await pool.query('SELECT class FROM characters WHERE id = $1', [characterId]);
+    const char = await pool.query('SELECT id FROM characters WHERE id = $1', [characterId]);
     if (char.rows.length === 0) return res.status(404).json({ error: 'Character not found' });
     const spellLevel = await pool.query(
-      'SELECT level FROM spell_class WHERE class_id = $1 AND spell_id = $2',
-      [char.rows[0].class, spellId]
+      `SELECT MIN(sc.level) AS level FROM spell_class sc
+       WHERE sc.spell_id = $1
+         AND EXISTS (SELECT 1 FROM character_classes cc WHERE cc.character_id = $2 AND cc.class_id = sc.class_id)`,
+      [spellId, characterId]
     );
-    if (spellLevel.rows.length === 0) return res.status(400).json({ error: 'Spell level not found for this class' });
+    if (spellLevel.rows.length === 0 || spellLevel.rows[0].level == null) {
+      return res.status(400).json({ error: 'Spell level not found for this class' });
+    }
     const level = spellLevel.rows[0].level;
     await pool.query(
       `UPDATE character_spells SET memorized = GREATEST(0, memorized - 1), modified = CURRENT_TIMESTAMP WHERE character_id = $1 AND spell_id = $2`,
@@ -659,12 +752,11 @@ app.get('/api/player/characters', async (req, res) => {
       return res.status(400).json({ error: 'Query parameter "user" is required' });
     }
     const result = await pool.query(
-      `SELECT c.id, c.name, c."user", c.level, c.xp, c.hp, r.name as race_name, cl.name as class_name,
+      `SELECT c.id, c.name, c."user", c.level, c.xp, c.hp, r.name as race_name, ${SQL_CHAR_CLASS_NAME} AS class_name,
        (SELECT array_agg(cc.campaign_id) FROM campaign_character cc WHERE cc.character_id = c.id) AS campaign_ids,
        (SELECT array_agg(cam.name) FROM campaign_character cc JOIN campaign cam ON cam.id = cc.campaign_id WHERE cc.character_id = c.id) AS campaign_names
        FROM characters c
        LEFT JOIN races r ON c.race = r.id
-       LEFT JOIN classes cl ON c.class = cl.id
        WHERE c."user" = $1
        ORDER BY c.name`,
       [user.toUpperCase()]
