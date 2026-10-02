@@ -1,5 +1,6 @@
 /**
- * Export catalog rows for a ruleset to idempotent PostgreSQL upsert SQL.
+ * Export catalog rows for a ruleset as GameSystems JSON (import-ruleset.js compatible).
+ * Writes gamesystem.json plus one *.json file per catalog table.
  * Loads ../.env (repo root) then backend/.env — same as server.js.
  */
 
@@ -18,7 +19,7 @@ const DEFAULT_RULESET_NAME = 'Basic Fantasy Enhanced';
 
 function parseArgs(argv) {
   let rulesetName = DEFAULT_RULESET_NAME;
-  let outputPath = null;
+  let outputDir = null;
   /** @type {number | null} explicit source ruleset_id for catalog queries */
   let fromRulesetId = null;
   for (let i = 2; i < argv.length; i++) {
@@ -26,7 +27,7 @@ function parseArgs(argv) {
     if (a === '--ruleset-name' && argv[i + 1]) {
       rulesetName = argv[++i];
     } else if (a === '--output' && argv[i + 1]) {
-      outputPath = argv[++i];
+      outputDir = argv[++i];
     } else if (a === '--from-ruleset-id' && argv[i + 1]) {
       const n = parseInt(argv[++i], 10);
       if (!Number.isInteger(n) || n < 1) {
@@ -38,34 +39,33 @@ function parseArgs(argv) {
       console.log(`
 Usage: node export-ruleset.js [options]
 
-  --ruleset-name <name>   Target ruleset name in the OUTPUT SQL (default: "${DEFAULT_RULESET_NAME}")
+  --ruleset-name <name>   Name written to gamesystem.json (default: "${DEFAULT_RULESET_NAME}")
   --from-ruleset-id <id>   Read catalog rows with this ruleset_id from the DB (optional).
                            If omitted: use a row named --ruleset-name, else "Default", else 1.
-  --output <path>         SQL file to write (default: database/rulesets/<slug>.sql under repo root)
+  --output <dir>          Directory to write JSON files (default: GameSystems/<slug>/ under repo root)
 
 Reads DB_* from repo-root .env (see env.example).
 
-When no ruleset row matches --ruleset-name, catalog is still exported from the resolved source id;
-the generated file inserts the target ruleset name and binds all rows to it via ruleset_id.
+Output is compatible with: npm run import-ruleset -- --dir <dir>
+Does not delete PENDING_CHANGES.json if present. Omits ruleset_id (import binds via gamesystem name).
 `);
       process.exit(0);
     }
   }
-  if (!outputPath) {
+  if (!outputDir) {
     const slug = rulesetName
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '') || 'ruleset';
-    outputPath = path.join(repoRoot, 'database', 'rulesets', `${slug}.sql`);
-  } else if (!path.isAbsolute(outputPath)) {
-    outputPath = path.join(repoRoot, outputPath);
+    outputDir = path.join(repoRoot, 'GameSystems', slug);
+  } else if (!path.isAbsolute(outputDir)) {
+    outputDir = path.join(repoRoot, outputDir);
   }
-  return { rulesetName, outputPath, fromRulesetId };
+  return { rulesetName, outputDir, fromRulesetId };
 }
 
 /**
  * Decide which ruleset_id in the DB to SELECT catalog rows from.
- * Output SQL binds catalog rows to --ruleset-name via ruleset_id subquery.
  */
 async function resolveSourceRulesetId(pool, targetRulesetName, fromRulesetIdOpt) {
   const targetRs = await pool.query(
@@ -102,44 +102,57 @@ async function resolveSourceRulesetId(pool, targetRulesetName, fromRulesetIdOpt)
   return { sourceId, sourceLabel, targetRow };
 }
 
-function sqlLiteral(value) {
-  if (value === null || value === undefined) return 'NULL';
-  if (typeof value === 'boolean') return value ? 'TRUE' : 'FALSE';
-  if (typeof value === 'number') {
-    if (!Number.isFinite(value)) return 'NULL';
-    return String(value);
-  }
-  if (value instanceof Date) {
-    const iso = value.toISOString().replace('T', ' ').replace('Z', '+00');
-    return `'${iso.replace(/'/g, "''")}'::timestamp`;
-  }
-  return `'${String(value).replace(/'/g, "''")}'`;
+/** Format timestamps like existing Firebird-style dumps for readable diffs. */
+function formatTimestamp(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  const pad = (n, w = 2) => String(n).padStart(w, '0');
+  const yyyy = d.getUTCFullYear();
+  const mm = pad(d.getUTCMonth() + 1);
+  const dd = pad(d.getUTCDate());
+  const hh = pad(d.getUTCHours());
+  const mi = pad(d.getUTCMinutes());
+  const ss = pad(d.getUTCSeconds());
+  const ms = d.getUTCMilliseconds();
+  if (ms === 0) return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
+  return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}.${pad(ms, 3)}`;
 }
 
-function rulesetIdExpr(rulesetName) {
-  return `(SELECT id FROM public.ruleset WHERE name = ${sqlLiteral(rulesetName)} LIMIT 1)`;
+function jsonValue(value) {
+  if (value === null || value === undefined) return null;
+  if (value instanceof Date) return formatTimestamp(value);
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+    const formatted = formatTimestamp(value);
+    if (formatted != null) return formatted;
+  }
+  return value;
 }
 
-/** @param {string} rulesetName */
-function buildUpsert({ rulesetName, rows, table, columns, conflictClause, updateCols, rulesetIdColumn }) {
-  const lines = [];
-  const rsExpr = rulesetIdExpr(rulesetName);
-  for (const row of rows) {
-    const parts = columns.map((col) => {
-      if (col === rulesetIdColumn) return rsExpr;
-      const key = col.replace(/"/g, '');
-      const v = row[key] !== undefined ? row[key] : row[col];
-      return sqlLiteral(v);
-    });
-    const colList = columns.join(', ');
-    const insertSql = `INSERT INTO public.${table} (${colList}) VALUES (${parts.join(', ')})`;
-    lines.push(`${insertSql}\n${conflictClause}\n${updateCols};`);
+/**
+ * Map a DB row to export keys. `fields` is [{ db, json }, ...] or string (same name).
+ */
+function mapRow(row, fields) {
+  const out = {};
+  for (const f of fields) {
+    const dbKey = typeof f === 'string' ? f : f.db;
+    const jsonKey = typeof f === 'string' ? f.toUpperCase() : f.json;
+    out[jsonKey] = jsonValue(row[dbKey]);
   }
-  return lines.join('\n\n');
+  return out;
+}
+
+function writeTableJson(outputDir, tableName, rows) {
+  const filePath = path.join(outputDir, `${tableName}.json`);
+  const payload = { [tableName]: rows };
+  // Match existing GameSystems dumps: pretty-print with tabs, space before colon.
+  const body = JSON.stringify(payload, null, '\t').replace(/": /g, '" : ');
+  fs.writeFileSync(filePath, body + '\n', 'utf8');
+  return { filePath, count: rows.length };
 }
 
 async function main() {
-  const { rulesetName, outputPath, fromRulesetId } = parseArgs(process.argv);
+  const { rulesetName, outputDir, fromRulesetId } = parseArgs(process.argv);
 
   const pool = new Pool({
     host: process.env.DB_HOST || 'localhost',
@@ -163,68 +176,69 @@ async function main() {
       console.log(`Exporting catalog for ruleset_id = ${rulesetId} (${resolved.sourceLabel})`);
     }
 
-    const sections = [];
+    fs.mkdirSync(outputDir, { recursive: true });
 
-    const header = `-- RPGHub ruleset catalog snapshot (idempotent upserts)
--- Target ruleset name in output: ${rulesetName}
--- Source catalog in DB: ruleset_id = ${rulesetId} (${resolved.sourceLabel})
--- Generated by backend/scripts/export-ruleset.js — re-run to refresh after editing source DB.
-BEGIN;
+    const gamesystem = {
+      name: rulesetName,
+      description: `Exported from database ruleset_id=${rulesetId} (${resolved.sourceLabel}).`,
+    };
+    fs.writeFileSync(
+      path.join(outputDir, 'gamesystem.json'),
+      JSON.stringify(gamesystem, null, 2) + '\n',
+      'utf8'
+    );
 
-`;
-    sections.push(header);
-
-    if (resolved.targetRow) {
-      const r = resolved.targetRow;
-      sections.push(`-- ruleset
-INSERT INTO public.ruleset (id, name, modified) VALUES (${sqlLiteral(r.id)}, ${sqlLiteral(r.name)}, ${sqlLiteral(r.modified)})
-ON CONFLICT (name) DO UPDATE SET modified = EXCLUDED.modified;`);
-    } else {
-      sections.push(`-- Create target ruleset; catalog rows below bind ruleset_id to this name
-INSERT INTO public.ruleset (name, modified) VALUES (${sqlLiteral(rulesetName)}, NOW())
-ON CONFLICT (name) DO UPDATE SET modified = EXCLUDED.modified;`);
-    }
+    const written = [];
 
     const acRows = await pool.query(
       `SELECT DISTINCT ac.id, ac.name, ac.modified
        FROM public.ability_categories ac
        INNER JOIN public.abilities a ON a.category = ac.id
-       WHERE a.ruleset_id = $1 AND a.category IS NOT NULL`,
+       WHERE a.ruleset_id = $1 AND a.category IS NOT NULL
+       ORDER BY ac.id`,
       [rulesetId]
     );
-    acRows.rows.sort((a, b) => a.id - b.id);
-    for (const r of acRows.rows) {
-      sections.push(`INSERT INTO public.ability_categories (id, name, modified) VALUES (${sqlLiteral(r.id)}, ${sqlLiteral(r.name)}, ${sqlLiteral(r.modified)})
-ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, modified = EXCLUDED.modified;`);
-    }
+    written.push(
+      writeTableJson(
+        outputDir,
+        'ABILITY_CATEGORIES',
+        acRows.rows.map((r) => mapRow(r, ['id', 'name', 'modified']))
+      )
+    );
 
     const icRows = await pool.query(
       `SELECT DISTINCT ic.id, ic.name, ic.modified
        FROM public.item_categories ic
        INNER JOIN public.items i ON i.category = ic.id
-       WHERE i.ruleset_id = $1 AND i.category IS NOT NULL`,
+       WHERE i.ruleset_id = $1 AND i.category IS NOT NULL
+       ORDER BY ic.id`,
       [rulesetId]
     );
-    icRows.rows.sort((a, b) => a.id - b.id);
-    for (const r of icRows.rows) {
-      sections.push(`INSERT INTO public.item_categories (id, name, modified) VALUES (${sqlLiteral(r.id)}, ${sqlLiteral(r.name)}, ${sqlLiteral(r.modified)})
-ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, modified = EXCLUDED.modified;`);
-    }
+    written.push(
+      writeTableJson(
+        outputDir,
+        'ITEM_CATEGORIES',
+        icRows.rows.map((r) => mapRow(r, ['id', 'name', 'modified']))
+      )
+    );
 
     const itRows = await pool.query(
       `SELECT DISTINCT it.id, it.name, it.modified
        FROM public.item_types it
        INNER JOIN public.items i ON i.type = it.id
-       WHERE i.ruleset_id = $1 AND i.type IS NOT NULL`,
+       WHERE i.ruleset_id = $1 AND i.type IS NOT NULL
+       ORDER BY it.id`,
       [rulesetId]
     );
-    itRows.rows.sort((a, b) => a.id - b.id);
-    for (const r of itRows.rows) {
-      sections.push(`INSERT INTO public.item_types (id, name, modified) VALUES (${sqlLiteral(r.id)}, ${sqlLiteral(r.name)}, ${sqlLiteral(r.modified)})
-ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, modified = EXCLUDED.modified;`);
-    }
+    written.push(
+      writeTableJson(
+        outputDir,
+        'ITEM_TYPES',
+        itRows.rows.map((r) => mapRow(r, ['id', 'name', 'modified']))
+      )
+    );
 
-    const classesCols = [
+    const classesFields = [
       'id',
       'name',
       'hitdie',
@@ -234,45 +248,27 @@ ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, modified = EXCLUDED.modifie
       'min_dex',
       'min_con',
       'min_chr',
-      'xpadjustment',
+      { db: 'xpadjustment', json: 'XPAdjustment' },
       'armor',
       'weapons',
       'description',
       'modified',
-      'ruleset_id',
-      'subclass_of',
     ];
     const classesResult = await pool.query(
-      `SELECT ${classesCols.join(', ')} FROM public.classes WHERE ruleset_id = $1 ORDER BY id`,
+      `SELECT id, name, hitdie, min_str, min_int, min_wis, min_dex, min_con, min_chr,
+              xpadjustment, armor, weapons, description, modified
+       FROM public.classes WHERE ruleset_id = $1 ORDER BY id`,
       [rulesetId]
     );
-    sections.push(
-      '-- classes (conflict on id so FKs from junction tables stay valid)\n' +
-        buildUpsert({
-          rulesetName,
-          rows: classesResult.rows,
-          table: 'classes',
-          columns: classesCols,
-          conflictClause: 'ON CONFLICT (id) DO UPDATE SET',
-          updateCols: `  name = EXCLUDED.name,
-  hitdie = EXCLUDED.hitdie,
-  min_str = EXCLUDED.min_str,
-  min_int = EXCLUDED.min_int,
-  min_wis = EXCLUDED.min_wis,
-  min_dex = EXCLUDED.min_dex,
-  min_con = EXCLUDED.min_con,
-  min_chr = EXCLUDED.min_chr,
-  xpadjustment = EXCLUDED.xpadjustment,
-  armor = EXCLUDED.armor,
-  weapons = EXCLUDED.weapons,
-  description = EXCLUDED.description,
-  modified = EXCLUDED.modified,
-  ruleset_id = EXCLUDED.ruleset_id`,
-          rulesetIdColumn: 'ruleset_id',
-        })
+    written.push(
+      writeTableJson(
+        outputDir,
+        'CLASSES',
+        classesResult.rows.map((r) => mapRow(r, classesFields))
+      )
     );
 
-    const racesCols = [
+    const racesFields = [
       'id',
       'name',
       'avgweight',
@@ -289,7 +285,7 @@ ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, modified = EXCLUDED.modifie
       'max_dex',
       'max_con',
       'max_chr',
-      'xpadjustment',
+      { db: 'xpadjustment', json: 'XPAdjustment' },
       'armor',
       'weapons',
       'description',
@@ -297,265 +293,171 @@ ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, modified = EXCLUDED.modifie
       'max_hd',
       'modified',
       'hd_mod',
-      'ruleset_id',
     ];
     const racesResult = await pool.query(
-      `SELECT ${racesCols.join(', ')} FROM public.races WHERE ruleset_id = $1 ORDER BY id`,
+      `SELECT id, name, avgweight, avgheight, min_str, min_int, min_wis, min_dex, min_con, min_chr,
+              max_str, max_int, max_wis, max_dex, max_con, max_chr, xpadjustment, armor, weapons,
+              description, rangedbonus, max_hd, modified, hd_mod
+       FROM public.races WHERE ruleset_id = $1 ORDER BY id`,
       [rulesetId]
     );
-    sections.push(
-      '-- races\n' +
-        buildUpsert({
-          rulesetName,
-          rows: racesResult.rows,
-          table: 'races',
-          columns: racesCols,
-          conflictClause: 'ON CONFLICT (id) DO UPDATE SET',
-          updateCols: `  name = EXCLUDED.name,
-  avgweight = EXCLUDED.avgweight,
-  avgheight = EXCLUDED.avgheight,
-  min_str = EXCLUDED.min_str,
-  min_int = EXCLUDED.min_int,
-  min_wis = EXCLUDED.min_wis,
-  min_dex = EXCLUDED.min_dex,
-  min_con = EXCLUDED.min_con,
-  min_chr = EXCLUDED.min_chr,
-  max_str = EXCLUDED.max_str,
-  max_int = EXCLUDED.max_int,
-  max_wis = EXCLUDED.max_wis,
-  max_dex = EXCLUDED.max_dex,
-  max_con = EXCLUDED.max_con,
-  max_chr = EXCLUDED.max_chr,
-  xpadjustment = EXCLUDED.xpadjustment,
-  armor = EXCLUDED.armor,
-  weapons = EXCLUDED.weapons,
-  description = EXCLUDED.description,
-  rangedbonus = EXCLUDED.rangedbonus,
-  max_hd = EXCLUDED.max_hd,
-  modified = EXCLUDED.modified,
-  hd_mod = EXCLUDED.hd_mod,
-  ruleset_id = EXCLUDED.ruleset_id`,
-          rulesetIdColumn: 'ruleset_id',
-        })
+    written.push(
+      writeTableJson(
+        outputDir,
+        'RACES',
+        racesResult.rows.map((r) => mapRow(r, racesFields))
+      )
     );
 
-    const spellsCols = ['id', 'name', '"range"', 'duration', 'description', 'modified', 'ruleset_id'];
-    const spellsResult = await pool.query(
-      `SELECT id, name, "range", duration, description, modified, ruleset_id FROM public.spells WHERE ruleset_id = $1 ORDER BY id`,
-      [rulesetId]
-    );
-    sections.push(
-      '-- spells\n' +
-        buildUpsert({
-          rulesetName,
-          rows: spellsResult.rows,
-          table: 'spells',
-          columns: spellsCols,
-          conflictClause: 'ON CONFLICT (id) DO UPDATE SET',
-          updateCols: `  name = EXCLUDED.name,
-  "range" = EXCLUDED."range",
-  duration = EXCLUDED.duration,
-  description = EXCLUDED.description,
-  modified = EXCLUDED.modified,
-  ruleset_id = EXCLUDED.ruleset_id`,
-          rulesetIdColumn: 'ruleset_id',
-        })
-    );
-
-    const abilitiesCols = ['id', 'description', 'modified', 'category', 'ruleset_id'];
-    const abilitiesResult = await pool.query(
-      `SELECT ${abilitiesCols.join(', ')} FROM public.abilities WHERE ruleset_id = $1 ORDER BY id`,
-      [rulesetId]
-    );
-    sections.push(
-      '-- abilities\n' +
-        buildUpsert({
-          rulesetName,
-          rows: abilitiesResult.rows,
-          table: 'abilities',
-          columns: abilitiesCols,
-          conflictClause: 'ON CONFLICT (id) DO UPDATE SET',
-          updateCols: `  description = EXCLUDED.description,
-  modified = EXCLUDED.modified,
-  category = EXCLUDED.category,
-  ruleset_id = EXCLUDED.ruleset_id`,
-          rulesetIdColumn: 'ruleset_id',
-        })
-    );
-
-    const itemsCols = [
+    const spellsFields = [
       'id',
-      'category',
-      'type',
-      'name',
-      'price',
-      'size',
-      'weight',
-      'attackbonus',
-      'damagebonus',
-      'defensebonus',
-      'damage',
-      'range_short',
-      'range_medium',
-      'range_long',
-      'rof',
-      'ac',
-      'ac_melee',
-      'ac_ranged',
-      'notes',
+      { db: 'name', json: 'Name' },
+      { db: 'range', json: 'Range' },
+      { db: 'duration', json: 'Duration' },
+      { db: 'description', json: 'Description' },
       'modified',
-      'effect',
-      'value',
-      'duration',
-      'charges',
-      'perday',
-      'ruleset_id',
+    ];
+    const spellsResult = await pool.query(
+      `SELECT id, name, "range", duration, description, modified
+       FROM public.spells WHERE ruleset_id = $1 ORDER BY id`,
+      [rulesetId]
+    );
+    written.push(
+      writeTableJson(
+        outputDir,
+        'SPELLS',
+        spellsResult.rows.map((r) => mapRow(r, spellsFields))
+      )
+    );
+
+    const abilitiesResult = await pool.query(
+      `SELECT id, description, modified, category
+       FROM public.abilities WHERE ruleset_id = $1 ORDER BY id`,
+      [rulesetId]
+    );
+    written.push(
+      writeTableJson(
+        outputDir,
+        'ABILITIES',
+        abilitiesResult.rows.map((r) => mapRow(r, ['id', 'description', 'modified', 'category']))
+      )
+    );
+
+    const itemsFields = [
+      'id',
+      { db: 'category', json: 'Category' },
+      { db: 'type', json: 'Type' },
+      { db: 'name', json: 'Name' },
+      { db: 'price', json: 'Price' },
+      { db: 'size', json: 'Size' },
+      { db: 'weight', json: 'Weight' },
+      { db: 'attackbonus', json: 'AttackBonus' },
+      { db: 'damagebonus', json: 'DamageBonus' },
+      { db: 'defensebonus', json: 'DefenseBonus' },
+      { db: 'damage', json: 'Damage' },
+      { db: 'range_short', json: 'Range_Short' },
+      { db: 'range_medium', json: 'Range_Medium' },
+      { db: 'range_long', json: 'Range_Long' },
+      { db: 'rof', json: 'ROF' },
+      { db: 'ac', json: 'AC' },
+      { db: 'ac_melee', json: 'AC_Melee' },
+      { db: 'ac_ranged', json: 'AC_Ranged' },
+      { db: 'notes', json: 'NOTES' },
+      'modified',
+      { db: 'effect', json: 'EFFECT' },
+      { db: 'value', json: 'VALUE' },
+      { db: 'duration', json: 'DURATION' },
+      { db: 'charges', json: 'CHARGES' },
+      { db: 'perday', json: 'PERDAY' },
     ];
     const itemsResult = await pool.query(
-      `SELECT id, category, "type" AS type, name, price, size, weight, attackbonus, damagebonus, defensebonus, damage,
-              range_short, range_medium, range_long, rof, ac, ac_melee, ac_ranged, notes, modified, effect, value,
-              duration, charges, perday, ruleset_id
+      `SELECT id, category, "type" AS type, name, price, size, weight, attackbonus, damagebonus,
+              defensebonus, damage, range_short, range_medium, range_long, rof, ac, ac_melee,
+              ac_ranged, notes, modified, effect, value, duration, charges, perday
        FROM public.items WHERE ruleset_id = $1 ORDER BY id`,
       [rulesetId]
     );
-    sections.push(
-      '-- items\n' +
-        buildUpsert({
-          rulesetName,
-          rows: itemsResult.rows,
-          table: 'items',
-          columns: itemsCols.map((c) => (c === 'type' ? '"type"' : c)),
-          conflictClause: 'ON CONFLICT (id) DO UPDATE SET',
-          updateCols: `  category = EXCLUDED.category,
-  "type" = EXCLUDED."type",
-  name = EXCLUDED.name,
-  price = EXCLUDED.price,
-  size = EXCLUDED.size,
-  weight = EXCLUDED.weight,
-  attackbonus = EXCLUDED.attackbonus,
-  damagebonus = EXCLUDED.damagebonus,
-  defensebonus = EXCLUDED.defensebonus,
-  damage = EXCLUDED.damage,
-  range_short = EXCLUDED.range_short,
-  range_medium = EXCLUDED.range_medium,
-  range_long = EXCLUDED.range_long,
-  rof = EXCLUDED.rof,
-  ac = EXCLUDED.ac,
-  ac_melee = EXCLUDED.ac_melee,
-  ac_ranged = EXCLUDED.ac_ranged,
-  notes = EXCLUDED.notes,
-  modified = EXCLUDED.modified,
-  effect = EXCLUDED.effect,
-  value = EXCLUDED.value,
-  duration = EXCLUDED.duration,
-  charges = EXCLUDED.charges,
-  perday = EXCLUDED.perday,
-  ruleset_id = EXCLUDED.ruleset_id`,
-          rulesetIdColumn: 'ruleset_id',
-        })
+    written.push(
+      writeTableJson(
+        outputDir,
+        'ITEMS',
+        itemsResult.rows.map((r) => mapRow(r, itemsFields))
+      )
     );
 
-    const caCols = ['class_id', 'ability_id', 'level', 'int_param', 'str_param', 'modified', 'ruleset_id'];
     const caResult = await pool.query(
-      `SELECT ${caCols.join(', ')} FROM public.class_abilities WHERE ruleset_id = $1 ORDER BY class_id, ability_id, level`,
+      `SELECT class_id, ability_id, level, int_param, str_param, modified
+       FROM public.class_abilities WHERE ruleset_id = $1
+       ORDER BY class_id, ability_id, level`,
       [rulesetId]
     );
-    sections.push(
-      '-- class_abilities\n' +
-        buildUpsert({
-          rulesetName,
-          rows: caResult.rows,
-          table: 'class_abilities',
-          columns: caCols,
-          conflictClause: 'ON CONFLICT (class_id, ability_id, level) DO UPDATE SET',
-          updateCols: `  int_param = EXCLUDED.int_param,
-  str_param = EXCLUDED.str_param,
-  modified = EXCLUDED.modified,
-  ruleset_id = EXCLUDED.ruleset_id`,
-          rulesetIdColumn: 'ruleset_id',
-        })
+    written.push(
+      writeTableJson(
+        outputDir,
+        'CLASS_ABILITIES',
+        caResult.rows.map((r) =>
+          mapRow(r, ['class_id', 'ability_id', 'level', 'int_param', 'str_param', 'modified'])
+        )
+      )
     );
 
-    const clCols = ['class_id', 'level', 'xp', 'hd', 'hp', 'ab', 'modified', 'ruleset_id'];
     const clResult = await pool.query(
-      `SELECT ${clCols.join(', ')} FROM public.class_leveling WHERE ruleset_id = $1 ORDER BY class_id, level`,
+      `SELECT class_id, level, xp, hd, hp, ab, modified
+       FROM public.class_leveling WHERE ruleset_id = $1
+       ORDER BY class_id, level`,
       [rulesetId]
     );
-    sections.push(
-      '-- class_leveling\n' +
-        buildUpsert({
-          rulesetName,
-          rows: clResult.rows,
-          table: 'class_leveling',
-          columns: clCols,
-          conflictClause: 'ON CONFLICT (class_id, level) DO UPDATE SET',
-          updateCols: `  xp = EXCLUDED.xp,
-  hd = EXCLUDED.hd,
-  hp = EXCLUDED.hp,
-  ab = EXCLUDED.ab,
-  modified = EXCLUDED.modified,
-  ruleset_id = EXCLUDED.ruleset_id`,
-          rulesetIdColumn: 'ruleset_id',
-        })
+    written.push(
+      writeTableJson(
+        outputDir,
+        'CLASS_LEVELING',
+        clResult.rows.map((r) =>
+          mapRow(r, ['class_id', 'level', 'xp', 'hd', 'hp', 'ab', 'modified'])
+        )
+      )
     );
 
-    const csCols = [
-      'class_id',
-      'char_level',
-      'level1',
-      'level2',
-      'level3',
-      'level4',
-      'level5',
-      'level6',
-      'level7',
-      'modified',
-      'ruleset_id',
-    ];
     const csResult = await pool.query(
-      `SELECT ${csCols.join(', ')} FROM public.class_spells WHERE ruleset_id = $1 ORDER BY class_id, char_level`,
+      `SELECT class_id, char_level, level1, level2, level3, level4, level5, level6, level7, modified
+       FROM public.class_spells WHERE ruleset_id = $1
+       ORDER BY class_id, char_level`,
       [rulesetId]
     );
-    sections.push(
-      '-- class_spells\n' +
-        buildUpsert({
-          rulesetName,
-          rows: csResult.rows,
-          table: 'class_spells',
-          columns: csCols,
-          conflictClause: 'ON CONFLICT (class_id, char_level) DO UPDATE SET',
-          updateCols: `  level1 = EXCLUDED.level1,
-  level2 = EXCLUDED.level2,
-  level3 = EXCLUDED.level3,
-  level4 = EXCLUDED.level4,
-  level5 = EXCLUDED.level5,
-  level6 = EXCLUDED.level6,
-  level7 = EXCLUDED.level7,
-  modified = EXCLUDED.modified,
-  ruleset_id = EXCLUDED.ruleset_id`,
-          rulesetIdColumn: 'ruleset_id',
-        })
+    written.push(
+      writeTableJson(
+        outputDir,
+        'CLASS_SPELLS',
+        csResult.rows.map((r) =>
+          mapRow(r, [
+            'class_id',
+            'char_level',
+            'level1',
+            'level2',
+            'level3',
+            'level4',
+            'level5',
+            'level6',
+            'level7',
+            'modified',
+          ])
+        )
+      )
     );
 
-    const raCols = ['race_id', 'ability_id', 'int_param', 'str_param', 'modified', 'ruleset_id'];
     const raResult = await pool.query(
-      `SELECT ${raCols.join(', ')} FROM public.race_abilities WHERE ruleset_id = $1 ORDER BY race_id, ability_id`,
+      `SELECT race_id, ability_id, int_param, str_param, modified
+       FROM public.race_abilities WHERE ruleset_id = $1
+       ORDER BY race_id, ability_id`,
       [rulesetId]
     );
-    sections.push(
-      '-- race_abilities\n' +
-        buildUpsert({
-          rulesetName,
-          rows: raResult.rows,
-          table: 'race_abilities',
-          columns: raCols,
-          conflictClause: 'ON CONFLICT (race_id, ability_id) DO UPDATE SET',
-          updateCols: `  int_param = EXCLUDED.int_param,
-  str_param = EXCLUDED.str_param,
-  modified = EXCLUDED.modified,
-  ruleset_id = EXCLUDED.ruleset_id`,
-          rulesetIdColumn: 'ruleset_id',
-        })
+    written.push(
+      writeTableJson(
+        outputDir,
+        'RACE_ABILITIES',
+        raResult.rows.map((r) =>
+          mapRow(r, ['race_id', 'ability_id', 'int_param', 'str_param', 'modified'])
+        )
+      )
     );
 
     const scResult = await pool.query(
@@ -566,26 +468,18 @@ ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, modified = EXCLUDED.modifie
        ORDER BY sc.class_id, sc.spell_id`,
       [rulesetId]
     );
-    const scCols = ['class_id', 'spell_id', 'level', 'modified'];
-    sections.push(
-      '-- spell_class\n' +
-        scResult.rows
-          .map((r) => {
-            const parts = scCols.map((col) => sqlLiteral(r[col]));
-            return `INSERT INTO public.spell_class (${scCols.join(', ')}) VALUES (${parts.join(', ')})
-ON CONFLICT (class_id, spell_id) DO UPDATE SET
-  level = EXCLUDED.level,
-  modified = EXCLUDED.modified;`;
-          })
-          .join('\n\n')
+    written.push(
+      writeTableJson(
+        outputDir,
+        'SPELL_CLASS',
+        scResult.rows.map((r) => mapRow(r, ['class_id', 'spell_id', 'level', 'modified']))
+      )
     );
 
-    sections.push('\nCOMMIT;\n');
-
-    const out = sections.join('\n');
-    fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-    fs.writeFileSync(outputPath, out, 'utf8');
-    console.log(`Wrote ${outputPath} (${Buffer.byteLength(out, 'utf8')} bytes)`);
+    console.log(`Wrote ${outputDir}`);
+    for (const w of written) {
+      console.log(`  ${path.basename(w.filePath)}: ${w.count} row(s)`);
+    }
   } finally {
     await pool.end();
   }

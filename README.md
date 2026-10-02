@@ -62,9 +62,16 @@ npm run import-ruleset -- --dir ../GameSystems/BasicFantasy_Enhanced --dry-run
 
 The importer **replaces** that ruleset’s catalog (delete then insert). Shared category/type rows are matched by name and kept globally. JSON `ID` values only remap FKs during the import; destination PKs are newly allocated. Re-import fails if any characters still belong to the target ruleset. Parameterized SQL keeps apostrophes intact.
 
-Do not commit `.env`; it is only read locally when you run the importer.
+Export a live DB catalog back to the same JSON layout (default `GameSystems/<slug>/`):
 
-**Legacy:** SQL snapshots under [`database/rulesets/`](database/rulesets/) and `npm run export-ruleset` are no longer the recommended load path (text corruption turned `'` into `NULL` in older dumps). Prefer JSON import above.
+```bash
+npm run export-ruleset -- --ruleset-name "Basic Fantasy Enhanced"
+npm run export-ruleset -- --from-ruleset-id 2 --output ../GameSystems/BasicFantasy_Enhanced
+```
+
+Do not commit `.env`; it is only read locally when you run the importer/exporter.
+
+**Legacy:** Older SQL snapshots under [`database/rulesets/`](database/rulesets/) are not the preferred load path (text corruption turned `'` into `NULL` in some dumps). Prefer JSON import/export above.
 
 ## Local run (Docker)
 

@@ -72,11 +72,21 @@ Mechanics:
 - Destination PKs are newly allocated (prefer a free source id when available); JSON/Firebird `ID` values exist only to remap references during the import.
 - All writes use parameterized queries.
 
+**Export** ([`backend/scripts/export-ruleset.js`](../backend/scripts/export-ruleset.js))
+
+```bash
+cd backend
+npm run export-ruleset -- --ruleset-name "Basic Fantasy Enhanced"
+# optional: --from-ruleset-id <id> --output ../GameSystems/BasicFantasy_Enhanced
+```
+
+Writes `gamesystem.json` plus one table JSON file per catalog/junction the importer knows. Default output is `GameSystems/<slug>/`. Omits `ruleset_id` (import binds via `gamesystem.json` `name`) and does not delete `PENDING_CHANGES.json` if present.
+
 Multiple rulesets (e.g. Core and Enhanced) can coexist: each gets its own `ruleset_id` and distinct catalog ids.
 
 ## Legacy SQL snapshots (`database/rulesets/*.sql`)
 
-Older catalog-only PostgreSQL upsert scripts may still exist under `database/rulesets/`. They are **not** the preferred publish path (string handling corrupted apostrophes in some dumps). Prefer JSON import above. The optional exporter [`backend/scripts/export-ruleset.js`](../backend/scripts/export-ruleset.js) can still emit SQL from a live DB if needed.
+Older catalog-only PostgreSQL upsert scripts may still exist under `database/rulesets/`. They are **not** the preferred publish path (string handling corrupted apostrophes in some dumps). Prefer JSON import/export above.
 
 ## Ruleset-scoped instance and user data
 
