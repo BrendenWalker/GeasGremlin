@@ -69,6 +69,12 @@ npm run export-ruleset -- --ruleset-name "Basic Fantasy Enhanced"
 npm run export-ruleset -- --from-ruleset-id 2 --output ../GameSystems/BasicFantasy_Enhanced
 ```
 
+CI runs an import → export → semantic compare against Postgres for each catalog under `GameSystems/` (see `.github/workflows/ruleset-roundtrip.yml`). Locally, with schema applied and `DB_*` set:
+
+```bash
+npm run test:ruleset-roundtrip -- --dir ../GameSystems/BasicFantasy_Enhanced
+```
+
 Do not commit `.env`; it is only read locally when you run the importer/exporter.
 
 **Legacy:** Older SQL snapshots under [`database/rulesets/`](database/rulesets/) are not the preferred load path (text corruption turned `'` into `NULL` in some dumps). Prefer JSON import/export above.

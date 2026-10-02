@@ -190,13 +190,10 @@ async function main() {
 
     const written = [];
 
+    // Shared lookups are global (matched by name on import). Export all rows present
+    // so unused categories/types still round-trip on a fresh single-ruleset DB.
     const acRows = await pool.query(
-      `SELECT DISTINCT ac.id, ac.name, ac.modified
-       FROM public.ability_categories ac
-       INNER JOIN public.abilities a ON a.category = ac.id
-       WHERE a.ruleset_id = $1 AND a.category IS NOT NULL
-       ORDER BY ac.id`,
-      [rulesetId]
+      `SELECT id, name, modified FROM public.ability_categories ORDER BY id`
     );
     written.push(
       writeTableJson(
@@ -207,12 +204,7 @@ async function main() {
     );
 
     const icRows = await pool.query(
-      `SELECT DISTINCT ic.id, ic.name, ic.modified
-       FROM public.item_categories ic
-       INNER JOIN public.items i ON i.category = ic.id
-       WHERE i.ruleset_id = $1 AND i.category IS NOT NULL
-       ORDER BY ic.id`,
-      [rulesetId]
+      `SELECT id, name, modified FROM public.item_categories ORDER BY id`
     );
     written.push(
       writeTableJson(
@@ -223,12 +215,7 @@ async function main() {
     );
 
     const itRows = await pool.query(
-      `SELECT DISTINCT it.id, it.name, it.modified
-       FROM public.item_types it
-       INNER JOIN public.items i ON i.type = it.id
-       WHERE i.ruleset_id = $1 AND i.type IS NOT NULL
-       ORDER BY it.id`,
-      [rulesetId]
+      `SELECT id, name, modified FROM public.item_types ORDER BY id`
     );
     written.push(
       writeTableJson(
