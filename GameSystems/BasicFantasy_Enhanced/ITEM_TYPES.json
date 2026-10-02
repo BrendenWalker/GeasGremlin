@@ -1,0 +1,283 @@
+{
+"ITEM_TYPES": [
+	{
+		"ID" : 1,
+		"NAME" : "30 Gallon Barrel",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 2,
+		"NAME" : "Accessories",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 4,
+		"NAME" : "Ammo",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 5,
+		"NAME" : "Animal",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 6,
+		"NAME" : "Artwork",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 7,
+		"NAME" : "Axes",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 8,
+		"NAME" : "Blunt",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 9,
+		"NAME" : "Bottoms",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 10,
+		"NAME" : "Brawling",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 12,
+		"NAME" : "Chemicals",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 16,
+		"NAME" : "Cloth and Skins",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 17,
+		"NAME" : "Containers",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 18,
+		"NAME" : "Cooking",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 20,
+		"NAME" : "Daggers",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 21,
+		"NAME" : "Dining",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 22,
+		"NAME" : "Drink",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 23,
+		"NAME" : "Dungeoneering",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 25,
+		"NAME" : "Flail",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 26,
+		"NAME" : "Flying",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 27,
+		"NAME" : "Food",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 28,
+		"NAME" : "Lodging",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 29,
+		"NAME" : "Footwear",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 30,
+		"NAME" : "Games",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 31,
+		"NAME" : "Gear",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 32,
+		"NAME" : "Gloves",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 33,
+		"NAME" : "Ground",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 34,
+		"NAME" : "Headgear",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 35,
+		"NAME" : "Health",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 36,
+		"NAME" : "Heavy",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 37,
+		"NAME" : "Horse",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 38,
+		"NAME" : "Household Items",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 39,
+		"NAME" : "Improvised",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 40,
+		"NAME" : "Jewelry",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 41,
+		"NAME" : "Land",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 42,
+		"NAME" : "Light",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 43,
+		"NAME" : "Liquid",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 45,
+		"NAME" : "Materials",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 46,
+		"NAME" : "Medium",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 47,
+		"NAME" : "Musical Instruments",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 48,
+		"NAME" : "Natural Philosophy & Alchemy",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 49,
+		"NAME" : "Other",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 50,
+		"NAME" : "Outdoor",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 51,
+		"NAME" : "Outerwear",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 52,
+		"NAME" : "Outfit",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 53,
+		"NAME" : "Personal",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 54,
+		"NAME" : "Professional Tools",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 55,
+		"NAME" : "Ranged",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 56,
+		"NAME" : "Shield",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 57,
+		"NAME" : "Siege",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 58,
+		"NAME" : "Spears and Polearms",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 59,
+		"NAME" : "Swords",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 61,
+		"NAME" : "Tools",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 62,
+		"NAME" : "Traps",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 63,
+		"NAME" : "Travel",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 64,
+		"NAME" : "Water",
+		"MODIFIED" : "2021-08-22 21:40:44"
+	},
+	{
+		"ID" : 65,
+		"NAME" : "Potion",
+		"MODIFIED" : "2023-03-15 15:50:24.478"
+	}
+]}

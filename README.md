@@ -6,14 +6,16 @@ The data model is game-agnostic: the same tables support D&D, Pathfinder, Basic 
 
 ## Ports
 
-- **Backend**: 8100  
-- **Frontend**: 8101  
+- **Backend**: 8140
+- **Frontend**: 8150
 
 ## Prerequisites
 
-- Node.js 18+ (for local development)
+- Docker and Docker Compose
 - PostgreSQL with the **rpghub** database (you’ve already migrated from Firebird)
-- A `.env` at the **repository root** (Docker) or optionally under **`backend/`** for local development: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`
+- A `.env` at the **repository root**: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`
+
+Node.js 18+ is only needed for the optional hot-reload path or the ruleset import/export scripts.
 
 ## Database
 
@@ -40,36 +42,57 @@ If your database was migrated from the original system with **uppercase** table/
 
 **Migrations:** If the database already existed with an older schema, run the appropriate migration in `database/` (e.g. `migrate_campaign_character.sql`, `migrate_player_gm.sql` for player/GM communication tables).
 
-### Optional: load a bundled ruleset catalog
+### Optional: load a game-system catalog from JSON
 
-Reference data for a game system (classes, races, spells, items, and related rows) can be applied from versioned SQL under [`database/rulesets/`](database/rulesets/). Each file is **idempotent**: run it again after edits to refresh that ruleset’s catalog without separate migration scripts.
+Canonical ruleset reference data lives under [`GameSystems/`](GameSystems/) (one folder per system). Each folder has a required `gamesystem.json` (`name`, optional `description`) plus Firebird-style table dumps (`CLASSES.json`, `SPELLS.json`, …).
 
-Example (after `schema.sql` is applied), using the same connection settings as in repo-root `.env`:
-
-```bash
-psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f database/rulesets/basic-fantasy-enhanced.sql
-```
-
-On Windows PowerShell, set variables or substitute host, port, user, and database name explicitly.
-
-**Regenerate** the Basic Fantasy Enhanced snapshot from your database (needs `DB_*` in `.env`). If there is no `ruleset` row named `Basic Fantasy Enhanced`, the exporter still reads catalog rows using `ruleset_id` from `Default`, or `1` when neither name exists, and writes SQL that **creates** the `Basic Fantasy Enhanced` ruleset and binds all exported rows to it (each upsert includes `ruleset_id`). Override the source partition with `--from-ruleset-id <id>` when your data lives under another id.
+After `schema.sql` is applied, import with the same `DB_*` settings as in repo-root `.env`:
 
 ```bash
 cd backend
-npm run export-ruleset
+npm run import-ruleset -- --dir ../GameSystems/BasicFantasy_Enhanced
+npm run import-ruleset -- --dir ../GameSystems/BasicFantasy_Core
 ```
 
-Examples: `node scripts/export-ruleset.js --ruleset-name "Your Ruleset" --output ../database/rulesets/your-ruleset.sql` — `node scripts/export-ruleset.js --from-ruleset-id 1`
+Dry-run (full import in a transaction, then rollback):
 
-Do not commit `.env`; it is only read locally when you run the exporter.
+```bash
+npm run import-ruleset -- --dir ../GameSystems/BasicFantasy_Enhanced --dry-run
+```
 
-## Local development
+The importer **replaces** that ruleset’s catalog (delete then insert). Shared category/type rows are matched by name and kept globally. JSON `ID` values only remap FKs during the import; destination PKs are newly allocated. Re-import fails if any characters still belong to the target ruleset. Parameterized SQL keeps apostrophes intact.
+
+Do not commit `.env`; it is only read locally when you run the importer.
+
+**Legacy:** SQL snapshots under [`database/rulesets/`](database/rulesets/) and `npm run export-ruleset` are no longer the recommended load path (text corruption turned `'` into `NULL` in older dumps). Prefer JSON import above.
+
+## Local run (Docker)
+
+From the **repository root**:
+
+```bash
+cp env.example .env
+# Edit .env with your DB_HOST, DB_NAME, DB_USER, DB_PASSWORD
+docker compose up -d --build
+```
+
+- Frontend: http://localhost:8150
+- Backend API: http://localhost:8140/api/health
+
+The frontend container proxies `/api` to the backend. Compose sets `PORT=80` inside the backend container (published as 8140). Postgres stays on the host; `DB_HOST=host.docker.internal` is the default so the container can reach it.
+
+Rebuild after code changes (`docker compose up -d --build`).
+
+## Hot reload without Docker
+
+Use this only when you want Vite/nodemon on the host. Set `PORT=8140` so the backend matches the Vite proxy (a copied `.env` may still have `PORT=80` for Docker).
 
 ```bash
 # Backend
 cd backend
 npm install
 # Set DB_NAME=rpghub and other DB_* in ../.env (repo root) or backend/.env
+# PORT=8140
 node server.js   # or: npm run dev
 
 # Frontend (separate terminal)
@@ -78,20 +101,7 @@ npm install
 npm run dev
 ```
 
-Frontend dev server runs on port 3002 and proxies `/api` to `http://localhost:8100` (configure in `vite.config.js` if your backend uses another port).
-
-## Docker
-
-From the **repository root**:
-
-```bash
-cp env.example .env
-# Edit .env with your DB_HOST, DB_NAME, DB_USER, DB_PASSWORD
-docker compose up -d
-```
-
-Backend: http://localhost:8100  
-Frontend: http://localhost:8101 (proxies `/api` to the backend container).
+Frontend dev server runs on port 3002 and proxies `/api` to `http://localhost:8140` (configure in `vite.config.js` if your backend uses another port). For host Node talking to local Postgres, use `DB_HOST=localhost` rather than `host.docker.internal`.
 
 ## API overview
 
@@ -119,4 +129,4 @@ RPGHub aims for basic feature parity with the Familiar (Basic Fantasy) client:
 
 ## Original project
 
-Based on the Delphi project under `D:\!projects\Gitea\cross-platform\RPGs`: Hub (RabbitMQ + SQLite/Firebird), Familiar and GM clients. This service keeps the same object/database abstractions and replaces the message-passing architecture with a single REST API and web UI.
+Based on a local Delphi project: Hub (RabbitMQ + SQLite/Firebird), Familiar and GM clients. This service keeps the same object/database abstractions and replaces the message-passing architecture with a single REST API and web UI.

@@ -1,0 +1,33 @@
+{
+"ABILITY_CATEGORIES": [
+	{
+		"ID" : 1,
+		"NAME" : "General",
+		"MODIFIED" : "2023-03-15 15:50:23.686"
+	},
+	{
+		"ID" : 2,
+		"NAME" : "Defense",
+		"MODIFIED" : "2023-03-15 15:50:23.686"
+	},
+	{
+		"ID" : 3,
+		"NAME" : "Melee Attack",
+		"MODIFIED" : "2023-03-15 15:50:23.687"
+	},
+	{
+		"ID" : 4,
+		"NAME" : "Saving Throw",
+		"MODIFIED" : "2023-03-15 15:50:23.688"
+	},
+	{
+		"ID" : 5,
+		"NAME" : "Thief Ability",
+		"MODIFIED" : "2023-03-15 15:50:23.688"
+	},
+	{
+		"ID" : 6,
+		"NAME" : "Ranged Attack",
+		"MODIFIED" : "2023-03-15 15:50:23.689"
+	}
+]}

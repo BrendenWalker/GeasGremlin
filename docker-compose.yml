@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile
     container_name: rpghub-backend
     ports:
-      - "8100:80"
+      - "8140:80"
     env_file:
       - .env
     environment:
@@ -18,14 +18,10 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
-      - rpghub-network
+      rpghub-network:
+        aliases:
+          - rpghub-backend
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:80/api/health', (r)=>{ let d=''; r.on('data',c=>d+=c); r.on('end',()=>process.exit(r.statusCode===200?0:1)); }).on('error',()=>process.exit(1))"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-      start_period: 10s
 
   frontend:
     build:
@@ -33,11 +29,13 @@ services:
       dockerfile: Dockerfile
     container_name: rpghub-frontend
     ports:
-      - "8101:80"
+      - "8150:80"
     depends_on:
       - backend
     networks:
-      - rpghub-network
+      rpghub-network:
+        aliases:
+          - rpghub-frontend
     restart: unless-stopped
 
 networks:

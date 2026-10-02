@@ -1,0 +1,53 @@
+{
+"ITEM_CATEGORIES": [
+	{
+		"ID" : 1,
+		"NAME" : "Armor",
+		"MODIFIED" : "2021-08-22 21:40:59"
+	},
+	{
+		"ID" : 2,
+		"NAME" : "Clothing",
+		"MODIFIED" : "2021-08-22 21:40:59"
+	},
+	{
+		"ID" : 3,
+		"NAME" : "Conveyance",
+		"MODIFIED" : "2021-08-22 21:40:59"
+	},
+	{
+		"ID" : 4,
+		"NAME" : "Goods",
+		"MODIFIED" : "2021-08-22 21:40:59"
+	},
+	{
+		"ID" : 5,
+		"NAME" : "Livestock",
+		"MODIFIED" : "2021-08-22 21:40:59"
+	},
+	{
+		"ID" : 6,
+		"NAME" : "Provisions",
+		"MODIFIED" : "2021-08-22 21:40:59"
+	},
+	{
+		"ID" : 7,
+		"NAME" : "Services",
+		"MODIFIED" : "2021-08-22 21:40:59"
+	},
+	{
+		"ID" : 8,
+		"NAME" : "Storage",
+		"MODIFIED" : "2021-08-22 21:40:59"
+	},
+	{
+		"ID" : 9,
+		"NAME" : "Weapon",
+		"MODIFIED" : "2021-08-22 21:40:59"
+	},
+	{
+		"ID" : 10,
+		"NAME" : "Consumables",
+		"MODIFIED" : "2023-03-15 15:50:24.454"
+	}
+]}

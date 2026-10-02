@@ -47,29 +47,36 @@ Imported or authored **definition** data for a game system. Typically read-heavy
 
 When listing or editing catalog data, filters should include **`ruleset_id`** (see composite unique keys in `schema.sql`).
 
-## Bundled ruleset SQL snapshots (`database/rulesets/*.sql`)
+## GameSystems JSON catalogs (canonical source)
 
-The repo can ship **catalog-only** PostgreSQL scripts that upsert reference data for a named ruleset. They are **not** migrations: re-running the same file is safe and is the intended way to publish updates to that ruleset’s book data.
+Reference “book” data for a game system is stored as JSON under [`GameSystems/<System>/`](../GameSystems/). Examples: `BasicFantasy_Core`, `BasicFantasy_Enhanced`.
 
-**What they contain**
+**Folder contents**
 
-- The `ruleset` row (by name), plus every catalog table scoped by that ruleset: `classes`, `races`, `spells`, `abilities`, `items`, `class_abilities`, `class_leveling`, `class_spells`, `race_abilities`, and `spell_class` rows whose class and spell IDs belong to that ruleset.
-- A **subset** of shared lookups (`ability_categories`, `item_categories`, `item_types`)—only rows referenced by exported abilities or items—so the file is self-contained.
+- `gamesystem.json` — required metadata: `name` (maps to `ruleset.name`), optional `description` (accepted in the file; not stored until `ruleset` gains a description column).
+- One JSON file per catalog table (`CLASSES.json`, `RACES.json`, `SPELLS.json`, `ABILITIES.json`, `ITEMS.json`, junctions, plus shared `ABILITY_CATEGORIES.json` / `ITEM_CATEGORIES.json` / `ITEM_TYPES.json`).
+- `PENDING_CHANGES.json` is ignored by the importer.
 
-**What they omit**
+**Import** ([`backend/scripts/import-ruleset.js`](../backend/scripts/import-ruleset.js))
 
-- Campaigns, characters, and all `character_*` tables (user/instance data). See “Summary pitfall for automation” below.
+```bash
+cd backend
+npm run import-ruleset -- --dir ../GameSystems/BasicFantasy_Enhanced
+```
 
-**Mechanics**
+Mechanics:
 
-- Wrapped in a single transaction (`BEGIN` / `COMMIT`).
-- `ruleset_id` in catalog rows is resolved with `SELECT id FROM public.ruleset WHERE name = …` so the script does not depend on a fixed serial id for the ruleset row.
-- The `ruleset` row upserts on unique `name`. Shared lookups upsert on primary key `id`. Core catalog rows (`classes`, `races`, `spells`, `abilities`, `items`) upsert on primary key `id` so numeric IDs stay stable for junction tables (`spell_class`, `class_abilities`, …). Junction rows upsert on their primary keys defined in [`schema.sql`](schema.sql).
-- Regeneration ([`backend/scripts/export-ruleset.js`](../backend/scripts/export-ruleset.js)): if the target ruleset name is missing from the database, catalog is still read from `ruleset_id` matching `Default`, then `1`, or from `--from-ruleset-id`; the generated file inserts the target ruleset name first so applying it defines **Basic Fantasy Enhanced** (or `--ruleset-name`) and associates every catalog row.
+- Single transaction; `--dry-run` runs the same path then `ROLLBACK`.
+- **Replace** (not upsert): after ensuring the `ruleset` row, deletes that ruleset’s junctions and catalog (`classes`, `races`, `spells`, `abilities`, `items`), then inserts from JSON. Shared lookups (`ability_categories`, `item_categories`, `item_types`) are matched by **name** and are not wiped.
+- Aborts if any `characters` rows still have that `ruleset_id` (instance data would block or orphan under `ON DELETE RESTRICT`).
+- Destination PKs are newly allocated (prefer a free source id when available); JSON/Firebird `ID` values exist only to remap references during the import.
+- All writes use parameterized queries.
 
-**Maintenance**
+Multiple rulesets (e.g. Core and Enhanced) can coexist: each gets its own `ruleset_id` and distinct catalog ids.
 
-If you change unique constraints or column sets in **`schema.sql`**, update [`backend/scripts/export-ruleset.js`](../backend/scripts/export-ruleset.js) so generated SQL matches (conflict targets and column lists). Regenerate affected files with `npm run export-ruleset` in `backend/`.
+## Legacy SQL snapshots (`database/rulesets/*.sql`)
+
+Older catalog-only PostgreSQL upsert scripts may still exist under `database/rulesets/`. They are **not** the preferred publish path (string handling corrupted apostrophes in some dumps). Prefer JSON import above. The optional exporter [`backend/scripts/export-ruleset.js`](../backend/scripts/export-ruleset.js) can still emit SQL from a live DB if needed.
 
 ## Ruleset-scoped instance and user data
 
