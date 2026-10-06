@@ -216,7 +216,6 @@ CREATE TABLE IF NOT EXISTS public."characters" (
 	notes text NULL,
 	quasiclass int4 NULL,
 	"level" int4 NULL,
-	ac int4 NULL,
 	xp int4 NULL,
 	skillpoints int4 NULL,
 	"money" int4 NULL,
@@ -232,6 +231,9 @@ CREATE TABLE IF NOT EXISTS public."characters" (
 	CONSTRAINT characters_ruleset_id_fkey FOREIGN KEY (ruleset_id) REFERENCES public.ruleset(id) ON DELETE RESTRICT
 );
 CREATE INDEX IF NOT EXISTS characters_characters_modified ON public.characters USING btree (modified);
+
+-- Armor class is derived from equipped armor, shield, and Dexterity. Drop the stored column on existing databases.
+ALTER TABLE public.characters DROP COLUMN IF EXISTS ac;
 
 
 -- public.character_classes definition (character 1-n classes; primary = lowest sort_order, then class_id)

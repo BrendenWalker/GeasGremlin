@@ -19,6 +19,7 @@ import {
   getCharacterTransfers,
   updateTransfer,
 } from '../api/api';
+import { armorClass, formatArmorClass } from '../utils/armorClass.mjs';
 
 const TAB_IDS_GM = ['info', 'combat', 'spellbook', 'inventory'];
 const TAB_IDS_PLAYER = ['info', 'combat', 'spellbook', 'inventory', 'adventuring'];
@@ -51,6 +52,18 @@ function coinsDisplay(cp) {
   if (sp) parts.push(`${sp} SP`);
   if (co) parts.push(`${co} CP`);
   return parts.length ? parts.join(', ') : '0 CP';
+}
+
+// ponytail: PUT /characters returns the row only. Keep lists from GET until that response includes them.
+function keepLoadedLists(prev, row) {
+  return {
+    ...(prev || {}),
+    ...row,
+    items: prev?.items ?? [],
+    spells: prev?.spells ?? [],
+    abilities: prev?.abilities ?? [],
+    next_level_xp: prev?.next_level_xp ?? null,
+  };
 }
 
 export default function CharacterDetailPage({ playerMode = false }) {
@@ -115,23 +128,30 @@ export default function CharacterDetailPage({ playerMode = false }) {
   }, [playerMode, id]);
 
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
     setError(null);
-    Promise.all([
-      getCharacter(id).then((r) => r.data),
-      getRaces().then((r) => r.data || []),
-      getClasses().then((r) => r.data || []),
-      getSpells().then((r) => r.data || []),
-      getItems().then((r) => r.data || []),
-    ])
-      .then(([char, r, c, sp, it]) => {
+    getCharacter(id)
+      .then((r) => r.data)
+      .then((char) => {
+        if (cancelled) return null;
+        // Lists follow this character's ruleset. The header selection is for browsing and new characters.
+        return Promise.all([
+          getRaces(char.ruleset_id).then((r) => r.data || []),
+          getClasses(char.ruleset_id).then((r) => r.data || []),
+          getSpells(char.ruleset_id).then((r) => r.data || []),
+          getItems(char.ruleset_id).then((r) => r.data || []),
+        ]).then(([races, classes, spells, items]) => [char, races, classes, spells, items]);
+      })
+      .then((loaded) => {
+        if (cancelled || !loaded) return;
+        const [char, r, c, sp, it] = loaded;
         setCharacter(char);
         setForm({
           name: char.name,
           level: char.level,
           xp: char.xp,
           hp: char.hp,
-          ac: char.ac,
           str: char.str,
           int: char.int,
           wis: char.wis,
@@ -165,9 +185,12 @@ export default function CharacterDetailPage({ playerMode = false }) {
           if (parts.length) msg = parts.join(' — ');
           else if (Object.keys(data).length) msg = JSON.stringify(data);
         } else if (err.message) msg = err.message;
-        setError(msg);
+        if (!cancelled) setError(msg);
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
   }, [id]);
 
   const handleSave = (e) => {
@@ -175,7 +198,7 @@ export default function CharacterDetailPage({ playerMode = false }) {
     setSaving(true);
     updateCharacter(id, form)
       .then((r) => {
-        setCharacter(r.data);
+        setCharacter((prev) => keepLoadedLists(prev, r.data));
         setEditing(false);
       })
       .catch((err) => setError(err.response?.data?.error || err.message))
@@ -192,7 +215,7 @@ export default function CharacterDetailPage({ playerMode = false }) {
     }[slot];
     if (!key) return;
     updateCharacter(id, { [key]: characterItemId ? parseInt(characterItemId, 10) : null })
-      .then((r) => setCharacter(r.data))
+      .then((r) => setCharacter((prev) => keepLoadedLists(prev, r.data)))
       .catch((err) => setError(err.response?.data?.error || err.message));
   };
 
@@ -229,7 +252,7 @@ export default function CharacterDetailPage({ playerMode = false }) {
   const handleHpChange = (delta) => {
     const newHp = Math.max(0, (character.hp ?? 0) + delta);
     updateCharacter(id, { hp: newHp })
-      .then((r) => { setCharacter(r.data); setHpAdjust(null); })
+      .then((r) => { setCharacter((prev) => keepLoadedLists(prev, r.data)); setHpAdjust(null); })
       .catch((err) => setError(err.response?.data?.error || err.message));
   };
 
@@ -298,7 +321,7 @@ export default function CharacterDetailPage({ playerMode = false }) {
               <h2>Edit character</h2>
               <form onSubmit={handleSave}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
-                  {['name', 'level', 'xp', 'hp', 'ac'].map((key) => (
+                  {['name', 'level', 'xp', 'hp'].map((key) => (
                     <div key={key}>
                       <label style={{ display: 'block', marginBottom: 2 }}>{key.toUpperCase()}</label>
                       <input
@@ -385,7 +408,7 @@ export default function CharacterDetailPage({ playerMode = false }) {
               </div>
               <div style={{ marginTop: '1rem', display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
                 <span>HP {character.hp ?? '—'}</span>
-                <span>AC {character.ac ?? '—'}</span>
+                <span>AC {formatArmorClass(armorClass(character))}</span>
                 <span>Money {coinsDisplay(character.money)}</span>
               </div>
               {(character.gender || character.age || character.hair || character.eyes || character.height || character.weight) && (
@@ -515,7 +538,7 @@ export default function CharacterDetailPage({ playerMode = false }) {
             </div>
           </div>
           <div style={{ marginTop: '1rem' }}>
-            <strong>AC</strong> {character.ac ?? '—'}
+            <strong>AC</strong> {formatArmorClass(armorClass(character))}
           </div>
           {character.abilities?.length > 0 && (
             <div style={{ marginTop: '1rem' }}>
@@ -648,7 +671,7 @@ export default function CharacterDetailPage({ playerMode = false }) {
             onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
             onBlur={() => {
               if (form.notes !== character?.notes) {
-                updateCharacter(id, { notes: form.notes }).then((r) => setCharacter(r.data)).catch(() => {});
+                updateCharacter(id, { notes: form.notes }).then((r) => setCharacter((prev) => keepLoadedLists(prev, r.data))).catch(() => {});
               }
             }}
             rows={8}

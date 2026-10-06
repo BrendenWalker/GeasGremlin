@@ -12,10 +12,7 @@ export default function HomePage() {
       </p>
       <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
         <Link to="/campaigns" className="btn btn-primary">Campaigns</Link>
-        <Link to="/races" className="btn btn-secondary">Races</Link>
-        <Link to="/classes" className="btn btn-secondary">Classes</Link>
-        <Link to="/spells" className="btn btn-secondary">Spells</Link>
-        <Link to="/items" className="btn btn-secondary">Items</Link>
+        <Link to="/rulesets" className="btn btn-secondary">Ruleset</Link>
       </div>
     </div>
   );

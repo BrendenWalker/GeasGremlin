@@ -33,16 +33,22 @@ export const setCharacterSpellMemorized = (characterId, spellId, memorized) =>
   api.put(`/characters/${characterId}/spells/${spellId}`, { memorized });
 export const castCharacterSpell = (characterId, spellId) => api.post(`/characters/${characterId}/spells/${spellId}/cast`);
 
-// Reference data
-export const getRaces = () => api.get('/races');
+// Reference data. Pass rulesetId to limit a list to one ruleset; omit it to load every ruleset.
+function rulesetParams(rulesetId) {
+  if (rulesetId == null || rulesetId === '') return {};
+  return { ruleset_id: rulesetId };
+}
+
+export const getRulesets = () => api.get('/rulesets');
+export const getRaces = (rulesetId) => api.get('/races', { params: rulesetParams(rulesetId) });
 export const getRace = (id) => api.get(`/races/${id}`);
-export const getClasses = () => api.get('/classes');
+export const getClasses = (rulesetId) => api.get('/classes', { params: rulesetParams(rulesetId) });
 export const getClass = (id) => api.get(`/classes/${id}`);
 export const getClassLeveling = (id) => api.get(`/classes/${id}/leveling`);
 export const getAbilities = () => api.get('/abilities');
-export const getSpells = () => api.get('/spells');
+export const getSpells = (rulesetId) => api.get('/spells', { params: rulesetParams(rulesetId) });
 export const getSpell = (id) => api.get(`/spells/${id}`);
-export const getItems = () => api.get('/items');
+export const getItems = (rulesetId) => api.get('/items', { params: rulesetParams(rulesetId) });
 export const getItem = (id) => api.get(`/items/${id}`);
 export const getAbilityCategories = () => api.get('/ability-categories');
 export const getItemCategories = () => api.get('/item-categories');

@@ -1,42 +1,91 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Navigate, useParams } from 'react-router-dom';
 import { getClasses } from '../api/api';
+import FormattedText from '../components/FormattedText';
+import CatalogTabs from '../components/CatalogTabs';
+import { AbilityTable, LevelingTable, SpellSlotTable, StatList } from '../components/CatalogDetails';
+import { abilityRequirements } from '../utils/formatText';
 
 export default function ClassesPage() {
+  const { rulesetId, entryId } = useParams();
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [loadedFor, setLoadedFor] = useState(rulesetId);
+
+  if (loadedFor !== rulesetId) {
+    setLoadedFor(rulesetId);
+    setClasses([]);
+    setLoading(true);
+    setError(null);
+  }
 
   useEffect(() => {
-    getClasses()
-      .then((res) => setClasses(res.data || []))
-      .catch((err) => setError(err.response?.data?.error || err.message))
-      .finally(() => setLoading(false));
-  }, []);
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    getClasses(rulesetId)
+      .then((res) => {
+        if (!cancelled) setClasses(res.data || []);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err.response?.data?.error || err.message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [rulesetId]);
+
+  if (!loading && !error && loadedFor === rulesetId && !entryId && classes.length > 0) {
+    return <Navigate to={`/rulesets/${rulesetId}/classes/${classes[0].id}`} replace />;
+  }
+
+  const selected = classes.find((row) => String(row.id) === String(entryId));
 
   return (
-    <div className="card">
-      <h2>Classes</h2>
-      <p style={{ color: '#8a7f72', marginBottom: '1rem' }}>Reference data for your game system.</p>
-      {error && <p style={{ color: '#c95858', marginBottom: '0.5rem' }}>{error}</p>}
+    <section>
+      {error && <p className="catalog-error">{error}</p>}
       {loading ? (
-        <p style={{ color: '#8a7f72' }}>Loading…</p>
+        <p className="muted">Loading…</p>
+      ) : error ? null : classes.length === 0 ? (
+        <p className="muted">No classes in this ruleset.</p>
       ) : (
-        <ul style={{ listStyle: 'none' }}>
-          {classes.map((c) => (
-            <li
-              key={c.id}
-              style={{
-                padding: '0.75rem 0',
-                borderBottom: '1px solid #3d3530',
-              }}
-            >
-              <strong style={{ color: '#c9a227' }}>{c.name}</strong>
-              {c.description && <p style={{ color: '#b8b0a0', marginTop: 4, fontSize: '0.9rem' }}>{c.description}</p>}
-            </li>
-          ))}
-          {classes.length === 0 && !loading && <li style={{ color: '#8a7f72' }}>No classes in database.</li>}
-        </ul>
+        <>
+          <CatalogTabs
+            items={classes}
+            label="Classes"
+            to={(row) => `/rulesets/${rulesetId}/classes/${row.id}`}
+          />
+          {selected ? (
+            <article className="catalog-entry">
+              <h4 className="catalog-name">{selected.name}</h4>
+              <StatList
+                items={[
+                  { label: 'Hit die', value: selected.hitdie != null ? `d${selected.hitdie}` : null },
+                  { label: 'Subclass of', value: selected.subclass_name },
+                  { label: 'Requirements', value: abilityRequirements(selected) },
+                  { label: 'XP adjustment', value: selected.xpadjustment },
+                  { label: 'Armor', value: selected.armor ? <FormattedText text={selected.armor} /> : null },
+                  { label: 'Weapons', value: selected.weapons ? <FormattedText text={selected.weapons} /> : null },
+                ]}
+              />
+              {selected.description && (
+                <div className="catalog-section">
+                  <FormattedText text={selected.description} />
+                </div>
+              )}
+              <AbilityTable abilities={selected.abilities} />
+              <LevelingTable rows={selected.leveling} />
+              <SpellSlotTable rows={selected.spell_slots} />
+            </article>
+          ) : (
+            <p className="muted">That class is not in this ruleset.</p>
+          )}
+        </>
       )}
-    </div>
+    </section>
   );
 }

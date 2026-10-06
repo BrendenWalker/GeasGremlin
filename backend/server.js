@@ -262,18 +262,24 @@ app.post('/api/campaigns/:campaignId/characters', async (req, res) => {
     const campaignId = req.params.campaignId;
     const {
       name, user, gender, age, hair, eyes, height, weight, race, class: classId,
-      str, int: intVal, wis, dex, con, chr, hp, notes, quasiclass, level, ac, xp, skillpoints, money
+      str, int: intVal, wis, dex, con, chr, hp, notes, quasiclass, level, xp, skillpoints, money,
+      ruleset_id: rulesetRaw,
     } = req.body;
+    const rulesetId = parseRulesetId(rulesetRaw);
+    if (rulesetId == null) {
+      return res.status(400).json({ error: 'ruleset_id must be a positive integer' });
+    }
     const idResult = await pool.query('SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM characters');
     const nextId = idResult.rows[0].next_id;
     const result = await pool.query(
       `INSERT INTO characters (id, name, "user", gender, age, hair, eyes, height, weight, race,
-       str, "int", wis, dex, con, chr, hp, notes, quasiclass, level, ac, xp, skillpoints, money)
+       str, "int", wis, dex, con, chr, hp, notes, quasiclass, level, xp, skillpoints, money, ruleset_id)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
        RETURNING *`,
       [nextId, name || 'Unnamed', user || 'TEMP$USER', gender || null, age ?? null, hair || null, eyes || null, height || null, weight || null,
         race ?? null, str ?? null, intVal ?? null, wis ?? null, dex ?? null, con ?? null, chr ?? null,
-        hp ?? null, notes || null, quasiclass ?? null, level ?? 1, ac ?? null, xp ?? 0, skillpoints ?? null, money ?? null]
+        hp ?? null, notes || null, quasiclass ?? null, level ?? 1, xp ?? 0, skillpoints ?? null, money ?? null,
+        rulesetId]
     );
     const newId = result.rows[0].id;
     await pool.query(
@@ -307,7 +313,7 @@ app.post('/api/campaigns/:campaignId/characters', async (req, res) => {
       return res.status(409).json({ error: 'Character name already exists' });
     }
     if (error.code === '23503') {
-      return res.status(400).json({ error: 'Invalid campaign, race, or class reference' });
+      return res.status(400).json({ error: 'Invalid campaign, race, class, or ruleset reference' });
     }
     if (error.code === '42P01') {
       return res.status(503).json({ error: 'Characters table does not exist. Run the full database/schema.sql on your rpghub database (see README).' });
@@ -334,7 +340,7 @@ app.put('/api/characters/:id', async (req, res) => {
     const body = req.body;
     const allowed = [
       'name', 'user', 'gender', 'age', 'hair', 'eyes', 'height', 'weight', 'race',
-      'str', 'int', 'wis', 'dex', 'con', 'chr', 'hp', 'notes', 'quasiclass', 'level', 'ac', 'xp', 'skillpoints', 'money',
+      'str', 'int', 'wis', 'dex', 'con', 'chr', 'hp', 'notes', 'quasiclass', 'level', 'xp', 'skillpoints', 'money',
       'equipped_melee_primary_id', 'equipped_melee_secondary_id', 'equipped_ranged_id', 'equipped_armor_id', 'equipped_shield_id'
     ];
     const merged = { ...row };
@@ -350,14 +356,14 @@ app.put('/api/characters/:id', async (req, res) => {
       `UPDATE characters SET
        name = $1, "user" = $2, gender = $3, age = $4, hair = $5, eyes = $6, height = $7, weight = $8,
        race = $9, str = $10, "int" = $11, wis = $12, dex = $13, con = $14, chr = $15,
-       hp = $16, notes = $17, quasiclass = $18, level = $19, ac = $20, xp = $21, skillpoints = $22, money = $23,
-       equipped_melee_primary_id = $24, equipped_melee_secondary_id = $25, equipped_ranged_id = $26,
-       equipped_armor_id = $27, equipped_shield_id = $28,
+       hp = $16, notes = $17, quasiclass = $18, level = $19, xp = $20, skillpoints = $21, money = $22,
+       equipped_melee_primary_id = $23, equipped_melee_secondary_id = $24, equipped_ranged_id = $25,
+       equipped_armor_id = $26, equipped_shield_id = $27,
        modified = CURRENT_TIMESTAMP
-       WHERE id = $29`,
+       WHERE id = $28`,
       [merged.name, merged.user, merged.gender, merged.age, merged.hair, merged.eyes, merged.height, merged.weight,
         merged.race, merged.str, merged.int, merged.wis, merged.dex, merged.con, merged.chr,
-        merged.hp, merged.notes, merged.quasiclass, merged.level, merged.ac, merged.xp, merged.skillpoints, merged.money,
+        merged.hp, merged.notes, merged.quasiclass, merged.level, merged.xp, merged.skillpoints, merged.money,
         merged.equipped_melee_primary_id, merged.equipped_melee_secondary_id, merged.equipped_ranged_id,
         merged.equipped_armor_id, merged.equipped_shield_id,
         id]
@@ -582,9 +588,64 @@ app.post('/api/characters/:id/spells/:spellId/cast', async (req, res) => {
 
 // ==================== REFERENCE: RACES, CLASSES, ABILITIES, SPELLS, ITEMS ====================
 
+function parseRulesetId(raw) {
+  const text = typeof raw === 'number' && Number.isInteger(raw) ? String(raw) : raw;
+  if (typeof text !== 'string' || !/^[1-9]\d*$/.test(text)) return null;
+  const id = Number(text);
+  if (!Number.isSafeInteger(id) || id > 2147483647) return null;
+  return id;
+}
+
+/** Optional ?ruleset_id= on catalog lists. Missing means every ruleset. Invalid is 400. */
+function readRulesetFilter(req, res) {
+  if (!Object.prototype.hasOwnProperty.call(req.query, 'ruleset_id')) return { id: null };
+  const id = parseRulesetId(req.query.ruleset_id);
+  if (id == null) {
+    res.status(400).json({ error: 'ruleset_id must be a positive integer' });
+    return null;
+  }
+  return { id };
+}
+
+app.get('/api/rulesets', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id, name FROM ruleset ORDER BY name');
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching rulesets:', error);
+    res.status(500).json({ error: 'Failed to fetch rulesets' });
+  }
+});
+
 app.get('/api/races', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM races ORDER BY name');
+    const filter = readRulesetFilter(req, res);
+    if (!filter) return;
+    const result = filter.id == null
+      ? await pool.query('SELECT * FROM races ORDER BY name')
+      : await pool.query(
+      `SELECT r.*,
+         COALESCE(
+           (SELECT json_agg(
+              json_build_object(
+                'int_param', ra.int_param,
+                'str_param', ra.str_param,
+                'description', a.description,
+                'category_name', ac.name
+              )
+              ORDER BY ac.name NULLS LAST, a.description
+            )
+            FROM race_abilities ra
+            JOIN abilities a ON a.id = ra.ability_id
+            LEFT JOIN ability_categories ac ON ac.id = a.category
+            WHERE ra.race_id = r.id),
+           '[]'::json
+         ) AS abilities
+       FROM races r
+       WHERE r.ruleset_id = $1
+       ORDER BY r.name`,
+      [filter.id]
+    );
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching races:', error);
@@ -607,7 +668,69 @@ app.get('/api/races/:id', async (req, res) => {
 
 app.get('/api/classes', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM classes ORDER BY name');
+    const filter = readRulesetFilter(req, res);
+    if (!filter) return;
+    const result = filter.id == null
+      ? await pool.query('SELECT * FROM classes ORDER BY name')
+      : await pool.query(
+      `SELECT c.*,
+         parent.name AS subclass_name,
+         COALESCE(
+           (SELECT json_agg(
+              json_build_object(
+                'level', ca.level,
+                'int_param', ca.int_param,
+                'str_param', ca.str_param,
+                'description', a.description,
+                'category_name', ac.name
+              )
+              ORDER BY ca.level, ac.name NULLS LAST, a.description
+            )
+            FROM class_abilities ca
+            JOIN abilities a ON a.id = ca.ability_id
+            LEFT JOIN ability_categories ac ON ac.id = a.category
+            WHERE ca.class_id = c.id),
+           '[]'::json
+         ) AS abilities,
+         COALESCE(
+           (SELECT json_agg(
+              json_build_object(
+                'level', cl.level,
+                'xp', cl.xp,
+                'hd', cl.hd,
+                'hp', cl.hp,
+                'ab', cl.ab
+              )
+              ORDER BY cl.level
+            )
+            FROM class_leveling cl
+            WHERE cl.class_id = c.id),
+           '[]'::json
+         ) AS leveling,
+         COALESCE(
+           (SELECT json_agg(
+              json_build_object(
+                'char_level', cs.char_level,
+                'level1', cs.level1,
+                'level2', cs.level2,
+                'level3', cs.level3,
+                'level4', cs.level4,
+                'level5', cs.level5,
+                'level6', cs.level6,
+                'level7', cs.level7
+              )
+              ORDER BY cs.char_level
+            )
+            FROM class_spells cs
+            WHERE cs.class_id = c.id),
+           '[]'::json
+         ) AS spell_slots
+       FROM classes c
+       LEFT JOIN classes parent ON parent.id = c.subclass_of
+       WHERE c.ruleset_id = $1
+       ORDER BY c.name`,
+      [filter.id]
+    );
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching classes:', error);
@@ -655,7 +778,14 @@ app.get('/api/abilities', async (req, res) => {
 
 app.get('/api/spells', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM spells ORDER BY name');
+    const filter = readRulesetFilter(req, res);
+    if (!filter) return;
+    const result = await pool.query(
+      `SELECT * FROM spells
+       WHERE ($1::int IS NULL OR ruleset_id = $1)
+       ORDER BY name`,
+      [filter.id]
+    );
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching spells:', error);
@@ -678,12 +808,16 @@ app.get('/api/spells/:id', async (req, res) => {
 
 app.get('/api/items', async (req, res) => {
   try {
+    const filter = readRulesetFilter(req, res);
+    if (!filter) return;
     const result = await pool.query(
       `SELECT i.*, ic.name as category_name, it.name as type_name
        FROM items i
        LEFT JOIN item_categories ic ON i.category = ic.id
        LEFT JOIN item_types it ON i.type = it.id
-       ORDER BY i.name`
+       WHERE ($1::int IS NULL OR i.ruleset_id = $1)
+       ORDER BY i.name`,
+      [filter.id]
     );
     res.json(result.rows);
   } catch (error) {
