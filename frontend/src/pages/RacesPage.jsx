@@ -67,8 +67,6 @@ export default function RacesPage() {
                   { label: 'Avg height', value: selected.avgheight },
                   { label: 'Avg weight', value: selected.avgweight },
                   { label: 'Requirements', value: abilityRequirements(selected) },
-                  { label: 'XP adjustment', value: selected.xpadjustment },
-                  { label: 'Ranged bonus', value: selected.rangedbonus },
                   { label: 'Max HD', value: selected.max_hd },
                   { label: 'HD modifier', value: selected.hd_mod },
                   { label: 'Armor', value: selected.armor ? <FormattedText text={selected.armor} /> : null },

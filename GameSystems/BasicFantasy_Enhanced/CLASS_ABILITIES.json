@@ -5079,5 +5079,133 @@
 		"INT_PARAM" : null,
 		"STR_PARAM" : null,
 		"MODIFIED" : "2021-09-04 14:18:32.777"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 39,
+		"LEVEL" : 1,
+		"INT_PARAM" : 6,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 39,
+		"LEVEL" : 1,
+		"INT_PARAM" : 8,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 39,
+		"LEVEL" : 1,
+		"INT_PARAM" : 4,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 39,
+		"LEVEL" : 1,
+		"INT_PARAM" : 4,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"CLASS_ID" : 6,
+		"ABILITY_ID" : 39,
+		"LEVEL" : 1,
+		"INT_PARAM" : 6,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"CLASS_ID" : 7,
+		"ABILITY_ID" : 39,
+		"LEVEL" : 1,
+		"INT_PARAM" : 4,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"CLASS_ID" : 8,
+		"ABILITY_ID" : 39,
+		"LEVEL" : 1,
+		"INT_PARAM" : 4,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"CLASS_ID" : 9,
+		"ABILITY_ID" : 39,
+		"LEVEL" : 1,
+		"INT_PARAM" : 6,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"CLASS_ID" : 10,
+		"ABILITY_ID" : 39,
+		"LEVEL" : 1,
+		"INT_PARAM" : 8,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"CLASS_ID" : 11,
+		"ABILITY_ID" : 39,
+		"LEVEL" : 1,
+		"INT_PARAM" : 8,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"CLASS_ID" : 12,
+		"ABILITY_ID" : 39,
+		"LEVEL" : 1,
+		"INT_PARAM" : 4,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"CLASS_ID" : 100,
+		"ABILITY_ID" : 40,
+		"LEVEL" : 1,
+		"INT_PARAM" : -10,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"CLASS_ID" : 101,
+		"ABILITY_ID" : 40,
+		"LEVEL" : 1,
+		"INT_PARAM" : -10,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"CLASS_ID" : 102,
+		"ABILITY_ID" : 40,
+		"LEVEL" : 1,
+		"INT_PARAM" : -25,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"CLASS_ID" : 103,
+		"ABILITY_ID" : 40,
+		"LEVEL" : 1,
+		"INT_PARAM" : -10,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"CLASS_ID" : 104,
+		"ABILITY_ID" : 40,
+		"LEVEL" : 1,
+		"INT_PARAM" : -10,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2026-10-06 00:00:00"
 	}
 ]}

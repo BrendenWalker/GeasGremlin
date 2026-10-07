@@ -29,5 +29,10 @@
 		"ID" : 6,
 		"NAME" : "Ranged Attack",
 		"MODIFIED" : "2023-03-15 15:50:21.895"
+	},
+	{
+		"ID" : 7,
+		"NAME" : "Attribute",
+		"MODIFIED" : "2026-10-06 00:00:00"
 	}
 ]}

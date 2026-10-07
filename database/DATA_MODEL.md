@@ -20,6 +20,7 @@ Having **`ruleset_id`** does **not** mean “ruleset import catalog.” For exam
 Global category/type lists shared across rulesets in this schema:
 
 - `ability_categories`
+- `stat` — adjustable character values (STR, AC, saves, thief skills, XP, Hit Die, …). `category` references `ability_categories`. An ability may point at one stat; `abilities.stat_modifier` is a fixed catalog delta only. The grant number stays on `class_abilities.int_param` or `race_abilities.int_param`, and the granted instance stays on `character_abilities.mod`. Class hit die (`d%d Hit Die`, level 1) and XP adjustment (`%d%% XP`, race or class) are abilities. Score columns on `characters` (`str`, `int`, `wis`, `dex`, `con`, `chr`, `hp`) stay stored until a later derivation pass.
 - `item_categories`
 - `item_types`
 
@@ -31,10 +32,10 @@ Imported or authored **definition** data for a game system. Typically read-heavy
 
 **Core definitions**
 
-- `classes`
+- `classes` — `is_quasi` marks a quasi-class. It is layered on a base class the player chooses. The base is a `character_classes` row. Hit die comes from that base. The overlay id is `characters.quasiclass`.
 - `races`
 - `spells`
-- `abilities`
+- `abilities` — definition text plus an optional link to `stat` (`stat_id`, `stat_modifier`). Category is no longer stored on the ability.
 - `items`
 
 **Junctions / progression tied to class or race definitions**
@@ -54,7 +55,7 @@ Reference “book” data for a game system is stored as JSON under [`GameSystem
 **Folder contents**
 
 - `gamesystem.json` — required metadata: `name` (maps to `ruleset.name`), optional `description` (accepted in the file; not stored until `ruleset` gains a description column).
-- One JSON file per catalog table (`CLASSES.json`, `RACES.json`, `SPELLS.json`, `ABILITIES.json`, `ITEMS.json`, junctions, plus shared `ABILITY_CATEGORIES.json` / `ITEM_CATEGORIES.json` / `ITEM_TYPES.json`).
+- One JSON file per catalog table (`CLASSES.json`, `RACES.json`, `SPELLS.json`, `ABILITIES.json`, `ITEMS.json`, junctions, plus shared `ABILITY_CATEGORIES.json` / `STATS.json` / `ITEM_CATEGORIES.json` / `ITEM_TYPES.json`).
 - `PENDING_CHANGES.json` is ignored by the importer.
 
 **Import** ([`backend/scripts/import-ruleset.js`](../backend/scripts/import-ruleset.js))
@@ -67,7 +68,7 @@ npm run import-ruleset -- --dir ../GameSystems/BasicFantasy_Enhanced
 Mechanics:
 
 - Single transaction; `--dry-run` runs the same path then `ROLLBACK`.
-- **Replace** (not upsert): after ensuring the `ruleset` row, deletes that ruleset’s junctions and catalog (`classes`, `races`, `spells`, `abilities`, `items`), then inserts from JSON. Shared lookups (`ability_categories`, `item_categories`, `item_types`) are matched by **name** and are not wiped.
+- **Replace** (not upsert): after ensuring the `ruleset` row, deletes that ruleset’s junctions and catalog (`classes`, `races`, `spells`, `abilities`, `items`), then inserts from JSON. Shared lookups (`ability_categories`, `stat`, `item_categories`, `item_types`) are matched by **name** and are not wiped.
 - Aborts if any `characters` rows still have that `ruleset_id` (instance data would block or orphan under `ON DELETE RESTRICT`).
 - Destination PKs are newly allocated (prefer a free source id when available); JSON/Firebird `ID` values exist only to remap references during the import.
 - All writes use parameterized queries.
@@ -102,8 +103,8 @@ Created during play or setup; not bulk “book import” in the same sense as cl
 **Characters and sheets**
 
 - `characters` — **player/GM-owned** rows; **`ruleset_id`** selects which catalog IDs are valid in context.
-- `character_classes` — one row per (character, class), with per-class `class_level` and `sort_order` (primary = lowest `sort_order`, then `class_id`); replaces a single `class` column on `characters`.
-- `character_abilities`, `character_effects`, `character_items`, `character_spells`, `character_spells_cast` — instance state; scoped by `character_id` (and thus indirectly by ruleset through the character).
+- `character_classes` — one row per (character, class), with per-class `class_level` and `sort_order` (primary = lowest `sort_order`, then `class_id`); replaces a single `class` column on `characters`. A quasi-class is not a row here. It is `characters.quasiclass`, and the primary row is the base class the player chose.
+- `character_abilities`, `character_effects`, `character_items`, `character_spells`, `character_spells_cast` — instance state; scoped by `character_id` (and thus indirectly by ruleset through the character). `character_abilities` is the granted ability on a character. Level-up does not copy class abilities onto it yet, and character score columns are not derived from those rows.
 
 **Realtime / messaging (app layer)**
 

@@ -21,6 +21,7 @@ export function AbilityTable({ abilities }) {
   if (!abilities?.length) return null;
   const showLevel = abilities.some((a) => a.level != null);
   const showCategory = abilities.some((a) => a.category_name);
+  const showStat = abilities.some((a) => a.stat_name);
   return (
     <div className="catalog-section">
       <h4>Abilities</h4>
@@ -30,6 +31,7 @@ export function AbilityTable({ abilities }) {
             <tr>
               {showLevel && <th scope="col">Level</th>}
               <th scope="col">Ability</th>
+              {showStat && <th scope="col">Stat</th>}
               {showCategory && <th scope="col">Category</th>}
             </tr>
           </thead>
@@ -42,6 +44,15 @@ export function AbilityTable({ abilities }) {
                     text={formatAbilityText(ability.description, ability.int_param, ability.str_param)}
                   />
                 </td>
+                {showStat && (
+                  <td>
+                    {ability.stat_name
+                      ? ability.stat_modifier != null
+                        ? `${ability.stat_name} (${ability.stat_modifier > 0 ? '+' : ''}${ability.stat_modifier})`
+                        : ability.stat_name
+                      : '—'}
+                  </td>
+                )}
                 {showCategory && <td>{ability.category_name || '—'}</td>}
               </tr>
             ))}

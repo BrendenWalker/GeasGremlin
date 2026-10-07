@@ -9,13 +9,27 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
 const { createDbPool, testConnection } = require('./db-config');
+const { assignmentError } = require('./classAssignment');
+const {
+  COOKIE,
+  SESSION_SECONDS,
+  hashToken,
+  newToken,
+  hashPassword,
+  checkPassword,
+  readCookie,
+  sessionCookie,
+  clearSessionCookie,
+  usernameOk,
+  passwordOk,
+} = require('./auth');
 
 const app = express();
 const port = process.env.PORT || 8140;
 
 let isReady = false;
 
-app.use(cors());
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 
 const pool = createDbPool({
@@ -25,19 +39,209 @@ const pool = createDbPool({
 testConnection(pool);
 
 /** Subqueries for primary class + labels (characters.class column removed; use character_classes). */
-const SQL_CHAR_CLASS_NAME =
-  '(SELECT string_agg(cl.name, \', \' ORDER BY cc.sort_order, cc.class_id) FROM character_classes cc JOIN classes cl ON cl.id = cc.class_id WHERE cc.character_id = c.id)';
+const SQL_CHAR_CLASS_NAME = `(SELECT CASE
+  WHEN c.quasiclass IS NULL THEN (
+    SELECT string_agg(cl.name, ', ' ORDER BY cc.sort_order, cc.class_id)
+    FROM character_classes cc
+    JOIN classes cl ON cl.id = cc.class_id
+    WHERE cc.character_id = c.id
+  )
+  ELSE (
+    SELECT qc.name || COALESCE(' (' || string_agg(cl.name, ', ' ORDER BY cc.sort_order, cc.class_id) || ')', '')
+    FROM classes qc
+    LEFT JOIN character_classes cc ON cc.character_id = c.id
+    LEFT JOIN classes cl ON cl.id = cc.class_id
+    WHERE qc.id = c.quasiclass
+    GROUP BY qc.name
+  )
+END)`;
 const SQL_CHAR_PRIMARY_CLASS_ID =
   '(SELECT cc.class_id FROM character_classes cc WHERE cc.character_id = c.id ORDER BY cc.sort_order, cc.class_id LIMIT 1)';
 const SQL_CHAR_CLASSES_JSON =
   '(SELECT json_agg(json_build_object(\'class_id\', cc.class_id, \'class_level\', cc.class_level, \'sort_order\', cc.sort_order, \'name\', cl.name) ORDER BY cc.sort_order, cc.class_id) FROM character_classes cc JOIN classes cl ON cl.id = cc.class_id WHERE cc.character_id = c.id)';
+
+async function readClass(id) {
+  if (id == null || id === '') return { row: null };
+  const n = Number(id);
+  if (!Number.isInteger(n) || n < 1) return { error: 'Invalid class' };
+  const result = await pool.query(
+    'SELECT id, ruleset_id, is_quasi FROM classes WHERE id = $1',
+    [n]
+  );
+  if (result.rows.length === 0) return { error: 'Invalid class' };
+  return { row: result.rows[0] };
+}
+
+function primaryClassIdFromBody(body, fallback) {
+  if (Object.prototype.hasOwnProperty.call(body, 'character_classes') && Array.isArray(body.character_classes)) {
+    const rows = body.character_classes.filter((cc) => cc && cc.class_id != null && cc.class_id !== '');
+    if (rows.length === 0) return null;
+    rows.sort((a, b) => {
+      const so = (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0);
+      if (so !== 0) return so;
+      return Number(a.class_id) - Number(b.class_id);
+    });
+    return rows[0].class_id;
+  }
+  return fallback;
+}
+
+async function classAssignmentMessage(rulesetId, classId, quasiclassId) {
+  const base = await readClass(classId);
+  if (base.error) return base.error;
+  const quasi = await readClass(quasiclassId);
+  if (quasi.error) return quasi.error;
+  return assignmentError(rulesetId, base.row, quasi.row);
+}
+
+async function loadSessionUser(req) {
+  const token = readCookie(req, COOKIE);
+  if (!token) return null;
+  const result = await pool.query(
+    `SELECT u.id, u.username
+     FROM app_session s
+     JOIN app_user u ON u.id = s.user_id
+     WHERE s.token_hash = $1 AND s.expires_at > CURRENT_TIMESTAMP`,
+    [hashToken(token)]
+  );
+  return result.rows[0] || null;
+}
+
+async function startSession(res, userId) {
+  const token = newToken();
+  await pool.query(
+    `INSERT INTO app_session (token_hash, user_id, expires_at)
+     VALUES ($1, $2, CURRENT_TIMESTAMP + ($3 * INTERVAL '1 second'))`,
+    [hashToken(token), userId, SESSION_SECONDS]
+  );
+  res.setHeader('Set-Cookie', sessionCookie(token));
+}
+
+app.post('/api/register', async (req, res) => {
+  const username = (req.body?.username || '').trim();
+  const password = req.body?.password || '';
+  if (!usernameOk(username)) {
+    return res.status(400).json({ error: 'Username must be 3–80 letters, numbers, or underscores' });
+  }
+  if (!passwordOk(password)) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters' });
+  }
+  try {
+    const passwordHash = await hashPassword(password);
+    const created = await pool.query(
+      'INSERT INTO app_user (username, password_hash) VALUES ($1, $2) RETURNING id, username',
+      [username, passwordHash]
+    );
+    await startSession(res, created.rows[0].id);
+    res.status(201).json(created.rows[0]);
+  } catch (error) {
+    if (error.code === '23505') return res.status(409).json({ error: 'Username is already taken' });
+    if (error.code === '42P01') {
+      return res.status(503).json({ error: 'Account tables are missing. Apply database/schema.sql.' });
+    }
+    console.error('Error registering user:', error);
+    res.status(500).json({ error: 'Failed to register' });
+  }
+});
+
+app.post('/api/login', async (req, res) => {
+  const username = (req.body?.username || '').trim();
+  const password = req.body?.password || '';
+  try {
+    const found = await pool.query(
+      'SELECT id, username, password_hash FROM app_user WHERE lower(username) = lower($1)',
+      [username]
+    );
+    const user = found.rows[0];
+    if (!user || !(await checkPassword(password, user.password_hash))) {
+      return res.status(401).json({ error: 'Unknown username or password' });
+    }
+    await startSession(res, user.id);
+    res.json({ id: user.id, username: user.username });
+  } catch (error) {
+    if (error.code === '42P01') {
+      return res.status(503).json({ error: 'Account tables are missing. Apply database/schema.sql.' });
+    }
+    console.error('Error logging in:', error);
+    res.status(500).json({ error: 'Failed to log in' });
+  }
+});
+
+app.post('/api/logout', async (req, res) => {
+  const token = readCookie(req, COOKIE);
+  if (token) {
+    await pool.query('DELETE FROM app_session WHERE token_hash = $1', [hashToken(token)]).catch(() => {});
+  }
+  res.setHeader('Set-Cookie', clearSessionCookie());
+  res.json({ ok: true });
+});
+
+app.use(async (req, res, next) => {
+  if (req.method === 'GET' && req.path === '/api/health') return next();
+  try {
+    const user = await loadSessionUser(req);
+    if (!user) return res.status(401).json({ error: 'Login required' });
+    req.user = user;
+    next();
+  } catch (error) {
+    if (error.code === '42P01') {
+      return res.status(503).json({ error: 'Account tables are missing. Apply database/schema.sql.' });
+    }
+    console.error('Error reading session:', error);
+    res.status(500).json({ error: 'Failed to read session' });
+  }
+});
+
+app.get('/api/me', (req, res) => {
+  res.json({ id: req.user.id, username: req.user.username });
+});
+
+async function requireCampaign(req, res, campaignId, gmOnly) {
+  const result = await pool.query(
+    'SELECT role, status FROM campaign_member WHERE user_id = $1 AND campaign_id = $2',
+    [req.user.id, campaignId]
+  );
+  const row = result.rows[0];
+  if (!row || row.status !== 'accepted' || (gmOnly && row.role !== 'gm')) {
+    res.status(404).json({ error: 'Campaign not found' });
+    return null;
+  }
+  return row;
+}
+
+async function characterGate(req, res, characterId, edit) {
+  const result = await pool.query(
+    `SELECT m.role, c."user"
+     FROM campaign_character cc
+     JOIN campaign_member m ON m.campaign_id = cc.campaign_id AND m.user_id = $1 AND m.status = 'accepted'
+     JOIN characters c ON c.id = cc.character_id
+     WHERE cc.character_id = $2`,
+    [req.user.id, characterId]
+  );
+  if (result.rows.length === 0) {
+    res.status(404).json({ error: 'Character not found' });
+    return null;
+  }
+  const gm = result.rows.some((row) => row.role === 'gm');
+  const owner = String(result.rows[0].user || '').toLowerCase() === req.user.username.toLowerCase();
+  if (edit && !gm && !owner) {
+    res.status(404).json({ error: 'Character not found' });
+    return null;
+  }
+  return { gm, owner };
+}
 
 // ==================== CAMPAIGNS ====================
 
 app.get('/api/campaigns', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT * FROM campaign ORDER BY name'
+      `SELECT c.*, m.role
+       FROM campaign c
+       JOIN campaign_member m ON m.campaign_id = c.id
+       WHERE m.user_id = $1 AND m.status = 'accepted'
+       ORDER BY c.name`,
+      [req.user.id]
     );
     res.json(result.rows);
   } catch (error) {
@@ -51,11 +255,13 @@ app.get('/api/campaigns', async (req, res) => {
 
 app.get('/api/campaigns/:id', async (req, res) => {
   try {
+    const member = await requireCampaign(req, res, req.params.id, false);
+    if (!member) return;
     const result = await pool.query('SELECT * FROM campaign WHERE id = $1', [req.params.id]);
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Campaign not found' });
     }
-    res.json(result.rows[0]);
+    res.json({ ...result.rows[0], role: member.role });
   } catch (error) {
     console.error('Error fetching campaign:', error);
     res.status(500).json({ error: 'Failed to fetch campaign' });
@@ -69,7 +275,12 @@ app.post('/api/campaigns', async (req, res) => {
       'INSERT INTO campaign (name) VALUES ($1) RETURNING *',
       [name]
     );
-    res.status(201).json(result.rows[0]);
+    await pool.query(
+      `INSERT INTO campaign_member (campaign_id, user_id, role, status)
+       VALUES ($1, $2, 'gm', 'accepted')`,
+      [result.rows[0].id, req.user.id]
+    );
+    res.status(201).json({ ...result.rows[0], role: 'gm' });
   } catch (error) {
     console.error('Error creating campaign:', error);
     if (error.code === '23505') {
@@ -84,6 +295,8 @@ app.post('/api/campaigns', async (req, res) => {
 
 app.put('/api/campaigns/:id', async (req, res) => {
   try {
+    const member = await requireCampaign(req, res, req.params.id, true);
+    if (!member) return;
     const { name } = req.body;
     const result = await pool.query(
       'UPDATE campaign SET name = $1, modified = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
@@ -101,6 +314,8 @@ app.put('/api/campaigns/:id', async (req, res) => {
 
 app.delete('/api/campaigns/:id', async (req, res) => {
   try {
+    const member = await requireCampaign(req, res, req.params.id, true);
+    if (!member) return;
     const result = await pool.query('DELETE FROM campaign WHERE id = $1 RETURNING *', [req.params.id]);
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Campaign not found' });
@@ -112,10 +327,92 @@ app.delete('/api/campaigns/:id', async (req, res) => {
   }
 });
 
+app.get('/api/invites', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT c.id, c.name
+       FROM campaign_member m
+       JOIN campaign c ON c.id = m.campaign_id
+       WHERE m.user_id = $1 AND m.status = 'invited'
+       ORDER BY c.name`,
+      [req.user.id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error listing invites:', error);
+    res.status(500).json({ error: 'Failed to list invites' });
+  }
+});
+
+app.post('/api/campaigns/:id/members', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.id, true);
+    if (!member) return;
+    const username = (req.body?.username || '').trim();
+    if (!usernameOk(username)) {
+      return res.status(400).json({ error: 'Username must be 3–80 letters, numbers, or underscores' });
+    }
+    const found = await pool.query(
+      'SELECT id, username FROM app_user WHERE lower(username) = lower($1)',
+      [username]
+    );
+    if (!found.rows[0]) return res.status(400).json({ error: 'Unknown username' });
+    if (found.rows[0].id === req.user.id) return res.status(400).json({ error: 'You already belong to this campaign' });
+    const inserted = await pool.query(
+      `INSERT INTO campaign_member (campaign_id, user_id, role, status)
+       VALUES ($1, $2, 'player', 'invited')
+       ON CONFLICT (campaign_id, user_id) DO NOTHING
+       RETURNING status`,
+      [req.params.id, found.rows[0].id]
+    );
+    if (inserted.rows.length === 0) {
+      return res.status(409).json({ error: 'That user already has an invite or membership' });
+    }
+    res.status(201).json({ username: found.rows[0].username, status: 'invited' });
+  } catch (error) {
+    console.error('Error inviting member:', error);
+    res.status(500).json({ error: 'Failed to invite' });
+  }
+});
+
+app.post('/api/invites/:campaignId/accept', async (req, res) => {
+  try {
+    const updated = await pool.query(
+      `UPDATE campaign_member SET status = 'accepted'
+       WHERE campaign_id = $1 AND user_id = $2 AND status = 'invited'
+       RETURNING campaign_id`,
+      [req.params.campaignId, req.user.id]
+    );
+    if (updated.rows.length === 0) return res.status(404).json({ error: 'Invite not found' });
+    res.json({ campaign_id: updated.rows[0].campaign_id, status: 'accepted' });
+  } catch (error) {
+    console.error('Error accepting invite:', error);
+    res.status(500).json({ error: 'Failed to accept invite' });
+  }
+});
+
+app.post('/api/invites/:campaignId/decline', async (req, res) => {
+  try {
+    const removed = await pool.query(
+      `DELETE FROM campaign_member
+       WHERE campaign_id = $1 AND user_id = $2 AND status = 'invited'
+       RETURNING campaign_id`,
+      [req.params.campaignId, req.user.id]
+    );
+    if (removed.rows.length === 0) return res.status(404).json({ error: 'Invite not found' });
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Error declining invite:', error);
+    res.status(500).json({ error: 'Failed to decline invite' });
+  }
+});
+
 // ==================== CHARACTERS ====================
 
 app.get('/api/campaigns/:campaignId/characters', async (req, res) => {
   try {
+    const member = await requireCampaign(req, res, req.params.campaignId, false);
+    if (!member) return;
     const result = await pool.query(
       `SELECT c.*, r.name as race_name, ${SQL_CHAR_CLASS_NAME} AS class_name
        FROM characters c
@@ -133,6 +430,8 @@ app.get('/api/campaigns/:campaignId/characters', async (req, res) => {
 
 app.get('/api/characters/:id', async (req, res) => {
   try {
+    const gate = await characterGate(req, res, req.params.id, false);
+    if (!gate) return;
     const charResult = await pool.query(
       `SELECT c.*, r.name as race_name, ${SQL_CHAR_CLASS_NAME} AS class_name,
        ${SQL_CHAR_PRIMARY_CLASS_ID} AS class,
@@ -151,12 +450,17 @@ app.get('/api/characters/:id', async (req, res) => {
     let abil = { rows: [] };
     let spells = { rows: [] };
     let items = { rows: [] };
+    let effects = { rows: [] };
+    let casts = { rows: [] };
     try {
-      [abil, spells, items] = await Promise.all([
+      [abil, spells, items, effects, casts] = await Promise.all([
         pool.query(
-          `SELECT ca.*, a.description as ability_description
+          `SELECT ca.*, a.description as ability_description,
+                  a.stat_modifier, s.name as stat_name, ac.name as category_name
            FROM character_abilities ca
            JOIN abilities a ON ca.ability_id = a.id
+           LEFT JOIN stat s ON s.id = a.stat_id
+           LEFT JOIN ability_categories ac ON ac.id = s.category
            WHERE ca.character_id = $1`,
           [req.params.id]
         ),
@@ -188,13 +492,23 @@ app.get('/api/characters/:id', async (req, res) => {
         }),
         pool.query(
           `SELECT ci.*, i.name as item_name, i.notes as item_description,
-            i.weight as item_weight, i.attackbonus as item_attackbonus, i.damage as item_damage,
+            i.weight as item_weight, i.attackbonus as item_attackbonus, i.damagebonus as item_damagebonus, i.damage as item_damage,
             i.ac as item_ac, i.ac_melee as item_ac_melee, i.ac_ranged as item_ac_ranged,
             i.range_short as item_range_short, i.range_medium as item_range_medium, i.range_long as item_range_long,
             i.rof as item_rof, i.category as item_category
            FROM character_items ci
            LEFT JOIN items i ON ci.item_id = i.id
            WHERE ci.character_id = $1`,
+          [req.params.id]
+        ),
+        pool.query(
+          `SELECT id, effect, note, value, duration
+           FROM character_effects WHERE character_id = $1 ORDER BY id`,
+          [req.params.id]
+        ),
+        pool.query(
+          `SELECT spell_level, numcast
+           FROM character_spells_cast WHERE character_id = $1 ORDER BY spell_level`,
           [req.params.id]
         ),
       ]);
@@ -210,6 +524,8 @@ app.get('/api/characters/:id', async (req, res) => {
     character.abilities = abil.rows;
     character.spells = spells.rows;
     character.items = items.rows;
+    character.effects = effects.rows;
+    character.spells_cast = casts.rows;
 
     character.next_level_xp = null;
     try {
@@ -260,14 +576,20 @@ app.get('/api/characters/:id', async (req, res) => {
 app.post('/api/campaigns/:campaignId/characters', async (req, res) => {
   try {
     const campaignId = req.params.campaignId;
+    const member = await requireCampaign(req, res, campaignId, false);
+    if (!member) return;
     const {
-      name, user, gender, age, hair, eyes, height, weight, race, class: classId,
+      name, gender, age, hair, eyes, height, weight, race, class: classId,
       str, int: intVal, wis, dex, con, chr, hp, notes, quasiclass, level, xp, skillpoints, money,
       ruleset_id: rulesetRaw,
     } = req.body;
     const rulesetId = parseRulesetId(rulesetRaw);
     if (rulesetId == null) {
       return res.status(400).json({ error: 'ruleset_id must be a positive integer' });
+    }
+    const assignmentMessage = await classAssignmentMessage(rulesetId, classId, quasiclass);
+    if (assignmentMessage) {
+      return res.status(400).json({ error: assignmentMessage });
     }
     const idResult = await pool.query('SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM characters');
     const nextId = idResult.rows[0].next_id;
@@ -276,7 +598,7 @@ app.post('/api/campaigns/:campaignId/characters', async (req, res) => {
        str, "int", wis, dex, con, chr, hp, notes, quasiclass, level, xp, skillpoints, money, ruleset_id)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
        RETURNING *`,
-      [nextId, name || 'Unnamed', user || 'TEMP$USER', gender || null, age ?? null, hair || null, eyes || null, height || null, weight || null,
+      [nextId, name || 'Unnamed', req.user.username, gender || null, age ?? null, hair || null, eyes || null, height || null, weight || null,
         race ?? null, str ?? null, intVal ?? null, wis ?? null, dex ?? null, con ?? null, chr ?? null,
         hp ?? null, notes || null, quasiclass ?? null, level ?? 1, xp ?? 0, skillpoints ?? null, money ?? null,
         rulesetId]
@@ -328,6 +650,8 @@ app.post('/api/campaigns/:campaignId/characters', async (req, res) => {
 app.put('/api/characters/:id', async (req, res) => {
   try {
     const id = req.params.id;
+    const gate = await characterGate(req, res, id, true);
+    if (!gate) return;
     const current = await pool.query(
       `SELECT c.*, ${SQL_CHAR_PRIMARY_CLASS_ID} AS class
        FROM characters c WHERE c.id = $1`,
@@ -351,6 +675,24 @@ app.put('/api/characters/:id', async (req, res) => {
     }
     if (Object.prototype.hasOwnProperty.call(body, 'class')) {
       merged.class = body.class ?? null;
+    }
+    const baseId = primaryClassIdFromBody(body, merged.class);
+    if (Object.prototype.hasOwnProperty.call(body, 'character_classes') && Array.isArray(body.character_classes)) {
+      for (const cc of body.character_classes) {
+        if (cc == null || cc.class_id == null || cc.class_id === '') continue;
+        const extra = await readClass(cc.class_id);
+        if (extra.error) return res.status(400).json({ error: extra.error });
+        if (extra.row && extra.row.is_quasi) {
+          return res.status(400).json({ error: 'Base class cannot be a quasi-class' });
+        }
+        if (extra.row && Number(extra.row.ruleset_id) !== Number(row.ruleset_id)) {
+          return res.status(400).json({ error: 'Base class is not in this ruleset' });
+        }
+      }
+    }
+    const assignmentMessage = await classAssignmentMessage(row.ruleset_id, baseId, merged.quasiclass);
+    if (assignmentMessage) {
+      return res.status(400).json({ error: assignmentMessage });
     }
     await pool.query(
       `UPDATE characters SET
@@ -410,15 +752,30 @@ app.put('/api/characters/:id', async (req, res) => {
 });
 
 app.delete('/api/characters/:id', async (req, res) => {
+  const gate = await characterGate(req, res, req.params.id, true);
+  if (!gate) return;
+  const client = await pool.connect();
   try {
-    const result = await pool.query('DELETE FROM characters WHERE id = $1 RETURNING *', [req.params.id]);
+    await client.query('BEGIN');
+    const id = req.params.id;
+    await client.query('DELETE FROM character_abilities WHERE character_id = $1', [id]);
+    await client.query('DELETE FROM character_effects WHERE character_id = $1', [id]);
+    await client.query('DELETE FROM character_items WHERE character_id = $1', [id]);
+    await client.query('DELETE FROM character_spells WHERE character_id = $1', [id]);
+    await client.query('DELETE FROM character_spells_cast WHERE character_id = $1', [id]);
+    const result = await client.query('DELETE FROM characters WHERE id = $1 RETURNING *', [id]);
     if (result.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Character not found' });
     }
+    await client.query('COMMIT');
     res.json({ message: 'Character deleted successfully' });
   } catch (error) {
+    try { await client.query('ROLLBACK'); } catch (_) { /* connection already failed */ }
     console.error('Error deleting character:', error);
     res.status(500).json({ error: 'Failed to delete character' });
+  } finally {
+    client.release();
   }
 });
 
@@ -426,6 +783,8 @@ app.delete('/api/characters/:id', async (req, res) => {
 
 app.post('/api/characters/:id/items', async (req, res) => {
   try {
+    const gate = await characterGate(req, res, req.params.id, true);
+    if (!gate) return;
     const characterId = req.params.id;
     const { item_id, quantity = 1, name, description } = req.body;
     const idResult = await pool.query('SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM character_items');
@@ -439,7 +798,7 @@ app.post('/api/characters/:id/items', async (req, res) => {
     const row = result.rows[0];
     const itemRow = await pool.query(
       `SELECT i.name as item_name, i.notes as item_description, i.weight as item_weight,
-        i.attackbonus as item_attackbonus, i.damage as item_damage, i.ac as item_ac,
+        i.attackbonus as item_attackbonus, i.damagebonus as item_damagebonus, i.damage as item_damage, i.ac as item_ac,
         i.ac_melee as item_ac_melee, i.ac_ranged as item_ac_ranged,
         i.range_short as item_range_short, i.range_medium as item_range_medium, i.range_long as item_range_long,
         i.rof as item_rof, i.category as item_category
@@ -457,6 +816,8 @@ app.post('/api/characters/:id/items', async (req, res) => {
 
 app.put('/api/characters/:id/items/:itemId', async (req, res) => {
   try {
+    const gate = await characterGate(req, res, req.params.id, true);
+    if (!gate) return;
     const { id: characterId, itemId } = req.params;
     const { quantity } = req.body;
     const result = await pool.query(
@@ -476,6 +837,8 @@ app.put('/api/characters/:id/items/:itemId', async (req, res) => {
 
 app.delete('/api/characters/:id/items/:itemId', async (req, res) => {
   try {
+    const gate = await characterGate(req, res, req.params.id, true);
+    if (!gate) return;
     const { id: characterId, itemId } = req.params;
     const removeOne = req.query.quantity === '1';
     if (removeOne) {
@@ -512,6 +875,8 @@ app.delete('/api/characters/:id/items/:itemId', async (req, res) => {
 
 app.post('/api/characters/:id/spells', async (req, res) => {
   try {
+    const gate = await characterGate(req, res, req.params.id, true);
+    if (!gate) return;
     const characterId = req.params.id;
     const { spell_id, memorized = 0 } = req.body;
     await pool.query(
@@ -537,6 +902,8 @@ app.post('/api/characters/:id/spells', async (req, res) => {
 
 app.put('/api/characters/:id/spells/:spellId', async (req, res) => {
   try {
+    const gate = await characterGate(req, res, req.params.id, true);
+    if (!gate) return;
     const { id: characterId, spellId } = req.params;
     const { memorized } = req.body;
     const result = await pool.query(
@@ -557,6 +924,8 @@ app.put('/api/characters/:id/spells/:spellId', async (req, res) => {
 app.post('/api/characters/:id/spells/:spellId/cast', async (req, res) => {
   try {
     const { id: characterId, spellId } = req.params;
+    const gate = await characterGate(req, res, characterId, true);
+    if (!gate) return;
     const char = await pool.query('SELECT id FROM characters WHERE id = $1', [characterId]);
     if (char.rows.length === 0) return res.status(404).json({ error: 'Character not found' });
     const spellLevel = await pool.query(
@@ -569,10 +938,6 @@ app.post('/api/characters/:id/spells/:spellId/cast', async (req, res) => {
       return res.status(400).json({ error: 'Spell level not found for this class' });
     }
     const level = spellLevel.rows[0].level;
-    await pool.query(
-      `UPDATE character_spells SET memorized = GREATEST(0, memorized - 1), modified = CURRENT_TIMESTAMP WHERE character_id = $1 AND spell_id = $2`,
-      [characterId, spellId]
-    );
     await pool.query(
       `INSERT INTO character_spells_cast (character_id, spell_level, numcast)
        VALUES ($1, $2, 1)
@@ -631,13 +996,16 @@ app.get('/api/races', async (req, res) => {
                 'int_param', ra.int_param,
                 'str_param', ra.str_param,
                 'description', a.description,
-                'category_name', ac.name
+                'category_name', ac.name,
+                'stat_name', s.name,
+                'stat_modifier', a.stat_modifier
               )
               ORDER BY ac.name NULLS LAST, a.description
             )
             FROM race_abilities ra
             JOIN abilities a ON a.id = ra.ability_id
-            LEFT JOIN ability_categories ac ON ac.id = a.category
+            LEFT JOIN stat s ON s.id = a.stat_id
+            LEFT JOIN ability_categories ac ON ac.id = s.category
             WHERE ra.race_id = r.id),
            '[]'::json
          ) AS abilities
@@ -678,17 +1046,21 @@ app.get('/api/classes', async (req, res) => {
          COALESCE(
            (SELECT json_agg(
               json_build_object(
+                'ability_id', ca.ability_id,
                 'level', ca.level,
                 'int_param', ca.int_param,
                 'str_param', ca.str_param,
                 'description', a.description,
-                'category_name', ac.name
+                'category_name', ac.name,
+                'stat_name', s.name,
+                'stat_modifier', a.stat_modifier
               )
               ORDER BY ca.level, ac.name NULLS LAST, a.description
             )
             FROM class_abilities ca
             JOIN abilities a ON a.id = ca.ability_id
-            LEFT JOIN ability_categories ac ON ac.id = a.category
+            LEFT JOIN stat s ON s.id = a.stat_id
+            LEFT JOIN ability_categories ac ON ac.id = s.category
             WHERE ca.class_id = c.id),
            '[]'::json
          ) AS abilities,
@@ -767,7 +1139,11 @@ app.get('/api/classes/:id/leveling', async (req, res) => {
 app.get('/api/abilities', async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT a.*, ac.name as category_name FROM abilities a LEFT JOIN ability_categories ac ON a.category = ac.id ORDER BY a.description`
+      `SELECT a.*, s.name as stat_name, ac.name as category_name
+       FROM abilities a
+       LEFT JOIN stat s ON s.id = a.stat_id
+       LEFT JOIN ability_categories ac ON ac.id = s.category
+       ORDER BY a.description`
     );
     res.json(result.rows);
   } catch (error) {
@@ -876,24 +1252,182 @@ app.get('/api/item-types', async (req, res) => {
   }
 });
 
+function storedError(message, status) {
+  const error = new Error(message);
+  error.status = status;
+  return error;
+}
+
+function integerField(value, name) {
+  if (value == null) return null;
+  const n = Number(value);
+  if (!Number.isInteger(n)) throw storedError(`${name} must be an integer`, 400);
+  return n;
+}
+
+const STORED_CHARACTER_FIELDS = ['xp', 'level', 'hp', 'money'];
+
+async function applyStoredCharacterPatch(client, characterId, patch) {
+  if (!patch || typeof patch !== 'object') return;
+  const sets = [];
+  const values = [];
+  for (const key of STORED_CHARACTER_FIELDS) {
+    if (!Object.prototype.hasOwnProperty.call(patch, key)) continue;
+    values.push(integerField(patch[key], key));
+    sets.push(`${key} = $${values.length}`);
+  }
+  if (sets.length === 0) return;
+  values.push(characterId);
+  const result = await client.query(
+    `UPDATE characters SET ${sets.join(', ')}, modified = CURRENT_TIMESTAMP WHERE id = $${values.length}`,
+    values
+  );
+  if (result.rowCount === 0) throw storedError('Character not found', 404);
+}
+
+async function applyPrimaryClassLevel(client, characterId, primary) {
+  if (!primary) return;
+  const classId = integerField(primary.class_id, 'class_id');
+  const classLevel = integerField(primary.class_level, 'class_level');
+  if (classId == null || classLevel == null) throw storedError('primary_class requires class_id and class_level', 400);
+  const updated = await client.query(
+    `UPDATE character_classes SET class_level = $1, modified = CURRENT_TIMESTAMP
+     WHERE character_id = $2 AND class_id = $3`,
+    [classLevel, characterId, classId]
+  );
+  if (updated.rowCount === 0) throw storedError('Class is not on this character', 400);
+}
+
+async function insertStoredItem(client, characterId, item) {
+  const itemId = integerField(item.item_id, 'item_id');
+  const quantity = integerField(item.quantity == null ? 1 : item.quantity, 'quantity');
+  const bonus = integerField(item.bonus == null ? 0 : item.bonus, 'bonus');
+  const value = integerField(item.value == null ? 0 : item.value, 'value');
+  if (itemId == null || quantity == null || quantity < 1 || bonus == null || value == null) {
+    throw storedError('item requires item_id and a positive quantity', 400);
+  }
+  const idResult = await client.query('SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM character_items');
+  const inserted = await client.query(
+    `INSERT INTO character_items (id, character_id, item_id, quantity, bonus, value)
+     SELECT $1, $2, $3, $4, $5, $6
+     WHERE EXISTS (SELECT 1 FROM characters WHERE id = $2)`,
+    [idResult.rows[0].next_id, characterId, itemId, quantity, bonus, value]
+  );
+  if (inserted.rowCount === 0) throw storedError('Character not found', 404);
+}
+
+async function moveStoredItem(client, fromCharacterId, toCharacterId, characterItemId, quantity) {
+  const itemId = integerField(characterItemId, 'character_item_id');
+  const qty = integerField(quantity, 'quantity');
+  if (itemId == null || qty == null || qty < 1) throw storedError('item quantity must be a positive integer', 400);
+  const fromRow = await client.query(
+    `SELECT id, item_id, quantity, bonus, value, name, description
+     FROM character_items WHERE id = $1 AND character_id = $2`,
+    [itemId, fromCharacterId]
+  );
+  if (fromRow.rows.length === 0) throw storedError('Item is not on the sending character', 400);
+  const fr = fromRow.rows[0];
+  const owned = Number(fr.quantity) || 0;
+  const transferQty = Math.min(owned, qty);
+  if (transferQty < 1) throw storedError('Not enough of that item', 400);
+  const nextIdResult = await client.query('SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM character_items');
+  await client.query(
+    `INSERT INTO character_items (id, character_id, item_id, quantity, bonus, value, name, description)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    [nextIdResult.rows[0].next_id, toCharacterId, fr.item_id, transferQty, fr.bonus || 0, fr.value || 0, fr.name, fr.description]
+  );
+  if (owned <= transferQty) {
+    await client.query('DELETE FROM character_items WHERE id = $1 AND character_id = $2', [itemId, fromCharacterId]);
+  } else {
+    await client.query(
+      'UPDATE character_items SET quantity = quantity - $1, modified = CURRENT_TIMESTAMP WHERE id = $2 AND character_id = $3',
+      [transferQty, itemId, fromCharacterId]
+    );
+  }
+}
+
+async function applyStoredAbilities(client, characterId, abilities) {
+  if (!Array.isArray(abilities)) return;
+  for (const row of abilities) {
+    if (!row || typeof row !== 'object') throw storedError('ability is invalid', 400);
+    const abilityId = integerField(row.ability_id, 'ability_id');
+    if (abilityId == null) throw storedError('ability_id is required', 400);
+    const mod = Object.prototype.hasOwnProperty.call(row, 'mod') ? integerField(row.mod, 'mod') : null;
+    await client.query(
+      `INSERT INTO character_abilities (character_id, ability_id, mod)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (character_id, ability_id) DO UPDATE SET mod = EXCLUDED.mod, modified = CURRENT_TIMESTAMP`,
+      [characterId, abilityId, mod]
+    );
+  }
+}
+
+async function applyStoredCasts(client, characterId, casts) {
+  if (!Array.isArray(casts)) return;
+  for (const row of casts) {
+    if (!row || typeof row !== 'object') throw storedError('cast row is invalid', 400);
+    const spellLevel = integerField(row.spell_level, 'spell_level');
+    const numcast = integerField(row.numcast, 'numcast');
+    if (spellLevel == null || numcast == null || numcast < 0) {
+      throw storedError('cast row requires spell_level and numcast', 400);
+    }
+    await client.query(
+      `INSERT INTO character_spells_cast (character_id, spell_level, numcast)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (character_id, spell_level) DO UPDATE SET numcast = EXCLUDED.numcast, modified = CURRENT_TIMESTAMP`,
+      [characterId, spellLevel, numcast]
+    );
+  }
+}
+
+async function applyStoredEffects(client, characterId, effects, deleteIds) {
+  for (const rawId of deleteIds || []) {
+    const id = integerField(rawId, 'effect id');
+    if (id == null) throw storedError('effect id is required', 400);
+    await client.query('DELETE FROM character_effects WHERE character_id = $1 AND id = $2', [characterId, id]);
+  }
+  for (const row of effects || []) {
+    if (!row || typeof row !== 'object') throw storedError('effect is invalid', 400);
+    const id = integerField(row.id, 'effect id');
+    const duration = integerField(row.duration, 'duration');
+    if (id == null || duration == null) throw storedError('effect requires id and duration', 400);
+    const updated = await client.query(
+      `UPDATE character_effects SET duration = $1, modified = CURRENT_TIMESTAMP
+       WHERE character_id = $2 AND id = $3`,
+      [duration, characterId, id]
+    );
+    if (updated.rowCount === 0) throw storedError('Effect is not on this character', 400);
+  }
+}
+
+function sendStoredError(res, error, fallback) {
+  if (error.code === '23503') {
+    return res.status(400).json({ error: 'Invalid item or character reference' });
+  }
+  const status = error.status || 500;
+  if (status >= 500) console.error(fallback, error);
+  return res.status(status).json({ error: error.message || fallback });
+}
+
 // ==================== PLAYER / GM (database-backed, replaces RabbitMQ) ====================
 
 // List characters for a player (by user name)
 app.get('/api/player/characters', async (req, res) => {
   try {
-    const user = (req.query.user || '').toString().trim();
-    if (!user) {
-      return res.status(400).json({ error: 'Query parameter "user" is required' });
-    }
     const result = await pool.query(
       `SELECT c.id, c.name, c."user", c.level, c.xp, c.hp, r.name as race_name, ${SQL_CHAR_CLASS_NAME} AS class_name,
        (SELECT array_agg(cc.campaign_id) FROM campaign_character cc WHERE cc.character_id = c.id) AS campaign_ids,
        (SELECT array_agg(cam.name) FROM campaign_character cc JOIN campaign cam ON cam.id = cc.campaign_id WHERE cc.character_id = c.id) AS campaign_names
        FROM characters c
        LEFT JOIN races r ON c.race = r.id
-       WHERE c."user" = $1
+       WHERE lower(c."user") = lower($1)
+         AND EXISTS (
+           SELECT 1 FROM campaign_character cc
+           JOIN campaign_member m ON m.campaign_id = cc.campaign_id
+           WHERE cc.character_id = c.id AND m.user_id = $2 AND m.status = 'accepted'
+         )
        ORDER BY c.name`,
-      [user.toUpperCase()]
+      [req.user.username, req.user.id]
     );
     res.json(result.rows);
   } catch (error) {
@@ -905,6 +1439,8 @@ app.get('/api/player/characters', async (req, res) => {
 // Party list: characters in this campaign (for "Send stuff" recipient list)
 app.get('/api/campaigns/:campaignId/party', async (req, res) => {
   try {
+    const member = await requireCampaign(req, res, req.params.campaignId, false);
+    if (!member) return;
     const result = await pool.query(
       `SELECT c.id, c.name, c."user", c.hp
        FROM characters c
@@ -922,6 +1458,8 @@ app.get('/api/campaigns/:campaignId/party', async (req, res) => {
 // GM: create a campaign command (give_xp, give_gold, give_item, open_shop, new_round, new_day, switch_tab)
 app.post('/api/campaigns/:campaignId/commands', async (req, res) => {
   try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
     const { recipient_character_id, type, payload } = req.body;
     const campaignId = req.params.campaignId;
     const result = await pool.query(
@@ -943,6 +1481,8 @@ app.post('/api/campaigns/:campaignId/commands', async (req, res) => {
 // Player: list unread commands for this character (campaign-level + addressed to this character)
 app.get('/api/characters/:characterId/commands', async (req, res) => {
   try {
+    const gate = await characterGate(req, res, req.params.characterId, true);
+    if (!gate) return;
     const characterId = req.params.characterId;
     const campaignIds = await pool.query(
       'SELECT campaign_id FROM campaign_character WHERE character_id = $1',
@@ -968,48 +1508,62 @@ app.get('/api/characters/:characterId/commands', async (req, res) => {
   }
 });
 
-// Player: mark command read (and apply give_xp / give_gold / give_item to character)
+// Stamp a command and store the absolute rows the client already calculated.
+// ponytail: two clients can each read the sheet and submit absolutes; the later commit wins.
+// Upgrade path: compare a base value inside the locked row and return 409.
 app.patch('/api/commands/:id/read', async (req, res) => {
+  const client = await pool.connect();
   try {
+    await client.query('BEGIN');
     const cmdId = req.params.id;
-    const charResult = await pool.query(
-      'SELECT * FROM campaign_command WHERE id = $1 AND read_at IS NULL',
+    const charResult = await client.query(
+      'SELECT * FROM campaign_command WHERE id = $1 AND read_at IS NULL FOR UPDATE',
       [cmdId]
     );
     if (charResult.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Command not found or already read' });
     }
-    const cmd = charResult.rows[0];
-    const characterId = cmd.recipient_character_id;
-    if (!characterId) {
-      await pool.query('UPDATE campaign_command SET read_at = CURRENT_TIMESTAMP WHERE id = $1', [cmdId]);
-      return res.json({ id: cmdId, read_at: new Date().toISOString() });
+    const commandRow = charResult.rows[0];
+    if (commandRow.recipient_character_id) {
+      const gate = await characterGate(req, res, commandRow.recipient_character_id, true);
+      if (!gate) {
+        await client.query('ROLLBACK');
+        return;
+      }
+    } else {
+      const member = await requireCampaign(req, res, commandRow.campaign_id, false);
+      if (!member) {
+        await client.query('ROLLBACK');
+        return;
+      }
     }
-    const payload = cmd.payload || {};
-    if (cmd.type === 'give_xp' && payload.amount != null) {
-      await pool.query(
-        'UPDATE characters SET xp = COALESCE(xp, 0) + $1, modified = CURRENT_TIMESTAMP WHERE id = $2',
-        [payload.amount, characterId]
-      );
-    } else if (cmd.type === 'give_gold' && payload.amount_cp != null) {
-      await pool.query(
-        'UPDATE characters SET money = COALESCE(money, 0) + $1, modified = CURRENT_TIMESTAMP WHERE id = $2',
-        [payload.amount_cp, characterId]
-      );
-    } else if (cmd.type === 'give_item' && payload.item_id != null) {
-      const idResult = await pool.query('SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM character_items');
-      await pool.query(
-        `INSERT INTO character_items (id, character_id, item_id, quantity, bonus, value)
-         SELECT $1, $2, $3, $4, $5, $6
-         WHERE EXISTS (SELECT 1 FROM characters WHERE id = $2)`,
-        [idResult.rows[0].next_id, characterId, payload.item_id, payload.quantity ?? 1, payload.bonus ?? 0, payload.value ?? 0]
-      );
+    const characterId = commandRow.recipient_character_id;
+    const body = req.body || {};
+    const hasSheet = body.character || body.primary_class || body.item
+      || body.abilities || body.casts || body.effects || body.delete_effects;
+    if (characterId && hasSheet) {
+      await client.query('SELECT id FROM characters WHERE id = $1 FOR UPDATE', [characterId]);
+      await applyStoredCharacterPatch(client, characterId, body.character);
+      await applyPrimaryClassLevel(client, characterId, body.primary_class);
+      if (body.item) await insertStoredItem(client, characterId, body.item);
+      if (body.abilities) await applyStoredAbilities(client, characterId, body.abilities);
+      if (body.casts) await applyStoredCasts(client, characterId, body.casts);
+      if (body.effects || body.delete_effects) {
+        await applyStoredEffects(client, characterId, body.effects, body.delete_effects);
+      }
     }
-    await pool.query('UPDATE campaign_command SET read_at = CURRENT_TIMESTAMP WHERE id = $1', [cmdId]);
-    res.json({ id: cmdId, read_at: new Date().toISOString() });
+    const stamped = await client.query(
+      'UPDATE campaign_command SET read_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING read_at',
+      [cmdId]
+    );
+    await client.query('COMMIT');
+    res.json({ id: Number(cmdId), read_at: stamped.rows[0].read_at });
   } catch (error) {
-    console.error('Error marking command read:', error);
-    res.status(500).json({ error: error.message || 'Failed to mark read' });
+    try { await client.query('ROLLBACK'); } catch (_) { /* connection already failed */ }
+    sendStoredError(res, error, 'Failed to mark read');
+  } finally {
+    client.release();
   }
 });
 
@@ -1017,6 +1571,8 @@ app.patch('/api/commands/:id/read', async (req, res) => {
 app.post('/api/characters/:characterId/transfers', async (req, res) => {
   try {
     const fromId = req.params.characterId;
+    const gate = await characterGate(req, res, fromId, true);
+    if (!gate) return;
     const { to_character_id, gold_cp = 0, items = [] } = req.body;
     if (!to_character_id || (gold_cp <= 0 && (!items || items.length === 0))) {
       return res.status(400).json({ error: 'to_character_id and (gold_cp > 0 or non-empty items) required' });
@@ -1040,6 +1596,8 @@ app.post('/api/characters/:characterId/transfers', async (req, res) => {
 // List transfers (incoming pending for this character, or outgoing)
 app.get('/api/characters/:characterId/transfers', async (req, res) => {
   try {
+    const gate = await characterGate(req, res, req.params.characterId, false);
+    if (!gate) return;
     const direction = (req.query.direction || 'incoming').toString();
     const characterId = req.params.characterId;
     if (direction === 'outgoing') {
@@ -1068,70 +1626,57 @@ app.get('/api/characters/:characterId/transfers', async (req, res) => {
   }
 });
 
-// Accept or reject an incoming transfer
+// Store the absolute money and item moves the client calculated, then stamp status.
 app.patch('/api/transfers/:id', async (req, res) => {
+  const { status, from, to, items } = req.body || {};
+  if (status !== 'accepted' && status !== 'rejected') {
+    return res.status(400).json({ error: 'status must be accepted or rejected' });
+  }
+  const pending = await pool.query(
+    'SELECT to_character_id FROM character_transfer WHERE id = $1 AND status = $2',
+    [req.params.id, 'pending']
+  );
+  if (pending.rows.length === 0) {
+    return res.status(404).json({ error: 'Transfer not found or not pending' });
+  }
+  const gate = await characterGate(req, res, pending.rows[0].to_character_id, true);
+  if (!gate) return;
+  const client = await pool.connect();
   try {
-    const { status } = req.body;
-    if (status !== 'accepted' && status !== 'rejected') {
-      return res.status(400).json({ error: 'status must be accepted or rejected' });
-    }
-    const transferResult = await pool.query(
-      'SELECT * FROM character_transfer WHERE id = $1 AND status = $2',
+    await client.query('BEGIN');
+    const transferResult = await client.query(
+      'SELECT * FROM character_transfer WHERE id = $1 AND status = $2 FOR UPDATE',
       [req.params.id, 'pending']
     );
     if (transferResult.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Transfer not found or not pending' });
     }
     const t = transferResult.rows[0];
     if (status === 'accepted') {
-      if (t.gold_cp > 0) {
-        await pool.query(
-          'UPDATE characters SET money = COALESCE(money, 0) + $1, modified = CURRENT_TIMESTAMP WHERE id = $2',
-          [t.gold_cp, t.to_character_id]
-        );
-        await pool.query(
-          'UPDATE characters SET money = COALESCE(money, 0) - $1, modified = CURRENT_TIMESTAMP WHERE id = $2',
-          [t.gold_cp, t.from_character_id]
-        );
+      if (!from || !to) throw storedError('accepted transfer requires from and to money', 400);
+      if (Number(from.id) !== Number(t.from_character_id) || Number(to.id) !== Number(t.to_character_id)) {
+        throw storedError('Transfer characters do not match', 400);
       }
-      const payload = t.payload || {};
-      const items = payload.items || [];
-      for (const it of items) {
-        const charItemId = it.character_item_id;
-        const qty = Math.max(1, it.quantity || 1);
-        const fromRow = await pool.query(
-          'SELECT id, character_id, item_id, quantity, bonus, value, name, description FROM character_items WHERE id = $1 AND character_id = $2',
-          [charItemId, t.from_character_id]
-        );
-        if (fromRow.rows.length > 0) {
-          const fr = fromRow.rows[0];
-          const transferQty = Math.min(fr.quantity, qty);
-          const nextIdResult = await pool.query('SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM character_items');
-          await pool.query(
-            `INSERT INTO character_items (id, character_id, item_id, quantity, bonus, value, name, description)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-            [nextIdResult.rows[0].next_id, t.to_character_id, fr.item_id, transferQty, fr.bonus || 0, fr.value || 0, fr.name, fr.description]
-          );
-          if (fr.quantity <= transferQty) {
-            await pool.query('DELETE FROM character_items WHERE id = $1 AND character_id = $2', [charItemId, t.from_character_id]);
-          } else {
-            await pool.query(
-              'UPDATE character_items SET quantity = quantity - $1, modified = CURRENT_TIMESTAMP WHERE id = $2 AND character_id = $3',
-              [transferQty, charItemId, t.from_character_id]
-            );
-          }
-        }
+      await client.query('SELECT id FROM characters WHERE id = ANY($1::int[]) FOR UPDATE', [[t.from_character_id, t.to_character_id]]);
+      await applyStoredCharacterPatch(client, t.from_character_id, { money: from.money });
+      await applyStoredCharacterPatch(client, t.to_character_id, { money: to.money });
+      for (const it of items || []) {
+        await moveStoredItem(client, t.from_character_id, t.to_character_id, it.character_item_id, it.quantity);
       }
     }
-    await pool.query(
+    await client.query(
       'UPDATE character_transfer SET status = $1, resolved_at = CURRENT_TIMESTAMP WHERE id = $2',
       [status, req.params.id]
     );
-    const updated = await pool.query('SELECT * FROM character_transfer WHERE id = $1', [req.params.id]);
+    const updated = await client.query('SELECT * FROM character_transfer WHERE id = $1', [req.params.id]);
+    await client.query('COMMIT');
     res.json(updated.rows[0]);
   } catch (error) {
-    console.error('Error updating transfer:', error);
-    res.status(500).json({ error: error.message || 'Failed to update transfer' });
+    try { await client.query('ROLLBACK'); } catch (_) { /* connection already failed */ }
+    sendStoredError(res, error, 'Failed to update transfer');
+  } finally {
+    client.release();
   }
 });
 

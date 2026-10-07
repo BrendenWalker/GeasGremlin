@@ -1,0 +1,196 @@
+{
+"STATS": [
+	{
+		"ID" : 1,
+		"NAME" : "STR",
+		"CATEGORY" : 7,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"ID" : 2,
+		"NAME" : "INT",
+		"CATEGORY" : 7,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"ID" : 3,
+		"NAME" : "WIS",
+		"CATEGORY" : 7,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"ID" : 4,
+		"NAME" : "DEX",
+		"CATEGORY" : 7,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"ID" : 5,
+		"NAME" : "CON",
+		"CATEGORY" : 7,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"ID" : 6,
+		"NAME" : "CHR",
+		"CATEGORY" : 7,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"ID" : 7,
+		"NAME" : "AC",
+		"CATEGORY" : 2,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"ID" : 8,
+		"NAME" : "HP",
+		"CATEGORY" : 2,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"ID" : 9,
+		"NAME" : "Back AC",
+		"CATEGORY" : 2,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"ID" : 10,
+		"NAME" : "Initiative",
+		"CATEGORY" : 1,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"ID" : 11,
+		"NAME" : "Feats of Strength",
+		"CATEGORY" : 1,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"ID" : 12,
+		"NAME" : "Attack Bonus",
+		"CATEGORY" : 3,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"ID" : 13,
+		"NAME" : "Ranged Attack",
+		"CATEGORY" : 6,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"ID" : 14,
+		"NAME" : "Death Ray or Poison",
+		"CATEGORY" : 4,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"ID" : 15,
+		"NAME" : "Magic Wands",
+		"CATEGORY" : 4,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"ID" : 16,
+		"NAME" : "Paralysis or Petrify",
+		"CATEGORY" : 4,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"ID" : 17,
+		"NAME" : "Dragon Breath",
+		"CATEGORY" : 4,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"ID" : 18,
+		"NAME" : "Spells",
+		"CATEGORY" : 4,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"ID" : 19,
+		"NAME" : "Save vs Charm",
+		"CATEGORY" : 4,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"ID" : 20,
+		"NAME" : "Open Locks",
+		"CATEGORY" : 5,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"ID" : 21,
+		"NAME" : "Remove Traps",
+		"CATEGORY" : 5,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"ID" : 22,
+		"NAME" : "Pick Pockets",
+		"CATEGORY" : 5,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"ID" : 23,
+		"NAME" : "Move Silently",
+		"CATEGORY" : 5,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"ID" : 24,
+		"NAME" : "Climb Walls",
+		"CATEGORY" : 5,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"ID" : 25,
+		"NAME" : "Hide",
+		"CATEGORY" : 5,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"ID" : 26,
+		"NAME" : "Listen",
+		"CATEGORY" : 5,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"ID" : 27,
+		"NAME" : "Hide - Outdoors",
+		"CATEGORY" : 5,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"ID" : 28,
+		"NAME" : "Hide - Indoors",
+		"CATEGORY" : 5,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"ID" : 29,
+		"NAME" : "Tracking",
+		"CATEGORY" : 5,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"ID" : 30,
+		"NAME" : "Poison",
+		"CATEGORY" : 5,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"ID" : 31,
+		"NAME" : "XP",
+		"CATEGORY" : 1,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"ID" : 32,
+		"NAME" : "Hit Die",
+		"CATEGORY" : 2,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	}
+	]
+}

@@ -38,7 +38,7 @@ Usage: node import-ruleset.js --dir <GameSystems/Folder> [--dry-run]
 Reads DB_* from repo-root .env (see env.example).
 
 REPLACE semantics: deletes that ruleset's catalog, then inserts from JSON.
-Shared category/type tables are matched by name (not wiped).
+Shared category/type/stat tables are matched by name (not wiped).
 JSON IDs only remap references; destination PKs are newly allocated
 (preferring a free source id when available).
 Fails if any characters belong to the target ruleset.
@@ -259,16 +259,15 @@ async function importClasses(client, { filePath, rows }, rulesetId) {
       [
         'id',
         'name',
-        'hitdie',
         'min_str',
         'min_int',
         'min_wis',
         'min_dex',
         'min_con',
         'min_chr',
-        'xpadjustment',
         'armor',
         'weapons',
+        'is_quasi',
         'description',
         'modified',
         'ruleset_id',
@@ -276,16 +275,15 @@ async function importClasses(client, { filePath, rows }, rulesetId) {
       [
         destId,
         row.name,
-        asIntOrNull(row.hitdie),
         asIntOrNull(row.min_str),
         asIntOrNull(row.min_int),
         asIntOrNull(row.min_wis),
         asIntOrNull(row.min_dex),
         asIntOrNull(row.min_con),
         asIntOrNull(row.min_chr),
-        asIntOrNull(row.xpadjustment),
         emptyToNull(row.armor),
         emptyToNull(row.weapons),
+        row.is_quasi === true,
         emptyToNull(row.description),
         asTimestampOrNow(row.modified),
         rulesetId,
@@ -328,11 +326,9 @@ async function importRaces(client, { filePath, rows }, rulesetId) {
         'max_dex',
         'max_con',
         'max_chr',
-        'xpadjustment',
         'armor',
         'weapons',
         'description',
-        'rangedbonus',
         'max_hd',
         'modified',
         'hd_mod',
@@ -355,11 +351,9 @@ async function importRaces(client, { filePath, rows }, rulesetId) {
         asIntOrNull(row.max_dex),
         asIntOrNull(row.max_con),
         asIntOrNull(row.max_chr),
-        asIntOrNull(row.xpadjustment),
         emptyToNull(row.armor),
         emptyToNull(row.weapons),
         emptyToNull(row.description),
-        asIntOrNull(row.rangedbonus),
         asIntOrNull(row.max_hd),
         asTimestampOrNow(row.modified),
         asIntOrNull(row.hd_mod),
@@ -403,7 +397,53 @@ async function importSpells(client, { filePath, rows }, rulesetId) {
   return map;
 }
 
-async function importAbilities(client, { filePath, rows }, rulesetId, categoryMap) {
+async function importStats(client, { filePath, rows }, categoryMap) {
+  const map = new Map();
+  const seenSource = new Set();
+  const reserved = new Set();
+  for (const row of rows) {
+    const sourceId = asIntOrNull(row.id);
+    const name = row.name;
+    if (sourceId == null) throw new Error(`${filePath}: row missing ID`);
+    if (!name || typeof name !== 'string') {
+      throw new Error(`${filePath}: id ${sourceId} missing NAME`);
+    }
+    if (seenSource.has(sourceId)) {
+      throw new Error(`${filePath}: duplicate source ID ${sourceId}`);
+    }
+    seenSource.add(sourceId);
+
+    let category = asIntOrNull(row.category);
+    if (category == null) {
+      throw new Error(`${filePath}: id ${sourceId} missing CATEGORY`);
+    }
+    if (!categoryMap.has(category)) {
+      throw new Error(`${filePath}: id ${sourceId} category ${category} not in ABILITY_CATEGORIES`);
+    }
+    category = categoryMap.get(category);
+
+    const found = await client.query(`SELECT id FROM public.stat WHERE name = $1`, [name]);
+    let destId;
+    if (found.rows.length > 0) {
+      destId = found.rows[0].id;
+      await client.query(`UPDATE public.stat SET category = $1, modified = $2 WHERE id = $3`, [
+        category,
+        asTimestampOrNow(row.modified),
+        destId,
+      ]);
+    } else {
+      destId = await allocDestId(client, 'stat', sourceId, reserved);
+      await client.query(
+        `INSERT INTO public.stat (id, name, category, modified) VALUES ($1, $2, $3, $4)`,
+        [destId, name, category, asTimestampOrNow(row.modified)]
+      );
+    }
+    map.set(sourceId, destId);
+  }
+  return map;
+}
+
+async function importAbilities(client, { filePath, rows }, rulesetId, statMap) {
   const map = new Map();
   const seen = new Set();
   const reserved = new Set();
@@ -422,20 +462,25 @@ async function importAbilities(client, { filePath, rows }, rulesetId, categoryMa
       );
     }
 
-    let category = asIntOrNull(row.category);
-    if (category != null) {
-      if (!categoryMap.has(category)) {
-        throw new Error(`${filePath}: id ${sourceId} category ${category} not in ABILITY_CATEGORIES`);
+    let statId = asIntOrNull(row.stat_id);
+    if (statId != null) {
+      if (!statMap.has(statId)) {
+        throw new Error(`${filePath}: id ${sourceId} stat_id ${statId} not in STATS`);
       }
-      category = categoryMap.get(category);
+      statId = statMap.get(statId);
+    }
+    const statModifier = asIntOrNull(row.stat_modifier);
+    if (statModifier != null && statId == null) {
+      throw new Error(`${filePath}: id ${sourceId} STAT_MODIFIER requires STAT_ID`);
     }
 
     const destId = await allocDestId(client, 'abilities', sourceId, reserved);
-    await insertRow(client, 'abilities', ['id', 'description', 'modified', 'category', 'ruleset_id'], [
+    await insertRow(client, 'abilities', ['id', 'description', 'modified', 'stat_id', 'stat_modifier', 'ruleset_id'], [
       destId,
       description,
       asTimestampOrNow(row.modified),
-      category,
+      statId,
+      statModifier,
       rulesetId,
     ]);
     map.set(sourceId, destId);
@@ -673,6 +718,7 @@ async function main() {
     if (SKIP_FILES.has(name.toLowerCase())) continue;
     const known = [
       'ABILITY_CATEGORIES',
+      'STATS',
       'ITEM_CATEGORIES',
       'ITEM_TYPES',
       'CLASSES',
@@ -692,8 +738,9 @@ async function main() {
     }
   }
 
-  const abilityCategories = loadTableJson(dir, 'ABILITY_CATEGORIES');
-  const itemCategories = loadTableJson(dir, 'ITEM_CATEGORIES');
+    const abilityCategories = loadTableJson(dir, 'ABILITY_CATEGORIES');
+    const stats = loadTableJson(dir, 'STATS');
+    const itemCategories = loadTableJson(dir, 'ITEM_CATEGORIES');
   const itemTypes = loadTableJson(dir, 'ITEM_TYPES');
   const classes = loadTableJson(dir, 'CLASSES');
   const races = loadTableJson(dir, 'RACES');
@@ -726,16 +773,17 @@ async function main() {
     console.log(`Cleared existing catalog for ruleset_id=${rulesetId}`);
 
     const categoryMap = await importSharedLookup(client, abilityCategories, 'ability_categories');
+    const statMap = await importStats(client, stats, categoryMap);
     const itemCategoryMap = await importSharedLookup(client, itemCategories, 'item_categories');
     const itemTypeMap = await importSharedLookup(client, itemTypes, 'item_types');
     console.log(
-      `Shared lookups: ability_categories=${categoryMap.size}, item_categories=${itemCategoryMap.size}, item_types=${itemTypeMap.size}`
+      `Shared lookups: ability_categories=${categoryMap.size}, stat=${statMap.size}, item_categories=${itemCategoryMap.size}, item_types=${itemTypeMap.size}`
     );
 
     const classMap = await importClasses(client, classes, rulesetId);
     const raceMap = await importRaces(client, races, rulesetId);
     const spellMap = await importSpells(client, spells, rulesetId);
-    const abilityMap = await importAbilities(client, abilities, rulesetId, categoryMap);
+    const abilityMap = await importAbilities(client, abilities, rulesetId, statMap);
     const itemMap = await importItems(client, items, rulesetId, itemCategoryMap, itemTypeMap);
     console.log(
       `Catalog: classes=${classMap.size}, races=${raceMap.size}, spells=${spellMap.size}, abilities=${abilityMap.size}, items=${itemMap.size}`

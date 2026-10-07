@@ -7,31 +7,10 @@ import {
   createCharacter,
 } from '../api/api';
 import { useRuleset } from '../components/RulesetContext';
-import { abilityModifier, adjustedHitPoints, formatModifier } from '../utils/hitPoints.mjs';
+import { abilityModifier, adjustedHitPoints, classHitDie, clampStat, formatModifier, statBounds } from '../domain/character.mjs';
 
 const STEPS = ['Class', 'Race', 'Attributes', 'Name, HP & gold'];
 const STAT_KEYS = ['str', 'int', 'wis', 'dex', 'con', 'chr'];
-
-function clampStat(value, min, max) {
-  const n = parseInt(value, 10);
-  if (Number.isNaN(n)) return min ?? 3;
-  if (min != null && n < min) return min;
-  if (max != null && max > 0 && n > max) return max;
-  return n;
-}
-
-function getStatBounds(race, cls) {
-  const mins = {};
-  const maxs = {};
-  STAT_KEYS.forEach((k) => {
-    const rMin = race ? race[`min_${k === 'int' ? 'int' : k}`] : null;
-    const rMax = race ? race[`max_${k === 'int' ? 'int' : k}`] : null;
-    const cMin = cls ? cls[`min_${k === 'int' ? 'int' : k}`] : null;
-    mins[k] = [rMin, cMin].filter((x) => x != null).length ? Math.max(rMin ?? 3, cMin ?? 3) : 3;
-    maxs[k] = rMax != null && rMax > 0 ? rMax : 18;
-  });
-  return { mins, maxs };
-}
 
 export default function NewCharacterWizardPage() {
   const { campaignId } = useParams();
@@ -46,6 +25,7 @@ export default function NewCharacterWizardPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const [selectedClass, setSelectedClass] = useState(null);
+  const [selectedBase, setSelectedBase] = useState(null);
   const [selectedRace, setSelectedRace] = useState(null);
   const [attrs, setAttrs] = useState({ str: 10, int: 10, wis: 10, dex: 10, con: 10, chr: 10 });
   const [name, setName] = useState('');
@@ -63,6 +43,7 @@ export default function NewCharacterWizardPage() {
     setLoading(true);
     setError(null);
     setSelectedClass(null);
+    setSelectedBase(null);
     setSelectedRace(null);
     setBaseHp('');
     setStep(0);
@@ -87,14 +68,20 @@ export default function NewCharacterWizardPage() {
   }, [campaignId, rulesetId, rulesetError]);
 
   const cls = selectedClass != null ? classes.find((c) => c.id === parseInt(selectedClass, 10)) : null;
+  const baseCls = selectedBase != null ? classes.find((c) => c.id === parseInt(selectedBase, 10)) : null;
   const race = selectedRace != null ? races.find((r) => r.id === parseInt(selectedRace, 10)) : null;
-  const { mins, maxs } = getStatBounds(race, cls);
-  const hitdie = cls?.hitdie != null && cls.hitdie > 0 ? cls.hitdie : null;
+  const dieSource = cls?.is_quasi ? baseCls : cls;
+  const { mins, maxs } = statBounds(race, cls, cls?.is_quasi ? baseCls : null);
+  const hitdie = classHitDie(dieSource?.abilities);
   const conMod = abilityModifier(attrs.con);
   const hitPoints = adjustedHitPoints(baseHp, attrs.con, hitdie);
 
   const canNext = () => {
-    if (step === 0) return selectedClass != null && selectedClass !== '';
+    if (step === 0) {
+      if (selectedClass == null || selectedClass === '') return false;
+      if (cls?.is_quasi) return selectedBase != null && selectedBase !== '';
+      return true;
+    }
     if (step === 1) return selectedRace != null && selectedRace !== '';
     if (step === 2) return true;
     if (step === 3) return name.trim().length > 0 && hitPoints != null;
@@ -116,7 +103,8 @@ export default function NewCharacterWizardPage() {
       xp: 0,
       ruleset_id: parseInt(rulesetId, 10),
       race: selectedRace ? parseInt(selectedRace, 10) : null,
-      class: selectedClass ? parseInt(selectedClass, 10) : null,
+      class: cls?.is_quasi ? parseInt(selectedBase, 10) : (selectedClass ? parseInt(selectedClass, 10) : null),
+      quasiclass: cls?.is_quasi ? parseInt(selectedClass, 10) : null,
       str: attrs.str,
       int: attrs.int,
       wis: attrs.wis,
@@ -202,7 +190,10 @@ export default function NewCharacterWizardPage() {
                       name="class"
                       value={c.id}
                       checked={selectedClass === String(c.id)}
-                      onChange={() => setSelectedClass(String(c.id))}
+                      onChange={() => {
+                        setSelectedClass(String(c.id));
+                        if (!c.is_quasi) setSelectedBase(null);
+                      }}
                     />
                     <span>{c.name}</span>
                     {c.description && (
@@ -214,6 +205,30 @@ export default function NewCharacterWizardPage() {
                 </li>
               ))}
             </ul>
+            {cls?.is_quasi && (
+              <>
+                <h3>Base class</h3>
+                <p style={{ color: '#8a7f72', marginTop: 0 }}>
+                  A quasi-class is layered on a base class. Hit die comes from the base class.
+                </p>
+                <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {classes.filter((c) => !c.is_quasi).map((c) => (
+                    <li key={c.id}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                        <input
+                          type="radio"
+                          name="base-class"
+                          value={c.id}
+                          checked={selectedBase === String(c.id)}
+                          onChange={() => setSelectedBase(String(c.id))}
+                        />
+                        <span>{c.name}</span>
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
           </>
         )}
 

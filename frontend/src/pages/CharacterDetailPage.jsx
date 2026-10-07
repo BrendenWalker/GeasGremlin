@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   getCharacter,
@@ -20,6 +20,7 @@ import {
   updateTransfer,
 } from '../api/api';
 import { armorClass, formatArmorClass } from '../utils/armorClass.mjs';
+import { abilityModifier, acceptTransfer, castsRemaining, commandWrite, finishLevelUp, formatModifier, primaryClass, sheetCombat } from '../domain/character.mjs';
 
 const TAB_IDS_GM = ['info', 'combat', 'spellbook', 'inventory'];
 const TAB_IDS_PLAYER = ['info', 'combat', 'spellbook', 'inventory', 'adventuring'];
@@ -62,6 +63,8 @@ function keepLoadedLists(prev, row) {
     items: prev?.items ?? [],
     spells: prev?.spells ?? [],
     abilities: prev?.abilities ?? [],
+    effects: prev?.effects ?? [],
+    spells_cast: prev?.spells_cast ?? [],
     next_level_xp: prev?.next_level_xp ?? null,
   };
 }
@@ -89,6 +92,12 @@ export default function CharacterDetailPage({ playerMode = false }) {
   const [sendStuffItems, setSendStuffItems] = useState([]);
   const [sendStuffGold, setSendStuffGold] = useState(0);
   const [incomingTransfers, setIncomingTransfers] = useState([]);
+  const classesRef = useRef([]);
+  const applyingRef = useRef(false);
+  const levelUpRef = useRef(null);
+  const [levelUp, setLevelUp] = useState(null);
+  classesRef.current = classes;
+  levelUpRef.current = levelUp;
 
   const refreshCharacter = useCallback(() => {
     return getCharacter(id)
@@ -105,19 +114,56 @@ export default function CharacterDetailPage({ playerMode = false }) {
   }, [playerMode, character?.id, character?.campaign_ids?.[0]]);
 
   useEffect(() => {
-    if (!playerMode || !id) return;
-    const interval = setInterval(() => {
-      getCharacterCommands(id)
-        .then((r) => {
-          const cmds = r.data || [];
-          cmds.forEach((cmd) => {
-            markCommandRead(cmd.id).catch(() => {});
-            refreshCharacter();
-          });
-        })
-        .catch(() => {});
-    }, 5000);
-    return () => clearInterval(interval);
+    if (!playerMode || !id) return undefined;
+    let stopped = false;
+    const applyOne = async (cmd) => {
+      const needsSheet = cmd.type === 'give_xp' || cmd.type === 'give_gold' || cmd.type === 'give_item'
+        || cmd.type === 'new_day' || cmd.type === 'new_round';
+      let write = {};
+      if (needsSheet) {
+        if (cmd.type === 'give_xp' && classesRef.current.length === 0) return false;
+        const loaded = await getCharacter(id);
+        write = commandWrite(loaded.data, classesRef.current, cmd);
+        if (write.error) throw new Error(write.error);
+        if (write.needsRolls) {
+          if (!stopped) {
+            setLevelUp({
+              commandId: cmd.id,
+              write,
+              character: loaded.data,
+              rolls: write.needsRolls.map(() => ''),
+            });
+          }
+          return true;
+        }
+      }
+      await markCommandRead(cmd.id, write);
+      if (!stopped) await refreshCharacter();
+      return false;
+    };
+    const tick = async () => {
+      if (applyingRef.current || levelUpRef.current) return;
+      applyingRef.current = true;
+      try {
+        const r = await getCharacterCommands(id);
+        for (const cmd of r.data || []) {
+          if (stopped) return;
+          const paused = await applyOne(cmd);
+          if (paused) return;
+        }
+      } catch (err) {
+        const status = err.response?.status;
+        if (!stopped && status !== 404) setError(err.response?.data?.error || err.message);
+      } finally {
+        applyingRef.current = false;
+      }
+    };
+    const interval = setInterval(tick, 5000);
+    tick();
+    return () => {
+      stopped = true;
+      clearInterval(interval);
+    };
   }, [playerMode, id, refreshCharacter]);
 
   useEffect(() => {
@@ -249,6 +295,44 @@ export default function CharacterDetailPage({ playerMode = false }) {
       .catch((err) => setError(err.response?.data?.error || err.message));
   };
 
+  const handleLevelRolls = () => {
+    if (!levelUp) return;
+    const rolls = levelUp.rolls.map((value) => parseInt(value, 10));
+    const finished = finishLevelUp(levelUp.write, levelUp.character, rolls);
+    if (finished.error) {
+      setError(finished.error);
+      return;
+    }
+    setError(null);
+    markCommandRead(levelUp.commandId, finished)
+      .then(() => {
+        setLevelUp(null);
+        return refreshCharacter();
+      })
+      .catch((err) => setError(err.response?.data?.error || err.message));
+  };
+
+  const handleAcceptTransfer = (transfer) => {
+    getCharacter(transfer.from_character_id)
+      .then((fromRes) => {
+        const write = acceptTransfer(fromRes.data, character, transfer);
+        if (write.error) {
+          setError(write.error);
+          return null;
+        }
+        return updateTransfer(transfer.id, { status: 'accepted', ...write });
+      })
+      .then((result) => {
+        if (!result) return null;
+        return refreshCharacter();
+      })
+      .then(() => getCharacterTransfers(id, 'incoming'))
+      .then((r) => {
+        if (r) setIncomingTransfers((r.data || []).filter((row) => row.status === 'pending'));
+      })
+      .catch((err) => setError(err.response?.data?.error || err.message));
+  };
+
   const handleHpChange = (delta) => {
     const newHp = Math.max(0, (character.hp ?? 0) + delta);
     updateCharacter(id, { hp: newHp })
@@ -269,7 +353,14 @@ export default function CharacterDetailPage({ playerMode = false }) {
   }
   if (!character) return null;
 
-  const statBlock = STAT_KEYS.map((k) => ({ label: k.toUpperCase(), val: character[k], key: k }));
+  const statBlock = STAT_KEYS.map((k) => ({
+    label: k.toUpperCase(),
+    val: character[k],
+    mod: formatModifier(abilityModifier(character[k])),
+    key: k,
+  }));
+  const combat = sheetCombat(character, classes);
+  const nextLevelXp = combat.nextLevelXp ?? character.next_level_xp;
   const weapons = (character.items || []).filter(
     (i) => i.item_attackbonus != null || i.item_damage
   );
@@ -293,8 +384,8 @@ export default function CharacterDetailPage({ playerMode = false }) {
           {character.race_name && <span style={{ color: '#b8b0a0' }}>{character.race_name}</span>}
           {character.class_name && <span style={{ color: '#b8b0a0' }}>{character.class_name}</span>}
           <span style={{ color: '#8a7f72' }}>Level {character.level ?? 1} · XP {character.xp ?? 0}</span>
-          {character.next_level_xp != null && (
-            <span style={{ color: '#8a7f72' }}>· Next level at {character.next_level_xp} XP</span>
+          {nextLevelXp != null && (
+            <span style={{ color: '#8a7f72' }}>· Next level at {nextLevelXp} XP</span>
           )}
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
@@ -399,10 +490,11 @@ export default function CharacterDetailPage({ playerMode = false }) {
                 <button type="button" className="btn btn-secondary" onClick={() => setEditing(true)}>Edit</button>
               </div>
               <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
-                {statBlock.map(({ label, val }) => (
+                {statBlock.map(({ label, val, mod }) => (
                   <div key={label} style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: '0.75rem', color: '#8a7f72' }}>{label}</div>
                     <div style={{ fontSize: '1.25rem', color: '#c9a227' }}>{val ?? '—'}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#8a7f72' }}>{mod}</div>
                   </div>
                 ))}
               </div>
@@ -540,6 +632,13 @@ export default function CharacterDetailPage({ playerMode = false }) {
           <div style={{ marginTop: '1rem' }}>
             <strong>AC</strong> {formatArmorClass(armorClass(character))}
           </div>
+          {(combat.melee || combat.ranged || combat.damage) && (
+            <div style={{ marginTop: '0.75rem', color: '#b8b0a0' }}>
+              {combat.melee && <div><strong style={{ color: '#e8e0d5' }}>Melee</strong> {combat.melee}</div>}
+              {combat.damage && <div><strong style={{ color: '#e8e0d5' }}>Damage</strong> {combat.damage}</div>}
+              {combat.ranged && <div><strong style={{ color: '#e8e0d5' }}>Ranged</strong> {combat.ranged}</div>}
+            </div>
+          )}
           {character.abilities?.length > 0 && (
             <div style={{ marginTop: '1rem' }}>
               <strong>Abilities</strong>
@@ -562,9 +661,16 @@ export default function CharacterDetailPage({ playerMode = false }) {
           {[0, 1, 2, 3, 4, 5, 6, 7].map((lvl) => {
             const list = spellsByLevel[lvl] || [];
             if (list.length === 0) return null;
+            const primary = primaryClass(character, classes);
+            const remaining = lvl >= 1
+              ? castsRemaining(primary.row, primary.level, lvl, character.spells_cast)
+              : null;
             return (
               <div key={lvl} style={{ marginBottom: '1rem' }}>
-                <h3 style={{ marginBottom: '0.5rem' }}>Level {lvl}</h3>
+                <h3 style={{ marginBottom: '0.5rem' }}>
+                  Level {lvl}
+                  {remaining != null && <span style={{ color: '#8a7f72', fontWeight: 400 }}> · {remaining} slots left</span>}
+                </h3>
                 <ul style={{ listStyle: 'none' }}>
                   {list.map((s) => (
                     <li key={s.spell_id} style={{ padding: '0.25rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -577,7 +683,7 @@ export default function CharacterDetailPage({ playerMode = false }) {
                         onChange={(e) => handleSetMemorized(s.spell_id, parseInt(e.target.value, 10) || 0)}
                         style={{ width: 48, ...INPUT_STYLE }}
                       />
-                      <button type="button" className="btn btn-secondary" size="small" onClick={() => handleCastSpell(s.spell_id)} disabled={!(s.memorized > 0)}>Cast</button>
+                      <button type="button" className="btn btn-secondary" size="small" onClick={() => handleCastSpell(s.spell_id)} disabled={!(s.memorized > 0) || (remaining != null && remaining <= 0)}>Cast</button>
                       {s.spell_description && <span style={{ color: '#8a7f72', fontSize: '0.9rem' }}>— {s.spell_description.slice(0, 60)}…</span>}
                     </li>
                   ))}
@@ -698,8 +804,8 @@ export default function CharacterDetailPage({ playerMode = false }) {
               {incomingTransfers.map((t) => (
                 <div key={t.id} style={{ marginTop: 4 }}>
                   From {t.from_name} ({t.from_user}): {t.gold_cp > 0 && `${t.gold_cp} cp`} {t.payload?.items?.length ? ` · ${t.payload.items.length} item(s)` : ''}
-                  <button type="button" className="btn btn-primary" style={{ marginLeft: 8 }} onClick={() => updateTransfer(t.id, 'accepted').then(() => { refreshCharacter(); getCharacterTransfers(id, 'incoming').then((r) => setIncomingTransfers((r.data || []).filter((x) => x.status === 'pending'))); })}>Accept</button>
-                  <button type="button" className="btn btn-secondary" style={{ marginLeft: 4 }} onClick={() => updateTransfer(t.id, 'rejected').then(() => setIncomingTransfers((prev) => prev.filter((x) => x.id !== t.id)))}>Reject</button>
+                  <button type="button" className="btn btn-primary" style={{ marginLeft: 8 }} onClick={() => handleAcceptTransfer(t)}>Accept</button>
+                  <button type="button" className="btn btn-secondary" style={{ marginLeft: 4 }} onClick={() => updateTransfer(t.id, { status: 'rejected' }).then(() => setIncomingTransfers((prev) => prev.filter((x) => x.id !== t.id)))}>Reject</button>
                 </div>
               ))}
             </div>
@@ -758,6 +864,37 @@ export default function CharacterDetailPage({ playerMode = false }) {
                 Send
               </button>
               <button type="button" className="btn btn-secondary" onClick={() => { setSendStuffModal(false); setSendStuffRecipient(null); setSendStuffItems([]); setSendStuffGold(0); }}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {levelUp && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div className="card" style={{ maxWidth: 420 }}>
+            <h3>Level up</h3>
+            <p style={{ color: '#8a7f72' }}>Roll hit points for each new level. Constitution is added, and a penalty cannot reduce the gain below 1.</p>
+            {levelUp.write.needsRolls.map((step, index) => (
+              <div key={step.level} style={{ marginBottom: '0.75rem' }}>
+                <label style={{ display: 'block', marginBottom: 4 }}>
+                  Level {step.level}{step.hitDie ? ` (1–${step.hitDie})` : ''}
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={step.hitDie || undefined}
+                  value={levelUp.rolls[index]}
+                  onChange={(e) => setLevelUp((prev) => {
+                    const rolls = [...prev.rolls];
+                    rolls[index] = e.target.value;
+                    return { ...prev, rolls };
+                  })}
+                  style={INPUT_STYLE}
+                />
+              </div>
+            ))}
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button type="button" className="btn btn-primary" onClick={handleLevelRolls}>Add hit points</button>
+              <button type="button" className="btn btn-secondary" onClick={() => setLevelUp(null)}>Later</button>
             </div>
           </div>
         </div>
