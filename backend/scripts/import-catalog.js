@@ -62,6 +62,12 @@ still points at a monster this run would delete.
   return { dir: path.resolve(dir), dryRun };
 }
 
+function blank(value) {
+  if (value == null) return null;
+  const text = String(value).trim();
+  return text === '' ? null : text;
+}
+
 function loadGamesystem(dir) {
   const filePath = path.join(dir, 'gamesystem.json');
   if (!fs.existsSync(filePath)) throw new Error(`Missing gamesystem.json in ${dir}`);
@@ -277,14 +283,19 @@ async function importCatalog(client, dir) {
     monsterMap = await insertMapped(client, 'monster', catalog.monsters.rows, rulesetId, (destId, row, id) =>
       client.query(
         `INSERT INTO public.monster
-           (id, name, hit_dice, armor_class, morale, treasure_type, movement, number_appearing, ruleset_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+           (id, name, hit_dice, hitdie_note, armor_class, defense_note, attack_note,
+            morale, morale_engaged, treasure_type, movement, number_appearing, ruleset_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
         [
           destId,
           String(row.name).trim(),
           String(row.hit_dice).trim(),
-          asInt(row.armor_class),
+          blank(row.hitdie_note),
+          row.armor_class == null || row.armor_class === '' ? null : asInt(row.armor_class),
+          blank(row.defense_note),
+          blank(row.attack_note),
           row.morale == null || row.morale === '' ? null : asInt(row.morale),
+          row.morale_engaged == null || row.morale_engaged === '' ? null : asInt(row.morale_engaged),
           row.treasure_type == null || String(row.treasure_type).trim() === ''
             ? null
             : String(row.treasure_type).trim(),

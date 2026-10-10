@@ -1,6 +1,6 @@
 # Follow-up: bring the catalogs up to r142
 
-Status: `todo`. Depends on the empty catalog tables from [01-play-loop.md](01-play-loop.md) for monsters, treasure types, and encounter tables. The class, race, spell, and item corrections can be diffed before those tables exist. Do not start a full `import-ruleset` replace while any character still uses the ruleset. That path deletes the catalog and then aborts.
+Status: `doing`. Depends on the empty catalog tables from [01-play-loop.md](01-play-loop.md) for monsters, treasure types, and encounter tables. The class, race, spell, and item corrections can be diffed before those tables exist. Do not start a full `import-ruleset` replace while any character still uses the ruleset. That path deletes the catalog and then aborts.
 
 r142 is the source of truth where it differs from the edition Core was built from. Enhanced is a different ruleset. It receives a correction only when the row is still the shared core rule.
 
@@ -10,7 +10,7 @@ Compare `GameSystems/BasicFantasy_Core` to r142 and record only verified drifts.
 
 - Part 2. Races, classes, hit dice, saving throws, attack bonus, thief abilities, equipment, weapons, armor, costs.
 - Part 3. Spell names, range, duration, and effect text.
-- Part 6. Monster rows into the new `monster` table. This is new data, not a diff. Core has no monster file today.
+- Part 6. Monster rows into the new `monster` table. This is new data, not a diff. Core file is `MONSTERS.json`. See the drift list.
 - Part 7. Treasure types and the magic-item generation steps into `treasure_type`.
 - Part 8. Stock encounter tables (dungeon by level, wilderness by terrain, city) into `encounter_table`.
 
@@ -27,6 +27,22 @@ Apply the same edit when the Enhanced row is the shared rule: same name, and the
 Leave the row alone when Enhanced already states a different rule on purpose (extra classes, extra spells, a changed base class). Note that skip in the drift list so the next session does not "fix" it.
 
 Do not delete Enhanced material that r142 never contained. Do not copy the Core catalog over Enhanced.
+
+## Drift
+
+- Core `GameSystems/BasicFantasy_Core/MONSTERS.json`, r142 PDF pages 67–166. 263 rows, loaded into `monster` for Basic Fantasy Core by `import-catalog`. Enhanced was not touched. Treasure type `None` is null. Saving throws and XP are not columns.
+
+What the new columns hold:
+
+- `defense_note` is the armor-class text: silver, magic, unarmored plus the second AC, or the whole sentence when there is no integer (Insect Swarm p. 118, Yellow Mold p. 165). A range stays in the note when the row is not split (Hydra is armor class 16, note `16 to 23`).
+- `hitdie_note` is the extra hit-die wording (`1d4 hit points`, `hit point`, `variable`). The attack bonus that the book prints after hit dice goes in `attack_note`.
+- `attack_note` is the attack line plus that attack bonus. It is not an attack resolver.
+- `morale` is the first printed figure. `morale_engaged` is the second. The monster text says when the second figure applies (after engaged, a bull, the queen, fire or acid, and so on). It is not one rule for every row. `N/A` is null.
+- Hellhound is five rows, 3 through 7 hit dice, each `n**`, armor class 11 plus hit dice (14 through 18). Breath cone length is in the attack note.
+- Cattle, Cattle Aurochs, and Cattle Bison all have number appearing `Wild 10d12`.
+- Dragon age tables are not separate rows. One row uses the printed stat-block hit dice. "See X" lines and prose-only leaders (a 1-in-10 warrior) are not rows.
+
+Parts 2, 3, 7, and 8 are still open.
 
 ## Done when
 

@@ -91,6 +91,22 @@ assert.match(problemsFor((catalog) => {
   catalog.monsters = { rows: catalog.monsters.rows.map((row) => ({ ...row, morale: 1 })) };
 }), /morale/);
 assert.match(problemsFor((catalog) => {
+  catalog.monsters = { rows: catalog.monsters.rows.map((row) => ({ ...row, morale_engaged: 1 })) };
+}), /morale/);
+assert.match(problemsFor((catalog) => {
+  catalog.monsters = { rows: catalog.monsters.rows.map((row) => ({ ...row, armor_class: null, defense_note: '' })) };
+}), /armor class or defense note/);
+assert.equal(problemsFor((catalog) => {
+  catalog.monsters = { rows: catalog.monsters.rows.map((row) => ({
+    ...row,
+    armor_class: null,
+    defense_note: 'Can always be hit',
+    hitdie_note: 'variable',
+    attack_note: '1 bite; 1d6',
+    morale_engaged: 12,
+  })) };
+}), '');
+assert.match(problemsFor((catalog) => {
   catalog.treasures = { rows: [{ id: 1, code: 'B', definition: ['nope'] }] };
 }), /JSON object/);
 assert.match(problemsFor((catalog) => {

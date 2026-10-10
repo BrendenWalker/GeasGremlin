@@ -103,14 +103,28 @@ function loadCatalog(dir) {
   };
 }
 
+function armorProblem(value, defenseNote) {
+  const blank = value == null || value === '';
+  if (blank) {
+    const note = defenseNote == null ? '' : String(defenseNote).trim();
+    return note ? null : 'armor class or defense note is required';
+  }
+  if (asInt(value) == null) return 'armor class must be an integer';
+  return null;
+}
+
 function monsterProblems(row) {
   const where = `MONSTERS id ${row.id ?? '?'}`;
   const problems = [];
   pushProblems(problems, where, [
     requiredText(row.name, 'name', 80),
     requiredText(row.hit_dice, 'hit dice', 20),
-    asInt(row.armor_class) == null ? 'armor class must be an integer' : null,
+    optionalText(row.hitdie_note, 'hit die note', 500),
+    armorProblem(row.armor_class, row.defense_note),
+    optionalText(row.defense_note, 'defense note', 500),
+    optionalText(row.attack_note, 'attack note', 500),
     moraleProblem(row.morale),
+    moraleProblem(row.morale_engaged),
     optionalText(row.treasure_type, 'treasure type', 40),
     requiredText(row.movement, 'movement', 80),
     requiredText(row.number_appearing, 'number appearing', 80),

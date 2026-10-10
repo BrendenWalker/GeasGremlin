@@ -37,7 +37,7 @@ Imported or authored **definition** data for a game system. Typically read-heavy
 - `spells`
 - `abilities` — definition text plus an optional link to `stat` (`stat_id`, `stat_modifier`). Category is no longer stored on the ability.
 - `items`
-- `monster` — name, hit dice, armor class, morale (2–12 or empty), treasure-type code, movement, number appearing. No attacks and no stock numbers in this pass.
+- `monster` — name, hit dice, armor class, morale (2–12 or empty), treasure-type code, movement, number appearing. `hitdie_note`, `defense_note`, and `attack_note` hold the book's extra words (silver, magic, unarmored, attack bonus, the attack line). `morale_engaged` is the second printed morale figure. Armor class may be empty when the book gives only a sentence and `defense_note` is set. Saving throws and XP are not stored. No stock numbers in this pass.
 - `treasure_type` — `code` plus `definition` (jsonb object of the percent-and-dice columns, stored as given).
 
 **Encounter tables**

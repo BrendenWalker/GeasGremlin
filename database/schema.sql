@@ -664,12 +664,19 @@ CREATE INDEX IF NOT EXISTS idx_campaign_mark_campaign ON public.campaign_mark US
 -- Play catalog. Stock rows set ruleset_id. A custom encounter table sets campaign_id instead. Never both.
 -- No stock numbers ship here. import-catalog.js loads these files. import-ruleset.js does not.
 
+-- hitdie_note, defense_note, and attack_note are the book's extra words.
+-- armor_class may be empty when the book gives only a sentence (defense_note holds it).
+-- morale_engaged is the second printed morale figure. The prose says when it applies.
 CREATE TABLE IF NOT EXISTS public.monster (
 	id serial4 NOT NULL,
 	"name" varchar(80) NOT NULL,
 	hit_dice varchar(20) NOT NULL,
-	armor_class int4 NOT NULL,
+	hitdie_note text NULL,
+	armor_class int4 NULL,
+	defense_note text NULL,
+	attack_note text NULL,
 	morale int4 NULL,
+	morale_engaged int4 NULL,
 	treasure_type varchar(40) NULL,
 	movement varchar(80) NOT NULL,
 	number_appearing varchar(80) NOT NULL,
@@ -678,9 +685,33 @@ CREATE TABLE IF NOT EXISTS public.monster (
 	CONSTRAINT monster_pkey PRIMARY KEY (id),
 	CONSTRAINT monster_ruleset_name_key UNIQUE (ruleset_id, name),
 	CONSTRAINT monster_morale_check CHECK (morale IS NULL OR (morale >= 2 AND morale <= 12)),
+	CONSTRAINT monster_morale_engaged_check CHECK (morale_engaged IS NULL OR (morale_engaged >= 2 AND morale_engaged <= 12)),
+	CONSTRAINT monster_ac_check CHECK (armor_class IS NOT NULL OR defense_note IS NOT NULL),
 	CONSTRAINT monster_ruleset_id_fkey FOREIGN KEY (ruleset_id) REFERENCES public.ruleset(id) ON DELETE RESTRICT
 );
 CREATE INDEX IF NOT EXISTS idx_monster_ruleset ON public.monster USING btree (ruleset_id);
+ALTER TABLE public.monster ADD COLUMN IF NOT EXISTS hitdie_note text NULL;
+ALTER TABLE public.monster ADD COLUMN IF NOT EXISTS defense_note text NULL;
+ALTER TABLE public.monster ADD COLUMN IF NOT EXISTS attack_note text NULL;
+ALTER TABLE public.monster ADD COLUMN IF NOT EXISTS morale_engaged int4 NULL;
+ALTER TABLE public.monster ALTER COLUMN armor_class DROP NOT NULL;
+DO $$
+BEGIN
+	IF NOT EXISTS (
+		SELECT 1 FROM pg_constraint WHERE conname = 'monster_morale_engaged_check'
+	) THEN
+		ALTER TABLE public.monster
+			ADD CONSTRAINT monster_morale_engaged_check
+			CHECK (morale_engaged IS NULL OR (morale_engaged >= 2 AND morale_engaged <= 12));
+	END IF;
+	IF NOT EXISTS (
+		SELECT 1 FROM pg_constraint WHERE conname = 'monster_ac_check'
+	) THEN
+		ALTER TABLE public.monster
+			ADD CONSTRAINT monster_ac_check
+			CHECK (armor_class IS NOT NULL OR defense_note IS NOT NULL);
+	END IF;
+END $$;
 
 -- code is the book letter. definition is the percent-and-dice columns, stored as given.
 CREATE TABLE IF NOT EXISTS public.treasure_type (

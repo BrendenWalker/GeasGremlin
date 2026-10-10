@@ -19,7 +19,7 @@ Constants live in `frontend/src/domain/gameTime.mjs` and `backend/server.js`. `g
 
 New tables, no stock numbers in this pass. GM-authored rows are enough to try the loop. Filling them from r142 is [02-r142-catalog.md](02-r142-catalog.md).
 
-- `monster`: name, hit dice, armor class, morale, treasure type, movement, number appearing.
+- `monster`: name, hit dice, armor class, morale, treasure type, movement, number appearing. Notes for hit dice, defense, and attacks, plus a second morale figure, are filled from the book in the r142 catalog pass.
 - `treasure_type`: code plus a JSON definition of the percent-and-dice columns.
 - `encounter_table` / `encounter_table_row`: die, inclusive face range, monster reference or a plain label, quantity note.
 

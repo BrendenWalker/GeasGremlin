@@ -27,7 +27,8 @@ First pass. Design: [01-play-loop.md](01-play-loop.md).
 
 ## Next
 
-- [ ] `todo` r142 catalog. [02-r142-catalog.md](02-r142-catalog.md). Update Core, then the same correction on Enhanced where that row is still the shared rule.
+- [ ] `doing` r142 catalog. [02-r142-catalog.md](02-r142-catalog.md). Update Core, then the same correction on Enhanced where that row is still the shared rule.
+  - Core `MONSTERS.json` is loaded: 263 rows from r142 pages 67–166, including hit-die, defense, and attack notes and a second morale figure. Hellhound is one row per hit die from 3 to 7. Treasure types, encounter tables, and the class, spell, and item diffs are not started. Enhanced was not changed.
 - [ ] `todo` Later procedures. [03-later-procedures.md](03-later-procedures.md). The list held back from the first pass.
 
 ## Cut on purpose
