@@ -1,13 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { Navigate, useParams } from 'react-router-dom';
+import { Navigate, useLocation, useParams } from 'react-router-dom';
 import { getRaces } from '../api/api';
 import FormattedText from '../components/FormattedText';
 import CatalogTabs from '../components/CatalogTabs';
 import { AbilityTable, StatList } from '../components/CatalogDetails';
 import { abilityRequirements } from '../utils/formatText';
+import { catalogBase } from '../utils/rulesetSelection.mjs';
 
 export default function RacesPage() {
   const { rulesetId, entryId } = useParams();
+  const { pathname } = useLocation();
+  const base = catalogBase(pathname, rulesetId);
   const [races, setRaces] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -40,7 +43,7 @@ export default function RacesPage() {
   }, [rulesetId]);
 
   if (!loading && !error && loadedFor === rulesetId && !entryId && races.length > 0) {
-    return <Navigate to={`/rulesets/${rulesetId}/races/${races[0].id}`} replace />;
+    return <Navigate to={`${base}/races/${races[0].id}`} replace />;
   }
 
   const selected = races.find((race) => String(race.id) === String(entryId));
@@ -57,7 +60,7 @@ export default function RacesPage() {
           <CatalogTabs
             items={races}
             label="Races"
-            to={(race) => `/rulesets/${rulesetId}/races/${race.id}`}
+            to={(race) => `${base}/races/${race.id}`}
           />
           {selected ? (
             <article className="catalog-entry">

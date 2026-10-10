@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
-import { NavLink, Navigate, Outlet, useParams } from 'react-router-dom';
+import { NavLink, Navigate, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useRuleset } from './RulesetContext';
-import { CATALOG_SECTIONS } from '../utils/rulesetSelection.mjs';
+import { CATALOG_SECTIONS, catalogBase, catalogSection } from '../utils/rulesetSelection.mjs';
 
 function isRulesetId(value) {
   return typeof value === 'string' && /^[1-9]\d*$/.test(value);
@@ -36,15 +36,19 @@ export function RulesetRedirect({ section = 'races' }) {
   return <Navigate to={`/rulesets/${rulesetId}/${section}`} replace />;
 }
 
-export default function RulesetLayout() {
+export default function RulesetLayout({ locked = false }) {
   const { rulesetId: paramId } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { rulesets, error, loading, setRulesetId } = useRuleset();
   const known = !loading && !error && isRulesetId(paramId)
     && rulesets.some((row) => String(row.id) === paramId);
+  const rulesetName = known ? rulesets.find((row) => String(row.id) === paramId)?.name : '';
+  const base = catalogBase(location.pathname, paramId);
 
   useEffect(() => {
-    if (known) setRulesetId(paramId);
-  }, [known, paramId, setRulesetId]);
+    if (known && !locked) setRulesetId(paramId);
+  }, [known, locked, paramId, setRulesetId]);
 
   if (error) {
     return (
@@ -72,11 +76,35 @@ export default function RulesetLayout() {
 
   return (
     <div className="card ruleset-page">
+      {locked ? (
+        <p className="ruleset-picker">
+          <span>Ruleset</span>
+          <strong>{rulesetName}</strong>
+        </p>
+      ) : (
+        <label className="ruleset-picker">
+          <span>Ruleset</span>
+          <select
+            value={paramId}
+            onChange={(event) => {
+              navigate(`/rulesets/${event.target.value}/${catalogSection(location.pathname)}`);
+            }}
+            className="ruleset-select"
+            aria-label="Ruleset"
+          >
+            {rulesets.map((row) => (
+              <option key={row.id} value={String(row.id)}>
+                {row.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <nav className="subnav" aria-label="Ruleset catalog">
         {CATALOG_SECTIONS.map((item) => (
           <NavLink
             key={item.path}
-            to={`/rulesets/${paramId}/${item.path}`}
+            to={`${base}/${item.path}`}
             className={({ isActive }) => `subnav-link${isActive ? ' active' : ''}`}
           >
             {item.label}

@@ -59,6 +59,29 @@
   padding: 2rem 1rem;
 }
 
+.main-content:has(.adventuring) {
+  max-width: 1400px;
+}
+
+.adventuring {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 1rem;
+  align-items: start;
+}
+
+.adventuring-clock {
+  font-size: 1.25rem;
+  color: #e8c547;
+  margin: 0 0 1rem;
+}
+
+@media (max-width: 800px) {
+  .adventuring {
+    grid-template-columns: 1fr;
+  }
+}
+
 .version-footer {
   padding: 0.5rem 1rem;
   font-size: 0.75rem;
@@ -116,6 +139,11 @@
   background: #8b3535;
 }
 
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .muted {
   color: #8a7f72;
 }
@@ -131,16 +159,11 @@
   gap: 0.5rem;
   color: #b8b0a0;
   font-size: 0.9rem;
+  margin-bottom: 0.75rem;
 }
 
 .nav-ruleset {
   margin-left: auto;
-}
-
-.nav-ruleset-error {
-  margin-left: auto;
-  color: #c95858;
-  font-size: 0.85rem;
 }
 
 .ruleset-select {

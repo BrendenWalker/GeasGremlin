@@ -4,6 +4,7 @@
  *
  * Assumes schema.sql is already applied and DB_* points at that database.
  * Ignores: PENDING_CHANGES.json, gamesystem.json description, all modified fields.
+ * Compares gamesystem.json name and mechanic (missing mechanic counts as bfrpg).
  */
 
 const fs = require('fs');
@@ -97,7 +98,7 @@ function loadTableJson(dir, baseName) {
   return { filePath, rows: raw[key].map(lowerKeys) };
 }
 
-function loadGamesystemName(dir) {
+function loadGamesystemMeta(dir) {
   const filePath = path.join(dir, 'gamesystem.json');
   if (!fs.existsSync(filePath)) {
     throw new Error(`Missing gamesystem.json in ${dir}`);
@@ -106,7 +107,10 @@ function loadGamesystemName(dir) {
   if (!meta.name || typeof meta.name !== 'string' || !meta.name.trim()) {
     throw new Error(`${filePath}: "name" is required`);
   }
-  return meta.name.trim();
+  const mechanic = meta.mechanic == null || String(meta.mechanic).trim() === ''
+    ? 'bfrpg'
+    : String(meta.mechanic).trim();
+  return { name: meta.name.trim(), mechanic };
 }
 
 function normalizeValue(v) {
@@ -223,7 +227,7 @@ function main() {
     process.exit(1);
   }
 
-  const rulesetName = loadGamesystemName(dir);
+  const rulesetName = loadGamesystemMeta(dir).name;
   const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rpghub-ruleset-export-'));
 
   console.log(`Round-trip: ${dir}`);
@@ -239,10 +243,15 @@ function main() {
   ]);
 
   const errors = [];
-  const srcName = loadGamesystemName(dir);
-  const expName = loadGamesystemName(outDir);
-  if (srcName !== expName) {
-    errors.push(`gamesystem.json name: source=${JSON.stringify(srcName)} export=${JSON.stringify(expName)}`);
+  const srcMeta = loadGamesystemMeta(dir);
+  const expMeta = loadGamesystemMeta(outDir);
+  if (srcMeta.name !== expMeta.name) {
+    errors.push(`gamesystem.json name: source=${JSON.stringify(srcMeta.name)} export=${JSON.stringify(expMeta.name)}`);
+  }
+  if (srcMeta.mechanic !== expMeta.mechanic) {
+    errors.push(
+      `gamesystem.json mechanic: source=${JSON.stringify(srcMeta.mechanic)} export=${JSON.stringify(expMeta.mechanic)}`
+    );
   }
 
   for (const table of TABLE_FILES) {

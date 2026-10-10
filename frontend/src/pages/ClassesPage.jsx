@@ -1,13 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { Navigate, useParams } from 'react-router-dom';
+import { Navigate, useLocation, useParams } from 'react-router-dom';
 import { getClasses } from '../api/api';
 import FormattedText from '../components/FormattedText';
 import CatalogTabs from '../components/CatalogTabs';
 import { AbilityTable, LevelingTable, SpellSlotTable, StatList } from '../components/CatalogDetails';
 import { abilityRequirements } from '../utils/formatText';
+import { catalogBase } from '../utils/rulesetSelection.mjs';
 
 export default function ClassesPage() {
   const { rulesetId, entryId } = useParams();
+  const { pathname } = useLocation();
+  const base = catalogBase(pathname, rulesetId);
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -40,7 +43,7 @@ export default function ClassesPage() {
   }, [rulesetId]);
 
   if (!loading && !error && loadedFor === rulesetId && !entryId && classes.length > 0) {
-    return <Navigate to={`/rulesets/${rulesetId}/classes/${classes[0].id}`} replace />;
+    return <Navigate to={`${base}/classes/${classes[0].id}`} replace />;
   }
 
   const selected = classes.find((row) => String(row.id) === String(entryId));
@@ -57,7 +60,7 @@ export default function ClassesPage() {
           <CatalogTabs
             items={classes}
             label="Classes"
-            to={(row) => `/rulesets/${rulesetId}/classes/${row.id}`}
+            to={(row) => `${base}/classes/${row.id}`}
           />
           {selected ? (
             <article className="catalog-entry">

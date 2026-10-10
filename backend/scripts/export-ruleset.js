@@ -178,8 +178,14 @@ async function main() {
 
     fs.mkdirSync(outputDir, { recursive: true });
 
+    const mechanicRow = await pool.query(
+      'SELECT mechanic FROM public.ruleset WHERE id = $1',
+      [rulesetId]
+    );
+    const mechanic = mechanicRow.rows[0]?.mechanic || 'bfrpg';
     const gamesystem = {
       name: rulesetName,
+      mechanic,
       description: `Exported from database ruleset_id=${rulesetId} (${resolved.sourceLabel}).`,
     };
     fs.writeFileSync(

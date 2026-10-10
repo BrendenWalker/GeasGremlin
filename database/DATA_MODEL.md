@@ -13,7 +13,7 @@ Having **`ruleset_id`** does **not** mean “ruleset import catalog.” For exam
 
 | Table      | Role |
 |-----------|------|
-| `ruleset` | Defines named rulesets (`id`, `name`, …). Other tables reference `ruleset_id`. |
+| `ruleset` | Defines named rulesets (`id`, `name`, `mechanic`, …). `mechanic` selects a closed rules family (`bfrpg` today). Other tables reference `ruleset_id`. |
 
 ## Shared lookups (no `ruleset_id`)
 
@@ -97,8 +97,12 @@ Created during play or setup; not bulk “book import” in the same sense as cl
 
 **Campaign and membership**
 
-- `campaign` — GM/session container; **`ruleset_id`** picks which rule definitions apply.
+- `campaign` — GM/session container; **`ruleset_id`** picks which rule definitions apply. **`running`** is set true by the GM to open a session and false to pause it. More than one campaign may be running.
+- `campaign_board` — one row per campaign once play starts. **`game_seconds`** is the in-game clock (day 1 starts at 0; a round is 10 seconds). **`in_encounter`** is true while the GM has an encounter open. Missing row means clock 0 and no encounter.
 - `campaign_character` — many-to-many between campaigns and characters.
+- `campaign_enemy` — enemy names in the current encounter. Cleared when the encounter ends.
+- `campaign_mark` — a timed effect (`at_seconds` start plus `duration_minutes`) or an event (`at_seconds` only).
+- `campaign_presence` — last time a character's owner had that sheet open in the campaign. Active means `seen_at` within 30 seconds.
 
 **Characters and sheets**
 

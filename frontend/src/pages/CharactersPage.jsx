@@ -76,6 +76,7 @@ export default function CharactersPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
           <Link to="/campaigns" style={{ color: '#8a7f72', textDecoration: 'none' }}>← Campaigns</Link>
           <h2 style={{ margin: 0 }}>{campaign.name} — Characters</h2>
+          {campaign.ruleset_name && <span className="muted">{campaign.ruleset_name}</span>}
         </div>
       </div>
       <div className="card">

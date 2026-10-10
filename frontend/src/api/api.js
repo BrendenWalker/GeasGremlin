@@ -23,6 +23,8 @@ export const getCampaign = (id) => api.get(`/campaigns/${id}`);
 export const createCampaign = (data) => api.post('/campaigns', data);
 export const updateCampaign = (id, data) => api.put(`/campaigns/${id}`, data);
 export const deleteCampaign = (id) => api.delete(`/campaigns/${id}`);
+export const startCampaign = (id) => api.post(`/campaigns/${id}/start`);
+export const pauseCampaign = (id) => api.post(`/campaigns/${id}/pause`);
 
 // Characters
 export const getCharacters = (campaignId) => api.get(`/campaigns/${campaignId}/characters`);
@@ -74,5 +76,16 @@ export const createTransfer = (characterId, data) => api.post(`/characters/${cha
 export const getCharacterTransfers = (characterId, direction) =>
   api.get(`/characters/${characterId}/transfers`, { params: direction ? { direction } : {} });
 export const updateTransfer = (transferId, body) => api.patch(`/transfers/${transferId}`, body);
+
+export const getAdventuring = (campaignId) => api.get(`/campaigns/${campaignId}/adventuring`);
+export const tickAdventuring = (campaignId, step) => api.post(`/campaigns/${campaignId}/adventuring/tick`, { step });
+export const giveParty = (campaignId, body) => api.post(`/campaigns/${campaignId}/adventuring/party`, body);
+export const startEncounter = (campaignId) => api.post(`/campaigns/${campaignId}/adventuring/encounter`);
+export const endEncounter = (campaignId) => api.delete(`/campaigns/${campaignId}/adventuring/encounter`);
+export const addEncounterEnemy = (campaignId, name) => api.post(`/campaigns/${campaignId}/adventuring/enemies`, { name });
+export const removeEncounterEnemy = (campaignId, enemyId) => api.delete(`/campaigns/${campaignId}/adventuring/enemies/${enemyId}`);
+export const addAdventuringMark = (campaignId, body) => api.post(`/campaigns/${campaignId}/adventuring/marks`, body);
+export const removeAdventuringMark = (campaignId, markId) => api.delete(`/campaigns/${campaignId}/adventuring/marks/${markId}`);
+export const postPresence = (campaignId, characterId) => api.post(`/campaigns/${campaignId}/presence`, { character_id: characterId });
 
 export default api;

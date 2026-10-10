@@ -1,15 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { getCampaigns, createCampaign, deleteCampaign, getInvites, inviteToCampaign, acceptInvite, declineInvite } from '../api/api';
+import { Link, useNavigate } from 'react-router-dom';
+import { getCampaigns, createCampaign, deleteCampaign, getInvites, inviteToCampaign, acceptInvite, declineInvite, startCampaign } from '../api/api';
+import { useRuleset } from '../components/RulesetContext';
 
 export default function CampaignsPage() {
+  const { rulesets, error: rulesetError, loading: rulesetsLoading } = useRuleset();
+  const navigate = useNavigate();
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [newName, setNewName] = useState('');
+  const [newRulesetId, setNewRulesetId] = useState('');
   const [creating, setCreating] = useState(false);
   const [invites, setInvites] = useState([]);
   const [inviteName, setInviteName] = useState({});
+  const [startingId, setStartingId] = useState(null);
 
   const load = () => {
     setLoading(true);
@@ -30,11 +35,12 @@ export default function CampaignsPage() {
 
   const handleCreate = (e) => {
     e.preventDefault();
-    if (!newName.trim()) return;
+    if (!newName.trim() || !newRulesetId) return;
     setCreating(true);
-    createCampaign({ name: newName.trim() })
+    createCampaign({ name: newName.trim(), ruleset_id: parseInt(newRulesetId, 10) })
       .then(() => {
         setNewName('');
+        setNewRulesetId('');
         load();
       })
       .catch((err) => setError(err.response?.data?.error || err.message))
@@ -56,22 +62,44 @@ export default function CampaignsPage() {
       .catch((err) => setError(err.response?.data?.error || err.message));
   };
 
+  const handleStart = (id) => {
+    setStartingId(id);
+    setError(null);
+    startCampaign(id)
+      .then(() => navigate(`/play/${id}`))
+      .catch((err) => setError(err.response?.data?.error || err.message))
+      .finally(() => setStartingId(null));
+  };
+
   return (
     <div>
       <div className="card">
         <h2>Campaigns</h2>
-        <form onSubmit={handleCreate} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+        <form onSubmit={handleCreate} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
           <input
             type="text"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             placeholder="New campaign name"
-            style={{ flex: 1, padding: '0.5rem', borderRadius: 4, border: '1px solid #3d3530', background: '#1a1614', color: '#e8e0d5' }}
+            style={{ flex: 1, minWidth: 160, padding: '0.5rem', borderRadius: 4, border: '1px solid #3d3530', background: '#1a1614', color: '#e8e0d5' }}
           />
-          <button type="submit" className="btn btn-primary" disabled={creating || !newName.trim()}>
+          <select
+            value={newRulesetId}
+            onChange={(e) => setNewRulesetId(e.target.value)}
+            aria-label="Campaign ruleset"
+            disabled={rulesetsLoading || !rulesets || rulesets.length === 0}
+            style={{ minWidth: 180, padding: '0.5rem', borderRadius: 4, border: '1px solid #3d3530', background: '#1a1614', color: '#e8e0d5' }}
+          >
+            <option value="">Ruleset</option>
+            {(rulesets || []).map((row) => (
+              <option key={row.id} value={String(row.id)}>{row.name}</option>
+            ))}
+          </select>
+          <button type="submit" className="btn btn-primary" disabled={creating || !newName.trim() || !newRulesetId}>
             Add
           </button>
         </form>
+        {rulesetError && <p style={{ color: '#c95858', marginBottom: '0.5rem' }}>{rulesetError}</p>}
         {error && <p style={{ color: '#c95858', marginBottom: '0.5rem' }}>{error}</p>}
         {invites.length > 0 && (
           <div style={{ marginBottom: '1rem' }}>
@@ -102,11 +130,26 @@ export default function CampaignsPage() {
                   borderBottom: '1px solid #3d3530',
                 }}
               >
-                <Link to={`/campaigns/${c.id}/characters`} style={{ color: '#c9a227', textDecoration: 'none' }}>
-                  {c.name}
-                </Link>
-                {c.role === 'gm' && (
-                  <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
+                <span style={{ display: 'flex', alignItems: 'baseline', gap: '0.75rem', minWidth: 0 }}>
+                  <Link to={`/campaigns/${c.id}/characters`} style={{ color: '#c9a227', textDecoration: 'none' }}>
+                    {c.name}
+                  </Link>
+                  {c.ruleset_name && <span className="muted">{c.ruleset_name}</span>}
+                </span>
+                <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
+                  {(c.role === 'gm' || c.running) && (
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
+                      disabled={startingId === c.id}
+                      onClick={() => handleStart(c.id)}
+                    >
+                      Start
+                    </button>
+                  )}
+                  {c.role === 'gm' && (
+                    <>
                     <input
                       type="text"
                       value={inviteName[c.id] || ''}
@@ -123,8 +166,9 @@ export default function CampaignsPage() {
                     >
                       Delete
                     </button>
-                  </div>
-                )}
+                    </>
+                  )}
+                </div>
               </li>
             ))}
             {campaigns.length === 0 && !loading && (
