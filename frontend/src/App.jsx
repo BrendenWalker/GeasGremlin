@@ -1,5 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, NavLink, Navigate, useLocation, useMatch, useNavigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './components/AuthContext';
+import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage';
 import PlayPage from './pages/PlayPage';
 import PlayerCharacterPage from './pages/PlayerCharacterPage';
@@ -58,9 +60,13 @@ function RulesetSelect() {
   );
 }
 
-function App() {
+function Shell() {
+  const { user, loading, logout } = useAuth();
+  if (loading) {
+    return <div className="app"><main className="main-content"><p className="muted">Loading…</p></main></div>;
+  }
+  if (!user) return <LoginPage />;
   return (
-    <Router>
       <RulesetProvider>
       <div className="app">
         <nav className="navbar">
@@ -72,6 +78,8 @@ function App() {
               <NavLink to="/campaigns" className={navClass}>Campaigns</NavLink>
               <NavLink to="/rulesets" className={navClass}>Ruleset</NavLink>
             </div>
+            <span className="nav-ruleset" style={{ color: '#8a7f72' }}>{user.username}</span>
+            <button type="button" className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem' }} onClick={logout}>Log out</button>
             <RulesetSelect />
           </div>
         </nav>
@@ -103,7 +111,16 @@ function App() {
         <VersionFooter />
       </div>
       </RulesetProvider>
-    </Router>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <Router>
+        <Shell />
+      </Router>
+    </AuthProvider>
   );
 }
 

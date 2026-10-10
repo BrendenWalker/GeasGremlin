@@ -64,10 +64,9 @@ export default function ClassesPage() {
               <h4 className="catalog-name">{selected.name}</h4>
               <StatList
                 items={[
-                  { label: 'Hit die', value: selected.hitdie != null ? `d${selected.hitdie}` : null },
+                  { label: 'Quasi-class', value: selected.is_quasi ? 'Yes' : null },
                   { label: 'Subclass of', value: selected.subclass_name },
                   { label: 'Requirements', value: abilityRequirements(selected) },
-                  { label: 'XP adjustment', value: selected.xpadjustment },
                   { label: 'Armor', value: selected.armor ? <FormattedText text={selected.armor} /> : null },
                   { label: 'Weapons', value: selected.weapons ? <FormattedText text={selected.weapons} /> : null },
                 ]}

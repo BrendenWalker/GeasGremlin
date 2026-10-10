@@ -203,6 +203,17 @@ async function main() {
       )
     );
 
+    const statRows = await pool.query(
+      `SELECT id, name, category, modified FROM public.stat ORDER BY id`
+    );
+    written.push(
+      writeTableJson(
+        outputDir,
+        'STATS',
+        statRows.rows.map((r) => mapRow(r, ['id', 'name', 'category', 'modified']))
+      )
+    );
+
     const icRows = await pool.query(
       `SELECT id, name, modified FROM public.item_categories ORDER BY id`
     );
@@ -228,22 +239,21 @@ async function main() {
     const classesFields = [
       'id',
       'name',
-      'hitdie',
       'min_str',
       'min_int',
       'min_wis',
       'min_dex',
       'min_con',
       'min_chr',
-      { db: 'xpadjustment', json: 'XPAdjustment' },
       'armor',
       'weapons',
+      'is_quasi',
       'description',
       'modified',
     ];
     const classesResult = await pool.query(
-      `SELECT id, name, hitdie, min_str, min_int, min_wis, min_dex, min_con, min_chr,
-              xpadjustment, armor, weapons, description, modified
+      `SELECT id, name, min_str, min_int, min_wis, min_dex, min_con, min_chr,
+              armor, weapons, is_quasi, description, modified
        FROM public.classes WHERE ruleset_id = $1 ORDER BY id`,
       [rulesetId]
     );
@@ -272,19 +282,17 @@ async function main() {
       'max_dex',
       'max_con',
       'max_chr',
-      { db: 'xpadjustment', json: 'XPAdjustment' },
       'armor',
       'weapons',
       'description',
-      'rangedbonus',
       'max_hd',
       'modified',
       'hd_mod',
     ];
     const racesResult = await pool.query(
       `SELECT id, name, avgweight, avgheight, min_str, min_int, min_wis, min_dex, min_con, min_chr,
-              max_str, max_int, max_wis, max_dex, max_con, max_chr, xpadjustment, armor, weapons,
-              description, rangedbonus, max_hd, modified, hd_mod
+              max_str, max_int, max_wis, max_dex, max_con, max_chr, armor, weapons,
+              description, max_hd, modified, hd_mod
        FROM public.races WHERE ruleset_id = $1 ORDER BY id`,
       [rulesetId]
     );
@@ -318,7 +326,7 @@ async function main() {
     );
 
     const abilitiesResult = await pool.query(
-      `SELECT id, description, modified, category
+      `SELECT id, description, modified, stat_id, stat_modifier
        FROM public.abilities WHERE ruleset_id = $1 ORDER BY id`,
       [rulesetId]
     );
@@ -326,7 +334,7 @@ async function main() {
       writeTableJson(
         outputDir,
         'ABILITIES',
-        abilitiesResult.rows.map((r) => mapRow(r, ['id', 'description', 'modified', 'category']))
+        abilitiesResult.rows.map((r) => mapRow(r, ['id', 'description', 'modified', 'stat_id', 'stat_modifier']))
       )
     );
 

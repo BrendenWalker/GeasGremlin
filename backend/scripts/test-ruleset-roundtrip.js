@@ -20,6 +20,7 @@ require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 const TABLE_FILES = [
   'ABILITY_CATEGORIES',
+  'STATS',
   'ITEM_CATEGORIES',
   'ITEM_TYPES',
   'CLASSES',
@@ -36,6 +37,7 @@ const TABLE_FILES = [
 
 const ROW_SORT_KEYS = {
   ABILITY_CATEGORIES: ['id'],
+  STATS: ['id'],
   ITEM_CATEGORIES: ['id'],
   ITEM_TYPES: ['id'],
   CLASSES: ['id'],

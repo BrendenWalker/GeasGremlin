@@ -5,7 +5,17 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
 });
+
+export const getMe = () => api.get('/me');
+export const registerAccount = (username, password) => api.post('/register', { username, password });
+export const loginAccount = (username, password) => api.post('/login', { username, password });
+export const logoutAccount = () => api.post('/logout');
+export const getInvites = () => api.get('/invites');
+export const inviteToCampaign = (campaignId, username) => api.post(`/campaigns/${campaignId}/members`, { username });
+export const acceptInvite = (campaignId) => api.post(`/invites/${campaignId}/accept`);
+export const declineInvite = (campaignId) => api.post(`/invites/${campaignId}/decline`);
 
 // Campaigns
 export const getCampaigns = () => api.get('/campaigns');
@@ -55,14 +65,14 @@ export const getItemCategories = () => api.get('/item-categories');
 export const getItemTypes = () => api.get('/item-types');
 
 // Player (database-backed player/GM, replaces RabbitMQ)
-export const getPlayerCharacters = (user) => api.get('/player/characters', { params: { user } });
+export const getPlayerCharacters = () => api.get('/player/characters');
 export const getParty = (campaignId) => api.get(`/campaigns/${campaignId}/party`);
 export const createCampaignCommand = (campaignId, data) => api.post(`/campaigns/${campaignId}/commands`, data);
 export const getCharacterCommands = (characterId) => api.get(`/characters/${characterId}/commands`);
-export const markCommandRead = (commandId) => api.patch(`/commands/${commandId}/read`);
+export const markCommandRead = (commandId, body) => api.patch(`/commands/${commandId}/read`, body || {});
 export const createTransfer = (characterId, data) => api.post(`/characters/${characterId}/transfers`, data);
 export const getCharacterTransfers = (characterId, direction) =>
   api.get(`/characters/${characterId}/transfers`, { params: direction ? { direction } : {} });
-export const updateTransfer = (transferId, status) => api.patch(`/transfers/${transferId}`, { status });
+export const updateTransfer = (transferId, body) => api.patch(`/transfers/${transferId}`, body);
 
 export default api;

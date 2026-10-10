@@ -1,219 +1,277 @@
 {
-"ABILITIES": [
-	{
-		"ID" : 1,
-		"DESCRIPTION" : "%d' Darkvision",
-		"MODIFIED" : "2019-09-11 12:44:37",
-		"CATEGORY" : 1
-	},
-	{
-		"ID" : 2,
-		"DESCRIPTION" : "When searching roll %d or less on %s to Detect slanting passages, traps, shifting walls and new construction",
-		"MODIFIED" : "2019-09-11 12:44:37",
-		"CATEGORY" : 1
-	},
-	{
-		"ID" : 3,
-		"DESCRIPTION" : "Narurally Observant.  %d chance to spot invisible or hidden creatures within a %s radius.  Does not apply to inanimate objects such as doors.",
-		"MODIFIED" : "2019-09-11 13:25:32.290",
-		"CATEGORY" : 1
-	},
-	{
-		"ID" : 4,
-		"DESCRIPTION" : "When fighting invisible opponent detectd by naturally observant.  %d penalty to attack.",
-		"MODIFIED" : "2019-09-11 13:26:35.296",
-		"CATEGORY" : 3
-	},
-	{
-		"ID" : 5,
-		"DESCRIPTION" : "%d : Death Ray or Poison",
-		"MODIFIED" : "2021-08-11 21:16:31",
-		"CATEGORY" : 4
-	},
-	{
-		"ID" : 6,
-		"DESCRIPTION" : "%d : Magic Wands",
-		"MODIFIED" : "2021-08-11 21:16:37",
-		"CATEGORY" : 4
-	},
-	{
-		"ID" : 7,
-		"DESCRIPTION" : "%d : Paralysis or Petrify",
-		"MODIFIED" : "2021-08-11 21:16:43",
-		"CATEGORY" : 4
-	},
-	{
-		"ID" : 8,
-		"DESCRIPTION" : "%d : Dragon Breath",
-		"MODIFIED" : "2021-08-11 21:16:49",
-		"CATEGORY" : 4
-	},
-	{
-		"ID" : 9,
-		"DESCRIPTION" : "%d : Spells",
-		"MODIFIED" : "2021-08-11 21:16:56",
-		"CATEGORY" : 4
-	},
-	{
-		"ID" : 10,
-		"DESCRIPTION" : "%d%% Open Locks",
-		"MODIFIED" : "2019-09-15 22:35:51",
-		"CATEGORY" : 5
-	},
-	{
-		"ID" : 11,
-		"DESCRIPTION" : "%d%% Remove Traps",
-		"MODIFIED" : "2019-09-15 22:35:53",
-		"CATEGORY" : 5
-	},
-	{
-		"ID" : 12,
-		"DESCRIPTION" : "%d%% Pick Pockets",
-		"MODIFIED" : "2019-09-15 22:35:54",
-		"CATEGORY" : 5
-	},
-	{
-		"ID" : 13,
-		"DESCRIPTION" : "%d%% Move Silently",
-		"MODIFIED" : "2019-09-15 22:35:56",
-		"CATEGORY" : 5
-	},
-	{
-		"ID" : 14,
-		"DESCRIPTION" : "%d%% Climb Walls",
-		"MODIFIED" : "2019-09-15 22:35:57",
-		"CATEGORY" : 5
-	},
-	{
-		"ID" : 15,
-		"DESCRIPTION" : "%d%% Hide",
-		"MODIFIED" : "2019-09-15 22:35:59",
-		"CATEGORY" : 5
-	},
-	{
-		"ID" : 16,
-		"DESCRIPTION" : "%d%% Listen",
-		"MODIFIED" : "2019-09-15 22:36:00",
-		"CATEGORY" : 5
-	},
-	{
-		"ID" : 17,
-		"DESCRIPTION" : "Find secret doors more often roll 1 or 2 on d6.  1 in d6 chance %s look.",
-		"MODIFIED" : "2021-08-10 10:16:45.554",
-		"CATEGORY" : 1
-	},
-	{
-		"ID" : 18,
-		"DESCRIPTION" : "Less likely to be surprised 1 in d6",
-		"MODIFIED" : "2019-09-12 11:10:39.746",
-		"CATEGORY" : 2
-	},
-	{
-		"ID" : 19,
-		"DESCRIPTION" : "Immune to paralyzing attack of ghouls",
-		"MODIFIED" : "2019-09-12 11:10:47.332",
-		"CATEGORY" : 2
-	},
-	{
-		"ID" : 20,
-		"DESCRIPTION" : "When attacked by creatures larger than man size, +2 AC bonus",
-		"MODIFIED" : "2019-09-12 11:10:50.764",
-		"CATEGORY" : 2
-	},
-	{
-		"ID" : 21,
-		"DESCRIPTION" : "Quick witted.  +1 to initiative",
-		"MODIFIED" : "2019-09-12 11:10:57.279",
-		"CATEGORY" : 1
-	},
-	{
-		"ID" : 22,
-		"DESCRIPTION" : "+%d%% Hide - Outdoors",
-		"MODIFIED" : "2021-08-12 00:39:56",
-		"CATEGORY" : 5
-	},
-	{
-		"ID" : 23,
-		"DESCRIPTION" : "Sneak Attack +%d attack bonus, %s damage",
-		"MODIFIED" : "2021-08-09 12:53:03.134",
-		"CATEGORY" : 3
-	},
-	{
-		"ID" : 24,
-		"DESCRIPTION" : "Base A\/C %d",
-		"MODIFIED" : "2021-08-10 10:23:24.469",
-		"CATEGORY" : 2
-	},
-	{
-		"ID" : 25,
-		"DESCRIPTION" : "Back A\/C %d",
-		"MODIFIED" : "2021-08-10 10:23:30.336",
-		"CATEGORY" : 2
-	},
-	{
-		"ID" : 26,
-		"DESCRIPTION" : "+%d Save vs. charm",
-		"MODIFIED" : "2021-08-11 21:17:55",
-		"CATEGORY" : 4
-	},
-	{
-		"ID" : 27,
-		"DESCRIPTION" : "+%d feats of strength",
-		"MODIFIED" : "2021-08-10 10:23:54.602",
-		"CATEGORY" : 1
-	},
-	{
-		"ID" : 28,
-		"DESCRIPTION" : "Humans or smaller +1 on any reaction die plus charisma bonus",
-		"MODIFIED" : "2021-08-10 10:23:49.245",
-		"CATEGORY" : 1
-	},
-	{
-		"ID" : 29,
-		"DESCRIPTION" : "+%d Save vs Poison",
-		"MODIFIED" : "2021-08-11 21:18:03",
-		"CATEGORY" : 4
-	},
-	{
-		"ID" : 30,
-		"DESCRIPTION" : "%d%% Tracking",
-		"MODIFIED" : "2021-08-11 21:24:00",
-		"CATEGORY" : 5
-	},
-	{
-		"ID" : 31,
-		"DESCRIPTION" : "%d%% Hide - Indoors",
-		"MODIFIED" : "2021-08-12 00:41:00",
-		"CATEGORY" : 5
-	},
-	{
-		"ID" : 32,
-		"DESCRIPTION" : "%d%% Poison",
-		"MODIFIED" : "2021-08-26 00:27:19",
-		"CATEGORY" : 5
-	},
-	{
-		"ID" : 33,
-		"DESCRIPTION" : "Assassinate +%d to attack bonus, save vs death ray die or normal weapon damage",
-		"MODIFIED" : "2021-08-26 00:36:03",
-		"CATEGORY" : 3
-	},
-	{
-		"ID" : 34,
-		"DESCRIPTION" : "Waylay: +%d to attack bonus, save vs death ray to avoid unconsiousness or regular subdueing damage.",
-		"MODIFIED" : "2021-08-26 00:36:27",
-		"CATEGORY" : 3
-	},
-	{
-		"ID" : 35,
-		"DESCRIPTION" : "Turn undead - consult GM",
-		"MODIFIED" : "2021-08-26 00:36:27",
-		"CATEGORY" : 1
-	},
-	{
-		"ID" : 36,
-		"DESCRIPTION" : "Animal Affinity - consult GM",
-		"MODIFIED" : "2021-08-26 00:36:27",
-		"CATEGORY" : 1
-	}
-]}
+	"ABILITIES" : [
+		{
+			"ID" : 1,
+			"DESCRIPTION" : "%d' Darkvision",
+			"MODIFIED" : "2019-09-11 12:44:37",
+			"STAT_ID" : null,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 2,
+			"DESCRIPTION" : "When searching roll %d or less on %s to Detect slanting passages, traps, shifting walls and new construction",
+			"MODIFIED" : "2019-09-11 12:44:37",
+			"STAT_ID" : null,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 3,
+			"DESCRIPTION" : "Narurally Observant.  %d chance to spot invisible or hidden creatures within a %s radius.  Does not apply to inanimate objects such as doors.",
+			"MODIFIED" : "2019-09-11 13:25:32.290",
+			"STAT_ID" : null,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 4,
+			"DESCRIPTION" : "When fighting invisible opponent detectd by naturally observant.  %d penalty to attack.",
+			"MODIFIED" : "2019-09-11 13:26:35.296",
+			"STAT_ID" : null,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 5,
+			"DESCRIPTION" : "%d : Death Ray or Poison",
+			"MODIFIED" : "2021-08-11 21:16:31",
+			"STAT_ID" : 14,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 6,
+			"DESCRIPTION" : "%d : Magic Wands",
+			"MODIFIED" : "2021-08-11 21:16:37",
+			"STAT_ID" : 15,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 7,
+			"DESCRIPTION" : "%d : Paralysis or Petrify",
+			"MODIFIED" : "2021-08-11 21:16:43",
+			"STAT_ID" : 16,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 8,
+			"DESCRIPTION" : "%d : Dragon Breath",
+			"MODIFIED" : "2021-08-11 21:16:49",
+			"STAT_ID" : 17,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 9,
+			"DESCRIPTION" : "%d : Spells",
+			"MODIFIED" : "2021-08-11 21:16:56",
+			"STAT_ID" : 18,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 10,
+			"DESCRIPTION" : "%d%% Open Locks",
+			"MODIFIED" : "2019-09-15 22:35:51",
+			"STAT_ID" : 20,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 11,
+			"DESCRIPTION" : "%d%% Remove Traps",
+			"MODIFIED" : "2019-09-15 22:35:53",
+			"STAT_ID" : 21,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 12,
+			"DESCRIPTION" : "%d%% Pick Pockets",
+			"MODIFIED" : "2019-09-15 22:35:54",
+			"STAT_ID" : 22,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 13,
+			"DESCRIPTION" : "%d%% Move Silently",
+			"MODIFIED" : "2019-09-15 22:35:56",
+			"STAT_ID" : 23,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 14,
+			"DESCRIPTION" : "%d%% Climb Walls",
+			"MODIFIED" : "2019-09-15 22:35:57",
+			"STAT_ID" : 24,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 15,
+			"DESCRIPTION" : "%d%% Hide",
+			"MODIFIED" : "2019-09-15 22:35:59",
+			"STAT_ID" : 25,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 16,
+			"DESCRIPTION" : "%d%% Listen",
+			"MODIFIED" : "2019-09-15 22:36:00",
+			"STAT_ID" : 26,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 17,
+			"DESCRIPTION" : "Find secret doors more often roll 1 or 2 on d6.  1 in d6 chance %s look.",
+			"MODIFIED" : "2021-08-10 10:16:45.554",
+			"STAT_ID" : null,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 18,
+			"DESCRIPTION" : "Less likely to be surprised 1 in d6",
+			"MODIFIED" : "2019-09-12 11:10:39.746",
+			"STAT_ID" : null,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 19,
+			"DESCRIPTION" : "Immune to paralyzing attack of ghouls",
+			"MODIFIED" : "2019-09-12 11:10:47.332",
+			"STAT_ID" : null,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 20,
+			"DESCRIPTION" : "When attacked by creatures larger than man size, +2 AC bonus",
+			"MODIFIED" : "2019-09-12 11:10:50.764",
+			"STAT_ID" : null,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 21,
+			"DESCRIPTION" : "Quick witted.  +1 to initiative",
+			"MODIFIED" : "2019-09-12 11:10:57.279",
+			"STAT_ID" : 10,
+			"STAT_MODIFIER" : 1
+		},
+		{
+			"ID" : 22,
+			"DESCRIPTION" : "+%d%% Hide - Outdoors",
+			"MODIFIED" : "2021-08-12 00:39:56",
+			"STAT_ID" : 27,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 23,
+			"DESCRIPTION" : "Sneak Attack +%d attack bonus, %s damage",
+			"MODIFIED" : "2021-08-09 12:53:03.134",
+			"STAT_ID" : null,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 24,
+			"DESCRIPTION" : "Base A/C %d",
+			"MODIFIED" : "2021-08-10 10:23:24.469",
+			"STAT_ID" : 7,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 25,
+			"DESCRIPTION" : "Back A/C %d",
+			"MODIFIED" : "2021-08-10 10:23:30.336",
+			"STAT_ID" : 9,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 26,
+			"DESCRIPTION" : "+%d Save vs. charm",
+			"MODIFIED" : "2021-08-11 21:17:55",
+			"STAT_ID" : 19,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 27,
+			"DESCRIPTION" : "+%d feats of strength",
+			"MODIFIED" : "2021-08-10 10:23:54.602",
+			"STAT_ID" : 11,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 28,
+			"DESCRIPTION" : "Humans or smaller +1 on any reaction die plus charisma bonus",
+			"MODIFIED" : "2021-08-10 10:23:49.245",
+			"STAT_ID" : null,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 29,
+			"DESCRIPTION" : "+%d Save vs Poison",
+			"MODIFIED" : "2021-08-11 21:18:03",
+			"STAT_ID" : 14,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 30,
+			"DESCRIPTION" : "%d%% Tracking",
+			"MODIFIED" : "2021-08-11 21:24:00",
+			"STAT_ID" : 29,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 31,
+			"DESCRIPTION" : "%d%% Hide - Indoors",
+			"MODIFIED" : "2021-08-12 00:41:00",
+			"STAT_ID" : 28,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 32,
+			"DESCRIPTION" : "%d%% Poison",
+			"MODIFIED" : "2021-08-26 00:27:19",
+			"STAT_ID" : 30,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 33,
+			"DESCRIPTION" : "Assassinate +%d to attack bonus, save vs death ray die or normal weapon damage",
+			"MODIFIED" : "2021-08-26 00:36:03",
+			"STAT_ID" : null,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 34,
+			"DESCRIPTION" : "Waylay: +%d to attack bonus, save vs death ray to avoid unconsiousness or regular subdueing damage.",
+			"MODIFIED" : "2021-08-26 00:36:27",
+			"STAT_ID" : null,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 35,
+			"DESCRIPTION" : "Turn undead - consult GM",
+			"MODIFIED" : "2021-08-26 00:36:27",
+			"STAT_ID" : null,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 36,
+			"DESCRIPTION" : "Animal Affinity - consult GM",
+			"MODIFIED" : "2021-08-26 00:36:27",
+			"STAT_ID" : null,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 38,
+			"DESCRIPTION" : "+%d Ranged Attack",
+			"MODIFIED" : "2023-05-26 20:04:43",
+			"STAT_ID" : 13,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 39,
+			"DESCRIPTION" : "d%d Hit Die",
+			"MODIFIED" : "2026-10-06 00:00:00",
+			"STAT_ID" : 32,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 40,
+			"DESCRIPTION" : "%d%% XP",
+			"MODIFIED" : "2026-10-06 00:00:00",
+			"STAT_ID" : 31,
+			"STAT_MODIFIER" : null
+		}
+	]
+}

@@ -531,5 +531,40 @@
 		"INT_PARAM" : null,
 		"STR_PARAM" : null,
 		"MODIFIED" : "2021-09-04 14:16:23.315"
+	},
+	{
+		"RACE_ID" : 4,
+		"ABILITY_ID" : 38,
+		"INT_PARAM" : 1,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2023-05-26 20:05:32"
+	},
+	{
+		"RACE_ID" : 5,
+		"ABILITY_ID" : 40,
+		"INT_PARAM" : 10,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"RACE_ID" : 11,
+		"ABILITY_ID" : 40,
+		"INT_PARAM" : 5,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"RACE_ID" : 12,
+		"ABILITY_ID" : 40,
+		"INT_PARAM" : 5,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"RACE_ID" : 13,
+		"ABILITY_ID" : 40,
+		"INT_PARAM" : 5,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2026-10-06 00:00:00"
 	}
 ]}

@@ -66,17 +66,16 @@ CREATE TABLE IF NOT EXISTS public.campaign (
 CREATE TABLE IF NOT EXISTS public.classes (
 	id int4 NOT NULL,
 	"name" varchar(80) NOT NULL,
-	hitdie int4 NULL,
 	min_str int4 NULL,
 	min_int int4 NULL,
 	min_wis int4 NULL,
 	min_dex int4 NULL,
 	min_con int4 NULL,
 	min_chr int4 NULL,
-	xpadjustment int4 NULL,
 	armor varchar(200) NULL,
 	weapons varchar(200) NULL,
 	description text NULL,
+	is_quasi boolean NOT NULL DEFAULT false,
 	modified timestamp DEFAULT now() NOT NULL,
 	ruleset_id int4 NOT NULL DEFAULT 1,
 	subclass_of int4 NULL,
@@ -87,6 +86,11 @@ CREATE TABLE IF NOT EXISTS public.classes (
 	CONSTRAINT classes_subclass_of_fkey FOREIGN KEY (subclass_of) REFERENCES public.classes(id) ON DELETE RESTRICT
 );
 CREATE INDEX IF NOT EXISTS classes_classes_modified ON public.classes USING btree (modified);
+
+-- Hit die and XP adjustment live on class abilities. Drop leftover columns from older databases.
+ALTER TABLE public.classes DROP COLUMN IF EXISTS hitdie;
+ALTER TABLE public.classes DROP COLUMN IF EXISTS xpadjustment;
+ALTER TABLE public.classes ADD COLUMN IF NOT EXISTS is_quasi boolean NOT NULL DEFAULT false;
 
 
 -- public.item_categories definition
@@ -138,11 +142,9 @@ CREATE TABLE IF NOT EXISTS public.races (
 	max_dex int4 NULL,
 	max_con int4 NULL,
 	max_chr int4 NULL,
-	xpadjustment int4 NULL,
 	armor varchar(200) NULL,
 	weapons varchar(200) NULL,
 	description text NULL,
-	rangedbonus int4 NULL,
 	max_hd int4 NULL,
 	modified timestamp DEFAULT now() NOT NULL,
 	hd_mod int4 NULL,
@@ -152,6 +154,10 @@ CREATE TABLE IF NOT EXISTS public.races (
 	CONSTRAINT races_ruleset_id_fkey FOREIGN KEY (ruleset_id) REFERENCES public.ruleset(id) ON DELETE RESTRICT
 );
 CREATE INDEX IF NOT EXISTS races_races_modified ON public.races USING btree (modified);
+
+-- XP adjustment is a race ability. Ranged bonus is the existing Halfling ranged-attack grant.
+ALTER TABLE public.races DROP COLUMN IF EXISTS xpadjustment;
+ALTER TABLE public.races DROP COLUMN IF EXISTS rangedbonus;
 
 
 -- public.spells definition
@@ -173,6 +179,23 @@ CREATE TABLE IF NOT EXISTS public.spells (
 CREATE INDEX IF NOT EXISTS spells_spells_modified ON public.spells USING btree (modified);
 
 
+-- public.stat definition
+-- Shared lookup of adjustable character stats. Category groups them (Attribute, Saving Throw, ...).
+
+-- DROP TABLE public.stat;
+
+CREATE TABLE IF NOT EXISTS public.stat (
+	id serial4 NOT NULL,
+	"name" varchar(80) NOT NULL,
+	category int4 NOT NULL,
+	modified timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT stat_name_key UNIQUE (name),
+	CONSTRAINT stat_pkey PRIMARY KEY (id),
+	CONSTRAINT stat_category_fkey FOREIGN KEY (category) REFERENCES public.ability_categories(id) ON DELETE RESTRICT
+);
+CREATE INDEX IF NOT EXISTS stat_stat_modified ON public.stat USING btree (modified);
+
+
 -- public.abilities definition
 
 -- DROP TABLE public.abilities;
@@ -181,14 +204,26 @@ CREATE TABLE IF NOT EXISTS public.abilities (
 	id int4 NOT NULL,
 	description varchar(200) NOT NULL,
 	modified timestamp DEFAULT now() NOT NULL,
-	category int4 NULL,
+	stat_id int4 NULL,
+	stat_modifier int4 NULL,
 	ruleset_id int4 NOT NULL DEFAULT 1,
 	CONSTRAINT abilities_ruleset_description_key UNIQUE (ruleset_id, description),
 	CONSTRAINT abilities_pkey PRIMARY KEY (id),
-	CONSTRAINT integ_69 FOREIGN KEY (category) REFERENCES public.ability_categories(id),
+	CONSTRAINT abilities_stat_id_fkey FOREIGN KEY (stat_id) REFERENCES public.stat(id) ON DELETE RESTRICT,
+	CONSTRAINT abilities_stat_modifier_check CHECK (stat_modifier IS NULL OR stat_id IS NOT NULL),
 	CONSTRAINT abilities_ruleset_id_fkey FOREIGN KEY (ruleset_id) REFERENCES public.ruleset(id) ON DELETE RESTRICT
 );
 CREATE INDEX IF NOT EXISTS abilities_abilities_modified ON public.abilities USING btree (modified);
+
+-- Existing databases still have abilities.category. Move them onto stat_id.
+ALTER TABLE public.abilities ADD COLUMN IF NOT EXISTS stat_id int4 NULL;
+ALTER TABLE public.abilities ADD COLUMN IF NOT EXISTS stat_modifier int4 NULL;
+ALTER TABLE public.abilities DROP CONSTRAINT IF EXISTS integ_69;
+ALTER TABLE public.abilities DROP COLUMN IF EXISTS category;
+ALTER TABLE public.abilities DROP CONSTRAINT IF EXISTS abilities_stat_id_fkey;
+ALTER TABLE public.abilities ADD CONSTRAINT abilities_stat_id_fkey FOREIGN KEY (stat_id) REFERENCES public.stat(id) ON DELETE RESTRICT;
+ALTER TABLE public.abilities DROP CONSTRAINT IF EXISTS abilities_stat_modifier_check;
+ALTER TABLE public.abilities ADD CONSTRAINT abilities_stat_modifier_check CHECK (stat_modifier IS NULL OR stat_id IS NOT NULL);
 
 
 -- public."characters" definition
@@ -234,6 +269,11 @@ CREATE INDEX IF NOT EXISTS characters_characters_modified ON public.characters U
 
 -- Armor class is derived from equipped armor, shield, and Dexterity. Drop the stored column on existing databases.
 ALTER TABLE public.characters DROP COLUMN IF EXISTS ac;
+-- quasiclass is the overlay. The base class is a character_classes row.
+ALTER TABLE public.characters DROP CONSTRAINT IF EXISTS characters_quasiclass_fkey;
+ALTER TABLE public.characters
+	ADD CONSTRAINT characters_quasiclass_fkey
+	FOREIGN KEY (quasiclass) REFERENCES public.classes(id) ON DELETE RESTRICT;
 
 
 -- public.character_classes definition (character 1-n classes; primary = lowest sort_order, then class_id)
@@ -523,6 +563,39 @@ CREATE INDEX IF NOT EXISTS idx_campaign_command_campaign ON public.campaign_comm
 CREATE INDEX IF NOT EXISTS idx_campaign_command_recipient ON public.campaign_command USING btree (recipient_character_id);
 CREATE INDEX IF NOT EXISTS idx_campaign_command_unread ON public.campaign_command (campaign_id, read_at) WHERE read_at IS NULL;
 
+-- Accounts and campaign membership. Unowned campaigns stay hidden until a row exists here.
+
+CREATE TABLE IF NOT EXISTS public.app_user (
+	id serial4 NOT NULL,
+	username varchar(80) NOT NULL,
+	password_hash varchar(100) NOT NULL,
+	created_at timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	CONSTRAINT app_user_pkey PRIMARY KEY (id)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS app_user_username_lower ON public.app_user (lower(username));
+
+CREATE TABLE IF NOT EXISTS public.app_session (
+	token_hash char(64) NOT NULL,
+	user_id int4 NOT NULL,
+	expires_at timestamp NOT NULL,
+	CONSTRAINT app_session_pkey PRIMARY KEY (token_hash),
+	CONSTRAINT app_session_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.app_user(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_app_session_user ON public.app_session (user_id);
+
+CREATE TABLE IF NOT EXISTS public.campaign_member (
+	campaign_id int4 NOT NULL,
+	user_id int4 NOT NULL,
+	role varchar(16) NOT NULL,
+	status varchar(16) NOT NULL,
+	CONSTRAINT campaign_member_pkey PRIMARY KEY (campaign_id, user_id),
+	CONSTRAINT campaign_member_campaign_id_fkey FOREIGN KEY (campaign_id) REFERENCES public.campaign(id) ON DELETE CASCADE,
+	CONSTRAINT campaign_member_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.app_user(id) ON DELETE CASCADE,
+	CONSTRAINT campaign_member_role_check CHECK (role IN ('gm', 'player')),
+	CONSTRAINT campaign_member_status_check CHECK (status IN ('invited', 'accepted'))
+);
+CREATE INDEX IF NOT EXISTS idx_campaign_member_user ON public.campaign_member (user_id);
+
 -- Player-to-player item/gold transfers (send stuff)
 -- DROP TABLE public.character_transfer;
 CREATE TABLE IF NOT EXISTS public.character_transfer (
@@ -542,3 +615,97 @@ CREATE TABLE IF NOT EXISTS public.character_transfer (
 CREATE INDEX IF NOT EXISTS idx_character_transfer_to ON public.character_transfer USING btree (to_character_id);
 CREATE INDEX IF NOT EXISTS idx_character_transfer_from ON public.character_transfer USING btree (from_character_id);
 CREATE INDEX IF NOT EXISTS idx_character_transfer_pending ON public.character_transfer (to_character_id, status) WHERE status = 'pending';
+
+
+-- ==================== Stat lookup seed (idempotent) ====================
+-- Attribute is new. Other categories arrive with the ruleset JSON import.
+-- Stat inserts no-op until that category name exists, so a fresh schema.sql
+-- before import only seeds Attribute stats. Ability links no-op on an empty catalog.
+
+INSERT INTO public.ability_categories (id, name)
+SELECT 7, 'Attribute'
+WHERE NOT EXISTS (SELECT 1 FROM public.ability_categories WHERE name = 'Attribute')
+  AND NOT EXISTS (SELECT 1 FROM public.ability_categories WHERE id = 7);
+
+INSERT INTO public.stat (id, name, category)
+SELECT v.id, v.name, ac.id
+FROM (
+	VALUES
+		(1, 'STR', 'Attribute'),
+		(2, 'INT', 'Attribute'),
+		(3, 'WIS', 'Attribute'),
+		(4, 'DEX', 'Attribute'),
+		(5, 'CON', 'Attribute'),
+		(6, 'CHR', 'Attribute'),
+		(7, 'AC', 'Defense'),
+		(8, 'HP', 'Defense'),
+		(9, 'Back AC', 'Defense'),
+		(10, 'Initiative', 'General'),
+		(11, 'Feats of Strength', 'General'),
+		(12, 'Attack Bonus', 'Melee Attack'),
+		(13, 'Ranged Attack', 'Ranged Attack'),
+		(14, 'Death Ray or Poison', 'Saving Throw'),
+		(15, 'Magic Wands', 'Saving Throw'),
+		(16, 'Paralysis or Petrify', 'Saving Throw'),
+		(17, 'Dragon Breath', 'Saving Throw'),
+		(18, 'Spells', 'Saving Throw'),
+		(19, 'Save vs Charm', 'Saving Throw'),
+		(20, 'Open Locks', 'Thief Ability'),
+		(21, 'Remove Traps', 'Thief Ability'),
+		(22, 'Pick Pockets', 'Thief Ability'),
+		(23, 'Move Silently', 'Thief Ability'),
+		(24, 'Climb Walls', 'Thief Ability'),
+		(25, 'Hide', 'Thief Ability'),
+		(26, 'Listen', 'Thief Ability'),
+		(27, 'Hide - Outdoors', 'Thief Ability'),
+		(28, 'Hide - Indoors', 'Thief Ability'),
+		(29, 'Tracking', 'Thief Ability'),
+		(30, 'Poison', 'Thief Ability'),
+		(31, 'XP', 'General'),
+		(32, 'Hit Die', 'Defense')
+) AS v(id, name, category_name)
+JOIN public.ability_categories ac ON ac.name = v.category_name
+WHERE NOT EXISTS (SELECT 1 FROM public.stat s WHERE s.name = v.name);
+
+DO $$
+BEGIN
+	IF EXISTS (SELECT 1 FROM public.stat) THEN
+		PERFORM setval(pg_get_serial_sequence('public.stat', 'id'), (SELECT MAX(id) FROM public.stat));
+	END IF;
+END $$;
+
+-- Level-scaled abilities keep the number on class_abilities.int_param. Only initiative has a fixed delta.
+UPDATE public.abilities a
+SET stat_id = s.id,
+	stat_modifier = m.stat_modifier
+FROM (
+	VALUES
+		('%d : Death Ray or Poison', 'Death Ray or Poison', NULL::int4),
+		('%d : Magic Wands', 'Magic Wands', NULL::int4),
+		('%d : Paralysis or Petrify', 'Paralysis or Petrify', NULL::int4),
+		('%d : Dragon Breath', 'Dragon Breath', NULL::int4),
+		('%d : Spells', 'Spells', NULL::int4),
+		('%d%% Open Locks', 'Open Locks', NULL::int4),
+		('%d%% Remove Traps', 'Remove Traps', NULL::int4),
+		('%d%% Pick Pockets', 'Pick Pockets', NULL::int4),
+		('%d%% Move Silently', 'Move Silently', NULL::int4),
+		('%d%% Climb Walls', 'Climb Walls', NULL::int4),
+		('%d%% Hide', 'Hide', NULL::int4),
+		('%d%% Listen', 'Listen', NULL::int4),
+		('+%d%% Hide - Outdoors', 'Hide - Outdoors', NULL::int4),
+		('Base A/C %d', 'AC', NULL::int4),
+		('Back A/C %d', 'Back AC', NULL::int4),
+		('+%d Save vs. charm', 'Save vs Charm', NULL::int4),
+		('+%d feats of strength', 'Feats of Strength', NULL::int4),
+		('+%d Save vs Poison', 'Death Ray or Poison', NULL::int4),
+		('%d%% Tracking', 'Tracking', NULL::int4),
+		('%d%% Hide - Indoors', 'Hide - Indoors', NULL::int4),
+		('%d%% Poison', 'Poison', NULL::int4),
+		('+%d Ranged Attack', 'Ranged Attack', NULL::int4),
+		('Quick witted.  +1 to initiative', 'Initiative', 1),
+		('d%d Hit Die', 'Hit Die', NULL::int4),
+		('%d%% XP', 'XP', NULL::int4)
+) AS m(description, stat_name, stat_modifier)
+JOIN public.stat s ON s.name = m.stat_name
+WHERE a.stat_id IS NULL
+  AND a.description = m.description;

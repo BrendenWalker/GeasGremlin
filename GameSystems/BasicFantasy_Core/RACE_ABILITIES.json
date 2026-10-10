@@ -167,5 +167,12 @@
 		"INT_PARAM" : null,
 		"STR_PARAM" : null,
 		"MODIFIED" : "2023-05-26 20:06:44"
+	},
+	{
+		"RACE_ID" : 5,
+		"ABILITY_ID" : 40,
+		"INT_PARAM" : 10,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2026-10-06 00:00:00"
 	}
 ]}

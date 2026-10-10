@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { getCampaign, getCharacters, createCharacter, deleteCharacter, createCampaignCommand } from '../api/api';
+import { useAuth } from '../components/AuthContext';
 
 export default function CharactersPage() {
   const { campaignId } = useParams();
+  const { user } = useAuth();
   const [campaign, setCampaign] = useState(null);
   const [characters, setCharacters] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -92,11 +94,13 @@ export default function CharactersPage() {
           >
             {showForm ? 'Cancel' : 'New character (quick)'}
           </button>
-          <button type="button" className="btn btn-secondary" onClick={() => setShowGm(!showGm)}>
-            {showGm ? 'Hide GM' : 'GM commands'}
-          </button>
+          {campaign.role === 'gm' && (
+            <button type="button" className="btn btn-secondary" onClick={() => setShowGm(!showGm)}>
+              {showGm ? 'Hide GM' : 'GM commands'}
+            </button>
+          )}
         </div>
-        {showGm && (
+        {campaign.role === 'gm' && showGm && (
           <div style={{ marginBottom: '1rem', padding: '1rem', background: '#252019', borderRadius: 6, border: '1px solid #3d3530' }}>
             <h3 style={{ marginTop: 0 }}>GM: Send to player</h3>
             <p style={{ color: '#8a7f72', fontSize: '0.9rem', marginBottom: '0.75rem' }}>Commands are delivered when the player has their character open in Play mode.</p>
@@ -124,6 +128,8 @@ export default function CharactersPage() {
                 <input type="number" min={0} value={gmGold} onChange={(e) => setGmGold(parseInt(e.target.value, 10) || 0)} style={{ width: 80, padding: '0.5rem', borderRadius: 4, border: '1px solid #3d3530', background: '#1a1614', color: '#e8e0d5' }} />
               </div>
               <button type="button" className="btn btn-primary" disabled={!gmTargetId || gmGold <= 0 || gmSending} onClick={() => { setGmSending(true); createCampaignCommand(campaignId, { recipient_character_id: parseInt(gmTargetId, 10), type: 'give_gold', payload: { amount_cp: gmGold } }).then(() => { setGmGold(0); }).catch((err) => setError(err.response?.data?.error || err.message)).finally(() => setGmSending(false)); }}>Give gold</button>
+              <button type="button" className="btn btn-secondary" disabled={!gmTargetId || gmSending} onClick={() => { setGmSending(true); createCampaignCommand(campaignId, { recipient_character_id: parseInt(gmTargetId, 10), type: 'new_day', payload: {} }).catch((err) => setError(err.response?.data?.error || err.message)).finally(() => setGmSending(false)); }}>New day</button>
+              <button type="button" className="btn btn-secondary" disabled={!gmTargetId || gmSending} onClick={() => { setGmSending(true); createCampaignCommand(campaignId, { recipient_character_id: parseInt(gmTargetId, 10), type: 'new_round', payload: {} }).catch((err) => setError(err.response?.data?.error || err.message)).finally(() => setGmSending(false)); }}>New round</button>
             </div>
           </div>
         )}
@@ -189,14 +195,16 @@ export default function CharactersPage() {
                     </span>
                   )}
                 </Link>
-                <button
-                  type="button"
-                  className="btn btn-danger"
-                  style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
-                  onClick={() => handleDelete(c.id, c.name)}
-                >
-                  Delete
-                </button>
+                {(campaign.role === 'gm' || String(c.user || '').toLowerCase() === user.username.toLowerCase()) && (
+                  <button
+                    type="button"
+                    className="btn btn-danger"
+                    style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
+                    onClick={() => handleDelete(c.id, c.name)}
+                  >
+                    Delete
+                  </button>
+                )}
               </li>
             ))}
             {characters.length === 0 && !loading && (
