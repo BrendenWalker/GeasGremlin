@@ -27,7 +27,7 @@ A stock table has `ruleset_id` set. A custom table has `campaign_id` set. Never 
 
 ## Location and wander check
 
-`campaign_location` has a name, `place`, a check die (default d6, success at 1 or below), an interval, and a table. Selecting it sets the board's `place`. Inside defaults to a check every 3 turns (1800 seconds). Outside defaults to a check every watch (14400 seconds).
+`campaign_location` has a name, `place`, a check die (default d6, success at 1 or below), an interval, and a table. An outside location may also store a terrain and a movement adjustment percent from -100 to 200. Selecting it sets the board's `place`. Inside defaults to a check every 3 turns (1800 seconds). Outside defaults to a check every watch (14400 seconds). The percent is not applied to travel.
 
 A watch, turn, or day tick runs the check when a location is set, no encounter is open, and enough seconds have passed. A hit stores the table result. A miss stores a miss. The last-check mark moves forward by whole intervals, so Next Day catches every check it crossed and does not skip any. A round tick does not check. The result does not start the encounter.
 

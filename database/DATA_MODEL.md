@@ -28,7 +28,7 @@ Queries usually join these from catalog tables via FKs; they are not “owned”
 
 ## Ruleset catalog (reference data per ruleset)
 
-Imported or authored **definition** data for a game system. Typically read-heavy; writes often bulk import or admin tooling. All listed tables include **`ruleset_id`** (FK to `ruleset`, `ON DELETE RESTRICT`).
+Imported or authored **definition** data for a game system. Typically read-heavy; writes often bulk import or admin tooling. Listed tables include **`ruleset_id`** (FK to `ruleset`, `ON DELETE RESTRICT`), except a custom `encounter_table`, which sets `campaign_id` instead.
 
 **Core definitions**
 
@@ -37,6 +37,13 @@ Imported or authored **definition** data for a game system. Typically read-heavy
 - `spells`
 - `abilities` — definition text plus an optional link to `stat` (`stat_id`, `stat_modifier`). Category is no longer stored on the ability.
 - `items`
+- `monster` — name, hit dice, armor class, morale (2–12 or empty), treasure-type code, movement, number appearing. No attacks and no stock numbers in this pass.
+- `treasure_type` — `code` plus `definition` (jsonb object of the percent-and-dice columns, stored as given).
+
+**Encounter tables**
+
+- `encounter_table` — `die` (2–100) and a name. A stock table sets `ruleset_id` and leaves `campaign_id` null. A custom table sets `campaign_id` and leaves `ruleset_id` null. Never both.
+- `encounter_table_row` — inclusive `face_lo` / `face_hi`, a `monster_id`, a plain `label`, or both, plus an optional quantity note. Faces above the table's die are rejected by the importer.
 
 **Junctions / progression tied to class or race definitions**
 
@@ -57,6 +64,7 @@ Reference “book” data for a game system is stored as JSON under [`GameSystem
 - `gamesystem.json` — required metadata: `name` (maps to `ruleset.name`), optional `description` (accepted in the file; not stored until `ruleset` gains a description column).
 - One JSON file per catalog table (`CLASSES.json`, `RACES.json`, `SPELLS.json`, `ABILITIES.json`, `ITEMS.json`, junctions, plus shared `ABILITY_CATEGORIES.json` / `STATS.json` / `ITEM_CATEGORIES.json` / `ITEM_TYPES.json`).
 - `PENDING_CHANGES.json` is ignored by the importer.
+- `MONSTERS.json`, `TREASURE_TYPES.json`, `ENCOUNTER_TABLES.json`, and `ENCOUNTER_TABLE_ROWS.json` are not part of this replace. `import-ruleset` ignores them.
 
 **Import** ([`backend/scripts/import-ruleset.js`](../backend/scripts/import-ruleset.js))
 
@@ -72,6 +80,19 @@ Mechanics:
 - Aborts if any `characters` rows still have that `ruleset_id` (instance data would block or orphan under `ON DELETE RESTRICT`).
 - Destination PKs are newly allocated (prefer a free source id when available); JSON/Firebird `ID` values exist only to remap references during the import.
 - All writes use parameterized queries.
+
+**Play catalog** ([`backend/scripts/import-catalog.js`](../backend/scripts/import-catalog.js))
+
+```bash
+cd backend
+npm run import-catalog -- --dir ../GameSystems/BasicFantasy_Core
+```
+
+Separate transaction from the ruleset replace. It does not delete classes, spells, abilities, or items, and it does not use the character-count abort. The ruleset row must already exist.
+
+Each of the four JSON files is optional. A missing file leaves that table alone. A present file, including `[]`, replaces that ruleset's rows. Encounter rows require the tables file in the same run. Custom encounter tables (`campaign_id` set) are left in place.
+
+Before deleting monsters, the import aborts if a `campaign_enemy.monster_id`, a `campaign_location` monster reference (when that table exists), or a custom encounter row still points at one of them. A stock encounter row blocks a monster-only file; pass the encounter tables in the same run to replace them together. `--dry-run` rolls the transaction back.
 
 **Export** ([`backend/scripts/export-ruleset.js`](../backend/scripts/export-ruleset.js))
 
@@ -98,9 +119,11 @@ Created during play or setup; not bulk “book import” in the same sense as cl
 **Campaign and membership**
 
 - `campaign` — GM/session container; **`ruleset_id`** picks which rule definitions apply. **`running`** is set true by the GM to open a session and false to pause it. More than one campaign may be running.
-- `campaign_board` — one row per campaign once play starts. **`game_seconds`** is the in-game clock (day 1 starts at 0; a round is 10 seconds). **`in_encounter`** is true while the GM has an encounter open. Missing row means clock 0 and no encounter.
+- `campaign_board` — one row per campaign once play starts. **`game_seconds`** is the in-game clock (day 1 starts at 0). A round is 10 seconds, a turn is 600, a watch is 14400, and a day is 86400. Sixty rounds are a turn, twenty-four turns are a watch, and six watches are a day. **`place`** is `outside` or `inside`, default `outside`. **`in_encounter`** is true while the GM has an encounter open. Opening an encounter does not change `place` or the clock. **`location_id`** is the selected location. **`check_seconds`** is the last wander mark; it moves forward by whole intervals. Missing row means clock 0, outside, and no encounter.
+- `campaign_location` — a named place in one campaign. **`place`** is `outside` or `inside`. **`check_die`** defaults to 6, and a roll of 1 or below is a hit. **`interval_seconds`** defaults to 1800 inside (3 turns) and 14400 outside (one watch). **`encounter_table_id`** points at a stock table for this ruleset or a custom table for this campaign. Outside, **`terrain`** and **`movement_pct`** are both empty or both set. The terrain is Clear, Road, Forest, Hills, Desert, Jungle, Swamp, or Mountains. The percent is an integer from -100 to 200. Inside, both are empty. The percent is stored and shown. It does not change travel.
+- `campaign_wander` — one row per check the clock crossed. A miss stores the check roll and no table roll. A hit stores the table roll and the matching row (monster, label, quantity). The roll does not open an encounter. **`accepted`** is set when the GM accepts that hit onto the encounter.
 - `campaign_character` — many-to-many between campaigns and characters.
-- `campaign_enemy` — enemy names in the current encounter. Cleared when the encounter ends.
+- `campaign_enemy` — enemies in the current encounter. Cleared when the encounter ends. `monster_id` is set when the row came from the catalog and null when the name was typed. **`quantity`** is an optional note. **`treasure_type`** is an optional code copied from the monster or typed by the GM. Replacing that ruleset's monsters aborts while any row still points at one. Accepting the last wander hit inserts one enemy and opens the encounter. It does not move the clock. A miss cannot be accepted. A treasure roll reads `treasure_type` for this ruleset and returns a draft. It does not write coins, items, or XP. Applying that draft uses the party `give_xp` and `give_item` commands. A code with no treasure-type row is an error.
 - `campaign_mark` — a timed effect (`at_seconds` start plus `duration_minutes`) or an event (`at_seconds` only).
 - `campaign_presence` — last time a character's owner had that sheet open in the campaign. Active means `seen_at` within 30 seconds.
 

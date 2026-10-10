@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   addAdventuringMark,
+  acceptWander,
   addEncounterEnemy,
   endEncounter,
   getAdventuring,
@@ -10,10 +11,15 @@ import {
   giveParty,
   removeAdventuringMark,
   removeEncounterEnemy,
+  rollTreasure,
   startEncounter,
+  setAdventuringPlace,
   tickAdventuring,
+  selectLocation,
 } from '../api/api';
-import { clockToSeconds, effectEndSeconds, formatGameTime, markStatus, splitGameTime } from '../domain/gameTime.mjs';
+import { clockToSeconds, effectEndSeconds, formatGameTime, markStatus, primaryStep, splitGameTime } from '../domain/gameTime.mjs';
+
+const COIN = new Set(['cp', 'sp', 'ep', 'gp', 'pp']);
 
 const FIELD = {
   padding: '0.45rem',
@@ -24,6 +30,32 @@ const FIELD = {
 };
 
 const CLOCK_ZERO = { day: 1, hour: 0, minute: 0, second: 0 };
+
+const CLOCK_BUTTONS = [
+  { step: 'round', label: 'Next Round' },
+  { step: 'turn', label: 'Next Turn' },
+  { step: 'watch', label: 'Next Watch' },
+  { step: 'day', label: 'Next Day' },
+];
+
+function intervalLabel(seconds) {
+  const n = Number(seconds);
+  if (n === 14400) return 'every watch';
+  if (n === 1800) return 'every 3 turns';
+  return `every ${n} seconds`;
+}
+
+function locationFacts(loc) {
+  const bits = [loc.place];
+  if (loc.terrain) {
+    const pct = Number(loc.movement_pct);
+    const shown = Number.isInteger(pct) ? `${pct > 0 ? '+' : ''}${pct}%` : '';
+    bits.push(shown ? `${loc.terrain} ${shown}` : loc.terrain);
+  }
+  bits.push(`d${loc.check_die}`);
+  bits.push(intervalLabel(loc.interval_seconds));
+  return bits.join(' · ');
+}
 
 function errText(err) {
   return err.response?.data?.error || err.message;
@@ -63,6 +95,9 @@ export default function AdventuringPage({ campaignName }) {
   const [itemId, setItemId] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [enemyName, setEnemyName] = useState('');
+  const [enemyQty, setEnemyQty] = useState('');
+  const [enemyTreasure, setEnemyTreasure] = useState('');
+  const [draft, setDraft] = useState(null);
   const [effectNote, setEffectNote] = useState('');
   const [effectDuration, setEffectDuration] = useState(10);
   const [effectClock, setEffectClock] = useState(CLOCK_ZERO);
@@ -123,9 +158,14 @@ export default function AdventuringPage({ campaignName }) {
     setError(null);
     return action()
       .then((res) => {
+        const parts = [];
+        const checks = res?.data?.checks;
         const n = res?.data?.queued;
-        setNotice(n == null ? null : `Queued for ${n} character${n === 1 ? '' : 's'}.`);
-        return load(true).then(() => true, () => true);
+        if (checks > 0) parts.push(`${checks} wander check${checks === 1 ? '' : 's'}`);
+        if (res?.data?.accepted) parts.push('Accepted onto the encounter');
+        if (n != null) parts.push(`Queued for ${n} character${n === 1 ? '' : 's'}`);
+        setNotice(parts.length ? `${parts.join('. ')}.` : null);
+        return load(true).then(() => res, () => res);
       })
       .catch((err) => {
         setError(errText(err));
@@ -166,7 +206,78 @@ export default function AdventuringPage({ campaignName }) {
       setError('Enemy name is required.');
       return;
     }
-    run(() => addEncounterEnemy(campaignId, nameTrim)).then((ok) => { if (ok) setEnemyName(''); });
+    run(() => addEncounterEnemy(campaignId, {
+      name: nameTrim,
+      quantity: enemyQty.trim() || null,
+      treasure_type: enemyTreasure.trim() || null,
+    })).then((ok) => {
+      if (!ok) return;
+      setEnemyName('');
+      setEnemyQty('');
+      setEnemyTreasure('');
+    });
+  };
+
+  const rollEnemyTreasure = (enemy) => {
+    run(() => rollTreasure(campaignId, { enemy_id: enemy.id })).then((res) => {
+      if (!res?.data) return;
+      setDraft({
+        code: res.data.code,
+        lines: (res.data.lines || []).map((line) => ({
+          column: line.column,
+          amount: line.amount,
+          mode: COIN.has(String(line.column).toLowerCase()) ? 'xp' : 'item',
+          itemId: '',
+        })),
+      });
+      setNotice('Treasure draft. Nothing is given until you apply it.');
+    });
+  };
+
+  const updateDraftLine = (index, patch) => {
+    setDraft((current) => {
+      if (!current) return current;
+      const lines = current.lines.map((line, i) => (i === index ? { ...line, ...patch } : line));
+      return { ...current, lines };
+    });
+  };
+
+  const applyDraft = () => {
+    if (!draft) return;
+    const xp = draft.lines
+      .filter((line) => line.mode === 'xp')
+      .reduce((sum, line) => sum + Number(line.amount), 0);
+    const itemLines = draft.lines.filter((line) => line.mode === 'item');
+    if (draft.lines.some((line) => !Number.isInteger(Number(line.amount)) || Number(line.amount) < 1)) {
+      setError('Each draft amount must be a positive integer.');
+      return;
+    }
+    if (itemLines.some((line) => !line.itemId)) {
+      setError('Choose an item for each item line.');
+      return;
+    }
+    if (xp < 1 && itemLines.length === 0) {
+      setError('Nothing to apply.');
+      return;
+    }
+    run(async () => {
+      let queued = null;
+      if (xp >= 1) {
+        const res = await giveParty(campaignId, { type: 'give_xp', amount: xp });
+        queued = res.data.queued;
+      }
+      for (const line of itemLines) {
+        const res = await giveParty(campaignId, {
+          type: 'give_item',
+          item_id: parseInt(line.itemId, 10),
+          quantity: Number(line.amount),
+        });
+        queued = res.data.queued;
+      }
+      return { data: { queued } };
+    }).then((res) => {
+      if (res) setDraft(null);
+    });
   };
 
   const addEffect = (e) => {
@@ -219,6 +330,14 @@ export default function AdventuringPage({ campaignName }) {
 
   const now = Number(board?.game_seconds);
   const clockLabel = Number.isInteger(now) ? formatGameTime(now) : '';
+  const lastRoll = (board?.wanders || [])[0];
+  const canAccept = Boolean(lastRoll && lastRoll.table_roll != null && lastRoll.label && !lastRoll.accepted);
+  const place = board?.place === 'inside' ? 'inside' : 'outside';
+  const primary = primaryStep(place, board?.in_encounter);
+  const clockButtons = [
+    CLOCK_BUTTONS.find((button) => button.step === primary),
+    ...CLOCK_BUTTONS.filter((button) => button.step !== primary),
+  ];
 
   return (
     <div className="adventuring">
@@ -269,17 +388,90 @@ export default function AdventuringPage({ campaignName }) {
               <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                 {(board.enemies || []).map((enemy) => (
                   <li key={enemy.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
-                    <span>{enemy.name}</span>
-                    <button type="button" className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem' }} disabled={busy} onClick={() => run(() => removeEncounterEnemy(campaignId, enemy.id))}>Remove</button>
+                    <span>
+                      {enemy.name}
+                      {enemy.quantity ? <span className="muted"> · {enemy.quantity}</span> : null}
+                      {enemy.treasure_type ? <span className="muted"> · {enemy.treasure_type}</span> : null}
+                    </span>
+                    <span style={{ display: 'flex', gap: 6 }}>
+                      {enemy.treasure_type ? (
+                        <button type="button" className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem' }} disabled={busy} onClick={() => rollEnemyTreasure(enemy)}>Roll treasure</button>
+                      ) : null}
+                      <button type="button" className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem' }} disabled={busy} onClick={() => run(() => removeEncounterEnemy(campaignId, enemy.id))}>Remove</button>
+                    </span>
                   </li>
                 ))}
               </ul>
-              <form onSubmit={addEnemy} style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                <input value={enemyName} onChange={(e) => setEnemyName(e.target.value)} placeholder="Enemy name" maxLength={80} style={{ ...FIELD, flex: 1 }} />
+              <form onSubmit={addEnemy} style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                <input value={enemyName} onChange={(e) => setEnemyName(e.target.value)} placeholder="Enemy name" maxLength={80} style={{ ...FIELD, flex: 1, minWidth: 120 }} />
+                <input value={enemyQty} onChange={(e) => setEnemyQty(e.target.value)} placeholder="Quantity" maxLength={80} style={{ ...FIELD, width: 100 }} />
+                <input value={enemyTreasure} onChange={(e) => setEnemyTreasure(e.target.value)} placeholder="Treasure" maxLength={40} style={{ ...FIELD, width: 90 }} />
                 <button type="submit" className="btn btn-secondary" disabled={busy}>Add enemy</button>
               </form>
+              {draft && (
+                <div style={{ marginTop: 12 }}>
+                  <h2 style={{ marginBottom: 4 }}>Treasure {draft.code}</h2>
+                  <p className="muted">Nothing is given until you apply it.</p>
+                  {draft.lines.length === 0 && <p className="muted">Nothing rolled.</p>}
+                  {draft.lines.map((line, index) => (
+                    <div key={`${line.column}-${index}`} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 6, flexWrap: 'wrap' }}>
+                      <span style={{ minWidth: 48 }}>{line.column}</span>
+                      <input
+                        type="number"
+                        min={1}
+                        value={line.amount}
+                        aria-label={`${line.column} amount`}
+                        onChange={(e) => updateDraftLine(index, { amount: e.target.value })}
+                        style={{ ...FIELD, width: 90 }}
+                      />
+                      <select
+                        value={line.mode}
+                        aria-label={`${line.column} gives`}
+                        onChange={(e) => updateDraftLine(index, { mode: e.target.value })}
+                        style={FIELD}
+                      >
+                        <option value="xp">XP</option>
+                        <option value="item">Item</option>
+                      </select>
+                      {line.mode === 'item' && (
+                        <select
+                          value={line.itemId}
+                          aria-label={`${line.column} item`}
+                          onChange={(e) => updateDraftLine(index, { itemId: e.target.value })}
+                          style={{ ...FIELD, maxWidth: 220 }}
+                        >
+                          <option value="">Choose…</option>
+                          {items.map((it) => <option key={it.id} value={it.id}>{it.name}</option>)}
+                        </select>
+                      )}
+                      <button type="button" className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem' }} disabled={busy} onClick={() => setDraft((current) => current && ({ ...current, lines: current.lines.filter((_, i) => i !== index) }))}>Remove</button>
+                    </div>
+                  ))}
+                  <button type="button" className="btn btn-primary" disabled={busy || draft.lines.length === 0} onClick={applyDraft}>Apply</button>
+                </div>
+              )}
             </>
           )}
+        </div>
+
+        <div className="card">
+          <h2>Locations</h2>
+          {(board?.locations || []).length === 0 && <p className="muted">No locations yet.</p>}
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+            {(board?.locations || []).map((loc) => {
+              const selected = String(board.location_id) === String(loc.id);
+              return (
+                <li key={loc.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 6, alignItems: 'center' }}>
+                  <span>
+                    <strong>{loc.name}</strong>
+                    <span className="muted"> · {locationFacts(loc)}</span>
+                    {selected ? <span className="muted"> · selected</span> : null}
+                  </span>
+                  <button type="button" className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem' }} disabled={busy || selected} onClick={() => run(() => selectLocation(campaignId, loc.id))}>Select</button>
+                </li>
+              );
+            })}
+          </ul>
         </div>
 
         <div className="card">
@@ -299,10 +491,60 @@ export default function AdventuringPage({ campaignName }) {
 
       <div className="card">
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button type="button" className="btn btn-primary" disabled={busy || !board} onClick={() => run(() => tickAdventuring(campaignId, 'round'))}>Next Round</button>
-          <button type="button" className="btn btn-secondary" disabled={busy || !board} onClick={() => run(() => tickAdventuring(campaignId, 'day'))}>Next Day</button>
+          {clockButtons.map((button) => (
+            <button
+              key={button.step}
+              type="button"
+              className={button.step === primary ? 'btn btn-primary' : 'btn btn-secondary'}
+              disabled={busy || !board}
+              onClick={() => run(() => tickAdventuring(campaignId, button.step))}
+            >
+              {button.label}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 8 }}>
+          <span className="muted">Place</span>
+          {['outside', 'inside'].map((value) => (
+            <button
+              key={value}
+              type="button"
+              className={place === value ? 'btn btn-primary' : 'btn btn-secondary'}
+              aria-pressed={place === value}
+              disabled={busy || !board}
+              onClick={() => {
+                if (place === value) return;
+                run(() => setAdventuringPlace(campaignId, value));
+              }}
+            >
+              {value === 'outside' ? 'Outside' : 'Inside'}
+            </button>
+          ))}
         </div>
         <p className="adventuring-clock">{clockLabel || '—'}</p>
+        <h2>Wander</h2>
+        <p className="muted">A roll does not start the encounter.</p>
+        {(board?.wanders || []).length === 0 && <p className="muted">No checks yet.</p>}
+        <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 0.5rem' }}>
+          {(board?.wanders || []).map((row) => (
+            <li key={row.id} style={{ marginBottom: 6 }}>
+              {row.table_roll == null
+                ? `Miss (${row.check_roll} on d${row.check_die})`
+                : `${row.label || 'No row'}${row.quantity ? ` · ${row.quantity}` : ''} (${row.table_roll} on d${row.table_die})`}
+              <span className="muted"> · {row.location_name} · {formatGameTime(Number(row.at_seconds))}</span>
+              {row.accepted ? <span className="muted"> · accepted</span> : null}
+            </li>
+          ))}
+        </ul>
+        <button
+          type="button"
+          className="btn btn-primary"
+          style={{ marginBottom: '1rem' }}
+          disabled={busy || !canAccept}
+          onClick={() => run(() => acceptWander(campaignId))}
+        >
+          Accept
+        </button>
         <h2>Timed</h2>
         {(board?.marks || []).length === 0 && <p className="muted">No effects or events.</p>}
         <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 1rem' }}>

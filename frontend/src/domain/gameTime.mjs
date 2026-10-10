@@ -1,5 +1,14 @@
 export const ROUND_SECONDS = 10;
+export const TURN_SECONDS = 600;
+export const WATCH_SECONDS = 14400;
 export const DAY_SECONDS = 86400;
+
+/** Next Round in an encounter, Next Turn inside, Next Watch outside. */
+export function primaryStep(place, inEncounter) {
+  if (inEncounter) return 'round';
+  if (place === 'inside') return 'turn';
+  return 'watch';
+}
 
 function pad(n) {
   return String(n).padStart(2, '0');

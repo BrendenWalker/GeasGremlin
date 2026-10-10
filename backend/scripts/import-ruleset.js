@@ -17,7 +17,15 @@ if (fs.existsSync(repoEnv)) {
 }
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
-const SKIP_FILES = new Set(['gamesystem.json', 'pending_changes.json']);
+const SKIP_FILES = new Set([
+  'gamesystem.json',
+  'pending_changes.json',
+  // Play catalog. import-catalog.js owns these. A full replace must not touch them.
+  'monsters.json',
+  'treasure_types.json',
+  'encounter_tables.json',
+  'encounter_table_rows.json',
+]);
 
 function parseArgs(argv) {
   let dir = null;
@@ -42,6 +50,7 @@ Shared category/type/stat tables are matched by name (not wiped).
 JSON IDs only remap references; destination PKs are newly allocated
 (preferring a free source id when available).
 Fails if any characters belong to the target ruleset.
+Ignores MONSTERS, TREASURE_TYPES, and ENCOUNTER_TABLES. Those load through import-catalog.js.
 `);
       process.exit(0);
     }

@@ -60,7 +60,15 @@ Dry-run (full import in a transaction, then rollback):
 npm run import-ruleset -- --dir ../GameSystems/BasicFantasy_Enhanced --dry-run
 ```
 
-The importer **replaces** that ruleset’s catalog (delete then insert). Shared category/type rows are matched by name and kept globally. JSON `ID` values only remap FKs during the import; destination PKs are newly allocated. Re-import fails if any characters still belong to the target ruleset. Parameterized SQL keeps apostrophes intact.
+The importer **replaces** that ruleset’s catalog (delete then insert). Shared category/type rows are matched by name and kept globally. JSON `ID` values only remap FKs during the import; destination PKs are newly allocated. Re-import fails if any characters still belong to the target ruleset. Parameterized SQL keeps apostrophes intact. It ignores `MONSTERS.json`, `TREASURE_TYPES.json`, and the encounter-table files.
+
+Monsters, treasure types, and stock encounter tables use a separate importer. It does not delete classes, spells, or items, and it does not care whether characters still use the ruleset. A missing file leaves that table alone. A present file replaces that ruleset's rows. The ruleset must already exist.
+
+```bash
+npm run import-catalog -- --dir ../GameSystems/BasicFantasy_Core
+npm run import-catalog -- --dir ../GameSystems/BasicFantasy_Core --dry-run
+npm run test:catalog-import
+```
 
 Export a live DB catalog back to the same JSON layout (default `GameSystems/<slug>/`):
 
@@ -69,7 +77,7 @@ npm run export-ruleset -- --ruleset-name "Basic Fantasy Enhanced"
 npm run export-ruleset -- --from-ruleset-id 2 --output ../GameSystems/BasicFantasy_Enhanced
 ```
 
-CI runs an import → export → semantic compare against Postgres for each catalog under `GameSystems/` (see `.github/workflows/ruleset-roundtrip.yml`). Locally, with schema applied and `DB_*` set:
+CI applies the schema, runs the play-catalog check, then an import → export → semantic compare against Postgres for each catalog under `GameSystems/` (see `.github/workflows/ruleset-roundtrip.yml`). Locally, with schema applied and `DB_*` set:
 
 ```bash
 npm run test:ruleset-roundtrip -- --dir ../GameSystems/BasicFantasy_Enhanced

@@ -1,3 +1,4 @@
+const { randomInt } = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const repoEnv = path.join(__dirname, '..', '.env');
@@ -10,6 +11,9 @@ const express = require('express');
 const cors = require('cors');
 const { createDbPool, testConnection } = require('./db-config');
 const { assignmentError } = require('./classAssignment');
+const { INSIDE_INTERVAL, OUTSIDE_INTERVAL, checksDue, checkHit, matchingRow, acceptRoll } = require('./wander');
+const { rollTreasure } = require('./treasure');
+const { TERRAINS, locationTerrain } = require('./terrain');
 const {
   COOKIE,
   SESSION_SECONDS,
@@ -1768,10 +1772,20 @@ app.patch('/api/transfers/:id', async (req, res) => {
   }
 });
 
-// Keep in step with frontend/src/domain/gameTime.mjs ROUND_SECONDS and DAY_SECONDS.
+// Keep in step with frontend/src/domain/gameTime.mjs.
+// A round is 10 seconds, a turn is 600, a watch is 14400, a day is 86400.
 const ROUND_SECONDS = 10;
+const TURN_SECONDS = 600;
+const WATCH_SECONDS = 14400;
 const DAY_SECONDS = 86400;
 const PRESENCE_SECONDS = 30;
+
+const CLOCK_STEPS = {
+  round: { seconds: ROUND_SECONDS, command: 'new_round', wander: false },
+  turn: { seconds: TURN_SECONDS, command: null, wander: true },
+  watch: { seconds: WATCH_SECONDS, command: null, wander: true },
+  day: { seconds: DAY_SECONDS, command: 'new_day', wander: true },
+};
 
 function adventuringMissing(res, error) {
   if (error.code === '42P01' || error.code === '42703') {
@@ -1793,19 +1807,28 @@ function nonNegativeInt(value, name) {
   return n;
 }
 
+function optionalText(value, name, max) {
+  if (value == null || String(value).trim() === '') return null;
+  const text = String(value).trim();
+  if (text.length > max) throw storedError(`${name} exceeds ${max} characters`, 400);
+  return text;
+}
+
 async function loadAdventuring(campaignId) {
   const camp = await pool.query(
     `SELECT COALESCE(b.game_seconds, 0) AS game_seconds,
-            COALESCE(b.in_encounter, false) AS in_encounter
+            COALESCE(b.in_encounter, false) AS in_encounter,
+            COALESCE(b.place, 'outside') AS place,
+            b.location_id
      FROM campaign c
      LEFT JOIN campaign_board b ON b.campaign_id = c.id
      WHERE c.id = $1`,
     [campaignId]
   );
   if (camp.rows.length === 0) return null;
-  const [enemies, characters, marks] = await Promise.all([
+  const [enemies, characters, marks, locations, tables, wanders] = await Promise.all([
     pool.query(
-      'SELECT id, name FROM campaign_enemy WHERE campaign_id = $1 ORDER BY id',
+      'SELECT id, name, monster_id, quantity, treasure_type FROM campaign_enemy WHERE campaign_id = $1 ORDER BY id',
       [campaignId]
     ),
     pool.query(
@@ -1822,10 +1845,52 @@ async function loadAdventuring(campaignId) {
        FROM campaign_mark WHERE campaign_id = $1 ORDER BY at_seconds, id`,
       [campaignId]
     ),
+    pool.query(
+      `SELECT id, name, place, check_die, interval_seconds, encounter_table_id, terrain, movement_pct
+       FROM campaign_location WHERE campaign_id = $1 ORDER BY name, id`,
+      [campaignId]
+    ),
+    pool.query(
+      `SELECT t.id, t.name, t.die, (t.campaign_id IS NOT NULL) AS custom
+       FROM encounter_table t
+       JOIN campaign c ON c.id = $1
+       WHERE t.campaign_id = c.id OR (t.ruleset_id = c.ruleset_id AND t.campaign_id IS NULL)
+       ORDER BY t.name, t.id`,
+      [campaignId]
+    ),
+    pool.query(
+      `SELECT id, location_name, at_seconds, check_die, check_roll, table_die, table_roll, label, quantity, accepted
+       FROM campaign_wander WHERE campaign_id = $1
+       ORDER BY at_seconds DESC, id DESC
+       LIMIT 30`,
+      [campaignId]
+    ),
   ]);
+  const tableIds = tables.rows.map((row) => row.id);
+  const faces = tableIds.length === 0
+    ? { rows: [] }
+    : await pool.query(
+      `SELECT encounter_table_id, face_lo, face_hi, label, quantity
+       FROM encounter_table_row
+       WHERE encounter_table_id = ANY($1::int[])
+       ORDER BY face_lo, id`,
+      [tableIds]
+    );
+  const rowsByTable = new Map();
+  for (const row of faces.rows) {
+    if (!rowsByTable.has(row.encounter_table_id)) rowsByTable.set(row.encounter_table_id, []);
+    rowsByTable.get(row.encounter_table_id).push({
+      face_lo: row.face_lo,
+      face_hi: row.face_hi,
+      label: row.label,
+      quantity: row.quantity,
+    });
+  }
   return {
     game_seconds: camp.rows[0].game_seconds,
     in_encounter: camp.rows[0].in_encounter,
+    place: camp.rows[0].place,
+    location_id: camp.rows[0].location_id,
     enemies: enemies.rows,
     characters: characters.rows.map((row) => ({
       id: row.id,
@@ -1834,6 +1899,16 @@ async function loadAdventuring(campaignId) {
       active: row.active === true,
     })),
     marks: marks.rows,
+    locations: locations.rows,
+    tables: tables.rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      die: row.die,
+      custom: row.custom === true || row.custom === 't',
+      rows: rowsByTable.get(row.id) || [],
+    })),
+    terrains: TERRAINS,
+    wanders: wanders.rows,
   };
 }
 
@@ -1863,10 +1938,8 @@ app.get('/api/campaigns/:campaignId/adventuring', async (req, res) => {
 });
 
 app.post('/api/campaigns/:campaignId/adventuring/tick', async (req, res) => {
-  const step = req.body?.step;
-  const delta = step === 'round' ? ROUND_SECONDS : step === 'day' ? DAY_SECONDS : null;
-  const commandType = step === 'round' ? 'new_round' : step === 'day' ? 'new_day' : null;
-  if (delta == null) return res.status(400).json({ error: 'step must be round or day' });
+  const step = CLOCK_STEPS[req.body?.step];
+  if (!step) return res.status(400).json({ error: 'step must be round, turn, watch, or day' });
   const client = await pool.connect();
   try {
     const member = await requireCampaign(req, res, req.params.campaignId, true);
@@ -1877,22 +1950,37 @@ app.post('/api/campaigns/:campaignId/adventuring/tick', async (req, res) => {
        VALUES ($1, $2)
        ON CONFLICT (campaign_id) DO UPDATE
        SET game_seconds = campaign_board.game_seconds + EXCLUDED.game_seconds
-       RETURNING game_seconds`,
-      [req.params.campaignId, delta]
+       RETURNING game_seconds, in_encounter, location_id, check_seconds`,
+      [req.params.campaignId, step.seconds]
     );
     if (updated.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Campaign not found' });
     }
-    const queued = await client.query(
-      `INSERT INTO campaign_command (campaign_id, recipient_character_id, type, payload)
-       SELECT $1, cc.character_id, $2, NULL
-       FROM campaign_character cc
-       WHERE cc.campaign_id = $1`,
-      [req.params.campaignId, commandType]
-    );
+    const now = Number(updated.rows[0].game_seconds);
+    let checks = 0;
+    if (step.wander) {
+      checks = await applyWander(client, req.params.campaignId, {
+        previous: now - step.seconds,
+        now,
+        inEncounter: updated.rows[0].in_encounter === true,
+        locationId: updated.rows[0].location_id,
+        checkSeconds: updated.rows[0].check_seconds == null ? null : Number(updated.rows[0].check_seconds),
+      });
+    }
+    let queued = null;
+    if (step.command) {
+      const inserted = await client.query(
+        `INSERT INTO campaign_command (campaign_id, recipient_character_id, type, payload)
+         SELECT $1, cc.character_id, $2, NULL
+         FROM campaign_character cc
+         WHERE cc.campaign_id = $1`,
+        [req.params.campaignId, step.command]
+      );
+      queued = inserted.rowCount;
+    }
     await client.query('COMMIT');
-    res.json({ game_seconds: updated.rows[0].game_seconds, queued: queued.rowCount });
+    res.json({ game_seconds: now, queued, checks });
   } catch (error) {
     try { await client.query('ROLLBACK'); } catch (_) { /* connection already failed */ }
     if (adventuringMissing(res, error)) return;
@@ -1900,6 +1988,416 @@ app.post('/api/campaigns/:campaignId/adventuring/tick', async (req, res) => {
     res.status(500).json({ error: error.message || 'Failed to advance campaign clock' });
   } finally {
     client.release();
+  }
+});
+
+function rollDie(sides) {
+  return randomInt(1, sides + 1);
+}
+
+async function applyWander(client, campaignId, clock) {
+  if (clock.inEncounter || clock.locationId == null) return 0;
+  const loc = await client.query(
+    `SELECT l.name, l.check_die, l.interval_seconds, t.id AS table_id, t.die
+     FROM campaign_location l
+     JOIN encounter_table t ON t.id = l.encounter_table_id
+     WHERE l.id = $1 AND l.campaign_id = $2`,
+    [clock.locationId, campaignId]
+  );
+  if (loc.rows.length === 0) return 0;
+  const location = loc.rows[0];
+  const last = clock.checkSeconds == null ? clock.previous : clock.checkSeconds;
+  const due = checksDue(last, clock.now, Number(location.interval_seconds));
+  if (!due || due.count === 0) return 0;
+  const faces = await client.query(
+    `SELECT r.face_lo, r.face_hi, r.monster_id, r.label, r.quantity, m.name AS monster_name
+     FROM encounter_table_row r
+     LEFT JOIN monster m ON m.id = r.monster_id
+     WHERE r.encounter_table_id = $1
+     ORDER BY r.face_lo, r.id`,
+    [location.table_id]
+  );
+  const rows = faces.rows.map((row) => ({
+    face_lo: Number(row.face_lo),
+    face_hi: Number(row.face_hi),
+    monster_id: row.monster_id,
+    label: row.label,
+    quantity: row.quantity,
+    monster_name: row.monster_name,
+  }));
+  for (const at of due.at) {
+    const checkRoll = rollDie(Number(location.check_die));
+    if (!checkHit(checkRoll)) {
+      await client.query(
+        `INSERT INTO campaign_wander
+           (campaign_id, location_id, location_name, at_seconds, check_die, check_roll)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [campaignId, clock.locationId, location.name, at, location.check_die, checkRoll]
+      );
+      continue;
+    }
+    const tableRoll = rollDie(Number(location.die));
+    const row = matchingRow(rows, tableRoll);
+    const label = row ? (row.label || row.monster_name || null) : null;
+    await client.query(
+      `INSERT INTO campaign_wander
+         (campaign_id, location_id, location_name, at_seconds, check_die, check_roll,
+          table_die, table_roll, monster_id, label, quantity)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+      [
+        campaignId,
+        clock.locationId,
+        location.name,
+        at,
+        location.check_die,
+        checkRoll,
+        location.die,
+        tableRoll,
+        row ? row.monster_id : null,
+        label,
+        row && row.quantity ? row.quantity : null,
+      ]
+    );
+  }
+  await client.query(
+    'UPDATE campaign_board SET check_seconds = $2 WHERE campaign_id = $1',
+    [campaignId, due.nextMark]
+  );
+  return due.count;
+}
+
+function movementField(value) {
+  if (value == null || value === '') return null;
+  return integerField(value, 'movement_pct');
+}
+
+function readLocationFields(body) {
+  const name = String(body?.name || '').trim();
+  const place = body?.place;
+  if (!name || name.length > 80) throw storedError('name must be 1 to 80 characters', 400);
+  if (place !== 'outside' && place !== 'inside') throw storedError('place must be outside or inside', 400);
+  const checkDie = body?.check_die == null || body.check_die === '' ? 6 : positiveInt(body.check_die, 'check_die');
+  if (checkDie < 2 || checkDie > 100) throw storedError('check_die must be from 2 to 100', 400);
+  const interval = body?.interval_seconds == null || body.interval_seconds === ''
+    ? (place === 'inside' ? INSIDE_INTERVAL : OUTSIDE_INTERVAL)
+    : positiveInt(body.interval_seconds, 'interval_seconds');
+  const tableId = positiveInt(body?.encounter_table_id, 'encounter_table_id');
+  const terrain = locationTerrain(place, body?.terrain, movementField(body?.movement_pct));
+  if (terrain.error) throw storedError(terrain.error, 400);
+  return {
+    name,
+    place,
+    checkDie,
+    interval,
+    tableId,
+    terrain: terrain.terrain,
+    movementPct: terrain.movement_pct,
+  };
+}
+
+function parseTableRows(die, rows) {
+  if (!Array.isArray(rows) || rows.length === 0) throw storedError('A table needs at least one row', 400);
+  return rows.map((row, index) => {
+    const faceLo = positiveInt(row?.face_lo, 'face_lo');
+    const faceHi = positiveInt(row?.face_hi, 'face_hi');
+    const label = String(row?.label || '').trim();
+    const quantity = row?.quantity == null || String(row.quantity).trim() === '' ? null : String(row.quantity).trim();
+    if (faceHi < faceLo) throw storedError(`row ${index + 1} face_hi is below face_lo`, 400);
+    if (faceHi > die) throw storedError(`row ${index + 1} face is above the die`, 400);
+    if (!label || label.length > 80) throw storedError(`row ${index + 1} label must be 1 to 80 characters`, 400);
+    if (quantity && quantity.length > 80) throw storedError(`row ${index + 1} quantity exceeds 80 characters`, 400);
+    return { faceLo, faceHi, label, quantity };
+  });
+}
+
+async function insertTableRows(client, tableId, rows) {
+  for (const row of rows) {
+    await client.query(
+      `INSERT INTO encounter_table_row (encounter_table_id, face_lo, face_hi, label, quantity)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [tableId, row.faceLo, row.faceHi, row.label, row.quantity]
+    );
+  }
+}
+
+async function tableForCampaign(client, campaignId, tableId) {
+  const found = await client.query(
+    `SELECT t.id, t.campaign_id FROM encounter_table t
+     JOIN campaign c ON c.id = $1
+     WHERE t.id = $2 AND (t.campaign_id = c.id OR (t.ruleset_id = c.ruleset_id AND t.campaign_id IS NULL))`,
+    [campaignId, tableId]
+  );
+  return found.rows[0] || null;
+}
+
+app.post('/api/campaigns/:campaignId/adventuring/tables', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const name = String(req.body?.name || '').trim();
+    if (!name || name.length > 80) return res.status(400).json({ error: 'name must be 1 to 80 characters' });
+    const die = positiveInt(req.body?.die, 'die');
+    if (die < 2 || die > 100) return res.status(400).json({ error: 'die must be from 2 to 100' });
+    const parsed = parseTableRows(die, req.body?.rows);
+    await client.query('BEGIN');
+    const camp = await client.query('SELECT id FROM campaign WHERE id = $1', [req.params.campaignId]);
+    if (camp.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Campaign not found' });
+    }
+    const table = await client.query(
+      `INSERT INTO encounter_table (name, die, campaign_id)
+       VALUES ($1, $2, $3) RETURNING id, name, die`,
+      [name, die, req.params.campaignId]
+    );
+    await insertTableRows(client, table.rows[0].id, parsed);
+    await client.query('COMMIT');
+    res.status(201).json(table.rows[0]);
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch (_) { /* connection already failed */ }
+    if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    if (error.code === '23505') return res.status(400).json({ error: 'A table with that name already exists' });
+    console.error('Error creating encounter table:', error);
+    res.status(500).json({ error: error.message || 'Failed to create table' });
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/campaigns/:campaignId/adventuring/locations', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const fields = readLocationFields(req.body);
+    if (!(await tableForCampaign(pool, req.params.campaignId, fields.tableId))) {
+      return res.status(400).json({ error: 'Table is not in this campaign' });
+    }
+    const inserted = await pool.query(
+      `INSERT INTO campaign_location
+         (campaign_id, name, place, check_die, interval_seconds, encounter_table_id, terrain, movement_pct)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING id, name, place, check_die, interval_seconds, encounter_table_id, terrain, movement_pct`,
+      [req.params.campaignId, fields.name, fields.place, fields.checkDie, fields.interval, fields.tableId, fields.terrain, fields.movementPct]
+    );
+    res.status(201).json(inserted.rows[0]);
+  } catch (error) {
+    if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    if (error.code === '23505') return res.status(400).json({ error: 'A location with that name already exists' });
+    if (error.code === '23514') return res.status(400).json({ error: 'That terrain is not allowed on this location' });
+    console.error('Error creating location:', error);
+    res.status(500).json({ error: error.message || 'Failed to create location' });
+  }
+});
+
+app.post('/api/campaigns/:campaignId/adventuring/locations/:locationId/select', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const loc = await pool.query(
+      'SELECT id, place FROM campaign_location WHERE id = $1 AND campaign_id = $2',
+      [req.params.locationId, req.params.campaignId]
+    );
+    if (loc.rows.length === 0) return res.status(404).json({ error: 'Location not found' });
+    const updated = await pool.query(
+      `INSERT INTO campaign_board (campaign_id, place, location_id, check_seconds)
+       VALUES ($1, $2, $3, 0)
+       ON CONFLICT (campaign_id) DO UPDATE
+       SET place = EXCLUDED.place,
+           location_id = EXCLUDED.location_id,
+           check_seconds = CASE
+             WHEN campaign_board.location_id IS NOT DISTINCT FROM EXCLUDED.location_id
+               THEN campaign_board.check_seconds
+             ELSE campaign_board.game_seconds
+           END
+       RETURNING place, location_id, check_seconds, game_seconds`,
+      [req.params.campaignId, loc.rows[0].place, loc.rows[0].id]
+    );
+    res.json(updated.rows[0]);
+  } catch (error) {
+    if (adventuringMissing(res, error)) return;
+    console.error('Error selecting location:', error);
+    res.status(500).json({ error: error.message || 'Failed to select location' });
+  }
+});
+
+app.delete('/api/campaigns/:campaignId/adventuring/locations/:locationId', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    await client.query('BEGIN');
+    await client.query(
+      `UPDATE campaign_board SET check_seconds = NULL
+       WHERE campaign_id = $1 AND location_id = $2`,
+      [req.params.campaignId, req.params.locationId]
+    );
+    const deleted = await client.query(
+      'DELETE FROM campaign_location WHERE id = $1 AND campaign_id = $2 RETURNING id',
+      [req.params.locationId, req.params.campaignId]
+    );
+    if (deleted.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Location not found' });
+    }
+    await client.query('COMMIT');
+    res.json({ id: deleted.rows[0].id });
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch (_) { /* connection already failed */ }
+    if (adventuringMissing(res, error)) return;
+    console.error('Error deleting location:', error);
+    res.status(500).json({ error: error.message || 'Failed to delete location' });
+  } finally {
+    client.release();
+  }
+});
+
+app.patch('/api/campaigns/:campaignId/adventuring/locations/:locationId', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const fields = readLocationFields(req.body);
+    await client.query('BEGIN');
+    if (!(await tableForCampaign(client, req.params.campaignId, fields.tableId))) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Table is not in this campaign' });
+    }
+    const updated = await client.query(
+      `UPDATE campaign_location
+       SET name = $3, place = $4, check_die = $5, interval_seconds = $6,
+           encounter_table_id = $7, terrain = $8, movement_pct = $9
+       WHERE id = $1 AND campaign_id = $2
+       RETURNING id, name, place, check_die, interval_seconds, encounter_table_id, terrain, movement_pct`,
+      [
+        req.params.locationId,
+        req.params.campaignId,
+        fields.name,
+        fields.place,
+        fields.checkDie,
+        fields.interval,
+        fields.tableId,
+        fields.terrain,
+        fields.movementPct,
+      ]
+    );
+    if (updated.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Location not found' });
+    }
+    await client.query(
+      `UPDATE campaign_board SET place = $3
+       WHERE campaign_id = $1 AND location_id = $2`,
+      [req.params.campaignId, req.params.locationId, fields.place]
+    );
+    await client.query('COMMIT');
+    res.json(updated.rows[0]);
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch (_) { /* connection already failed */ }
+    if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    if (error.code === '23505') return res.status(400).json({ error: 'A location with that name already exists' });
+    if (error.code === '23514') return res.status(400).json({ error: 'That terrain is not allowed on this location' });
+    console.error('Error updating location:', error);
+    res.status(500).json({ error: error.message || 'Failed to update location' });
+  } finally {
+    client.release();
+  }
+});
+
+app.patch('/api/campaigns/:campaignId/adventuring/tables/:tableId', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const name = String(req.body?.name || '').trim();
+    if (!name || name.length > 80) return res.status(400).json({ error: 'name must be 1 to 80 characters' });
+    const die = positiveInt(req.body?.die, 'die');
+    if (die < 2 || die > 100) return res.status(400).json({ error: 'die must be from 2 to 100' });
+    const parsed = parseTableRows(die, req.body?.rows);
+    await client.query('BEGIN');
+    const existing = await tableForCampaign(client, req.params.campaignId, req.params.tableId);
+    if (!existing) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Table not found' });
+    }
+    if (existing.campaign_id == null) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Stock tables cannot be changed' });
+    }
+    const table = await client.query(
+      `UPDATE encounter_table SET name = $1, die = $2, modified = now()
+       WHERE id = $3 AND campaign_id = $4
+       RETURNING id, name, die`,
+      [name, die, req.params.tableId, req.params.campaignId]
+    );
+    if (table.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Table not found' });
+    }
+    await client.query('DELETE FROM encounter_table_row WHERE encounter_table_id = $1', [req.params.tableId]);
+    await insertTableRows(client, table.rows[0].id, parsed);
+    await client.query('COMMIT');
+    res.json(table.rows[0]);
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch (_) { /* connection already failed */ }
+    if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    if (error.code === '23505') return res.status(400).json({ error: 'A table with that name already exists' });
+    console.error('Error updating encounter table:', error);
+    res.status(500).json({ error: error.message || 'Failed to update table' });
+  } finally {
+    client.release();
+  }
+});
+
+app.delete('/api/campaigns/:campaignId/adventuring/tables/:tableId', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const existing = await tableForCampaign(pool, req.params.campaignId, req.params.tableId);
+    if (!existing) return res.status(404).json({ error: 'Table not found' });
+    if (existing.campaign_id == null) return res.status(400).json({ error: 'Stock tables cannot be deleted' });
+    const deleted = await pool.query(
+      'DELETE FROM encounter_table WHERE id = $1 AND campaign_id = $2 RETURNING id',
+      [req.params.tableId, req.params.campaignId]
+    );
+    if (deleted.rows.length === 0) return res.status(404).json({ error: 'Table not found' });
+    res.json({ id: deleted.rows[0].id });
+  } catch (error) {
+    if (adventuringMissing(res, error)) return;
+    if (error.code === '23503' || error.code === '23001') {
+      return res.status(400).json({ error: 'A location still uses that table' });
+    }
+    console.error('Error deleting encounter table:', error);
+    res.status(500).json({ error: error.message || 'Failed to delete table' });
+  }
+});
+
+app.post('/api/campaigns/:campaignId/adventuring/place', async (req, res) => {
+  const place = req.body?.place;
+  if (place !== 'outside' && place !== 'inside') {
+    return res.status(400).json({ error: 'place must be outside or inside' });
+  }
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const camp = await pool.query('SELECT id FROM campaign WHERE id = $1', [req.params.campaignId]);
+    if (camp.rows.length === 0) return res.status(404).json({ error: 'Campaign not found' });
+    const updated = await pool.query(
+      `INSERT INTO campaign_board (campaign_id, place)
+       VALUES ($1, $2)
+       ON CONFLICT (campaign_id) DO UPDATE SET place = EXCLUDED.place
+       RETURNING place, game_seconds`,
+      [req.params.campaignId, place]
+    );
+    res.json({ place: updated.rows[0].place, game_seconds: updated.rows[0].game_seconds });
+  } catch (error) {
+    if (adventuringMissing(res, error)) return;
+    console.error('Error setting campaign place:', error);
+    res.status(500).json({ error: error.message || 'Failed to set place' });
   }
 });
 
@@ -1934,6 +2432,42 @@ app.post('/api/campaigns/:campaignId/adventuring/party', async (req, res) => {
     if (error.status) return res.status(error.status).json({ error: error.message });
     console.error('Error queuing party command:', error);
     res.status(500).json({ error: error.message || 'Failed to queue party command' });
+  }
+});
+
+app.post('/api/campaigns/:campaignId/adventuring/treasure', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    let code = req.body?.code == null ? '' : String(req.body.code).trim();
+    if (!code && req.body?.enemy_id != null && String(req.body.enemy_id).trim() !== '') {
+      const enemyId = positiveInt(req.body.enemy_id, 'enemy_id');
+      const enemy = await pool.query(
+        'SELECT treasure_type FROM campaign_enemy WHERE id = $1 AND campaign_id = $2',
+        [enemyId, req.params.campaignId]
+      );
+      if (enemy.rows.length === 0) return res.status(404).json({ error: 'Enemy not found' });
+      code = enemy.rows[0].treasure_type == null ? '' : String(enemy.rows[0].treasure_type).trim();
+      if (!code) return res.status(400).json({ error: 'That enemy has no treasure type' });
+    }
+    if (!code || code.length > 40) return res.status(400).json({ error: 'code must be 1 to 40 characters' });
+    const found = await pool.query(
+      `SELECT t.code, t.definition
+       FROM treasure_type t
+       JOIN campaign c ON c.ruleset_id = t.ruleset_id
+       WHERE c.id = $1 AND lower(t.code) = lower($2)`,
+      [req.params.campaignId, code]
+    );
+    if (found.rows.length === 0) return res.status(400).json({ error: `No treasure type ${code}` });
+    if (found.rows.length > 1) return res.status(400).json({ error: `Treasure type ${code} is not unique` });
+    const rolled = rollTreasure(found.rows[0].definition, (sides) => randomInt(1, sides + 1));
+    if (rolled.error) return res.status(400).json({ error: rolled.error });
+    res.json({ code: found.rows[0].code, lines: rolled.lines });
+  } catch (error) {
+    if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    console.error('Error rolling treasure:', error);
+    res.status(500).json({ error: error.message || 'Failed to roll treasure' });
   }
 });
 
@@ -1994,6 +2528,64 @@ app.delete('/api/campaigns/:campaignId/adventuring/encounter', async (req, res) 
   }
 });
 
+app.post('/api/campaigns/:campaignId/adventuring/accept', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    await client.query('BEGIN');
+    const camp = await client.query('SELECT id FROM campaign WHERE id = $1', [req.params.campaignId]);
+    if (camp.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Campaign not found' });
+    }
+    const last = await client.query(
+      `SELECT w.id, w.table_roll, w.label, w.monster_id, w.quantity, w.accepted, m.treasure_type
+       FROM campaign_wander w
+       LEFT JOIN monster m ON m.id = w.monster_id
+       WHERE w.campaign_id = $1
+       ORDER BY w.at_seconds DESC, w.id DESC
+       LIMIT 1
+       FOR UPDATE OF w`,
+      [req.params.campaignId]
+    );
+    const decision = acceptRoll(last.rows[0] || null);
+    if (decision.error) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: decision.error });
+    }
+    const enemy = decision.enemy;
+    const inserted = await client.query(
+      `INSERT INTO campaign_enemy (campaign_id, name, monster_id, quantity, treasure_type)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, name, monster_id, quantity, treasure_type`,
+      [req.params.campaignId, enemy.name, enemy.monster_id, enemy.quantity, enemy.treasure_type]
+    );
+    const board = await client.query(
+      `INSERT INTO campaign_board (campaign_id, in_encounter)
+       VALUES ($1, true)
+       ON CONFLICT (campaign_id) DO UPDATE SET in_encounter = true
+       RETURNING in_encounter, game_seconds`,
+      [req.params.campaignId]
+    );
+    await client.query('UPDATE campaign_wander SET accepted = true WHERE id = $1', [last.rows[0].id]);
+    await client.query('COMMIT');
+    res.json({
+      accepted: true,
+      enemy: inserted.rows[0],
+      in_encounter: board.rows[0].in_encounter === true,
+      game_seconds: board.rows[0].game_seconds,
+    });
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch (_) { /* connection already failed */ }
+    if (adventuringMissing(res, error)) return;
+    console.error('Error accepting wander roll:', error);
+    res.status(500).json({ error: error.message || 'Failed to accept roll' });
+  } finally {
+    client.release();
+  }
+});
+
 app.post('/api/campaigns/:campaignId/adventuring/enemies', async (req, res) => {
   try {
     const member = await requireCampaign(req, res, req.params.campaignId, true);
@@ -2009,13 +2601,18 @@ app.post('/api/campaigns/:campaignId/adventuring/enemies', async (req, res) => {
     if (!camp.rows[0].in_encounter) return res.status(400).json({ error: 'Start an encounter first' });
     const name = String(req.body?.name || '').trim();
     if (!name || name.length > 80) return res.status(400).json({ error: 'name must be 1 to 80 characters' });
+    const quantity = optionalText(req.body?.quantity, 'quantity', 80);
+    const treasureType = optionalText(req.body?.treasure_type, 'treasure_type', 40);
     const inserted = await pool.query(
-      'INSERT INTO campaign_enemy (campaign_id, name) VALUES ($1, $2) RETURNING id, name',
-      [req.params.campaignId, name]
+      `INSERT INTO campaign_enemy (campaign_id, name, quantity, treasure_type)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, name, monster_id, quantity, treasure_type`,
+      [req.params.campaignId, name, quantity, treasureType]
     );
     res.status(201).json(inserted.rows[0]);
   } catch (error) {
     if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
     console.error('Error adding enemy:', error);
     res.status(500).json({ error: error.message || 'Failed to add enemy' });
   }

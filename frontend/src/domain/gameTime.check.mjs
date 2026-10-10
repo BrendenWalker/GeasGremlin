@@ -2,19 +2,32 @@ import assert from 'node:assert/strict';
 import {
   DAY_SECONDS,
   ROUND_SECONDS,
+  TURN_SECONDS,
+  WATCH_SECONDS,
   clockToSeconds,
   effectEndSeconds,
   formatGameTime,
   markStatus,
+  primaryStep,
   splitGameTime,
 } from './gameTime.mjs';
 
 assert.equal(ROUND_SECONDS, 10);
+assert.equal(TURN_SECONDS, 60 * ROUND_SECONDS);
+assert.equal(WATCH_SECONDS, 24 * TURN_SECONDS);
+assert.equal(DAY_SECONDS, 6 * WATCH_SECONDS);
 assert.equal(DAY_SECONDS, 86400);
+assert.equal(primaryStep('outside', false), 'watch');
+assert.equal(primaryStep('inside', false), 'turn');
+assert.equal(primaryStep('outside', true), 'round');
+assert.equal(primaryStep('inside', true), 'round');
+assert.equal(primaryStep(undefined, false), 'watch');
 assert.equal(effectEndSeconds(70, 2), 70 + 2 * 60);
 assert.equal(effectEndSeconds(0, 0), null);
 assert.equal(formatGameTime(0), 'Day 1 00:00:00');
 assert.equal(formatGameTime(ROUND_SECONDS), 'Day 1 00:00:10');
+assert.equal(formatGameTime(TURN_SECONDS), 'Day 1 00:10:00');
+assert.equal(formatGameTime(WATCH_SECONDS), 'Day 1 04:00:00');
 assert.equal(formatGameTime(DAY_SECONDS), 'Day 2 00:00:00');
 assert.equal(clockToSeconds(1, 0, 0, 10), 10);
 assert.equal(clockToSeconds(2, 0, 0, 0), DAY_SECONDS);

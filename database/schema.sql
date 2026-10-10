@@ -620,15 +620,28 @@ CREATE INDEX IF NOT EXISTS idx_character_transfer_to ON public.character_transfe
 CREATE INDEX IF NOT EXISTS idx_character_transfer_from ON public.character_transfer USING btree (from_character_id);
 CREATE INDEX IF NOT EXISTS idx_character_transfer_pending ON public.character_transfer (to_character_id, status) WHERE status = 'pending';
 
--- Clock and encounter flag. A row is created on the first tick or encounter.
--- game_seconds: day 1 is 0. A round is 10 seconds.
+-- Clock and encounter flag. A row is created on the first tick, place change, or encounter.
+-- game_seconds: day 1 is 0. A round is 10 seconds, a turn 600, a watch 14400, a day 86400.
+-- place is outside or inside. An open encounter does not change it and does not reset the clock.
 CREATE TABLE IF NOT EXISTS public.campaign_board (
 	campaign_id int4 NOT NULL,
 	game_seconds int4 NOT NULL DEFAULT 0,
 	in_encounter boolean NOT NULL DEFAULT false,
+	place varchar(8) NOT NULL DEFAULT 'outside',
 	CONSTRAINT campaign_board_pkey PRIMARY KEY (campaign_id),
-	CONSTRAINT campaign_board_campaign_fkey FOREIGN KEY (campaign_id) REFERENCES public.campaign(id) ON DELETE CASCADE
+	CONSTRAINT campaign_board_campaign_fkey FOREIGN KEY (campaign_id) REFERENCES public.campaign(id) ON DELETE CASCADE,
+	CONSTRAINT campaign_board_place_check CHECK (place IN ('outside', 'inside'))
 );
+ALTER TABLE public.campaign_board ADD COLUMN IF NOT EXISTS place varchar(8) NOT NULL DEFAULT 'outside';
+DO $$
+BEGIN
+	IF NOT EXISTS (
+		SELECT 1 FROM pg_constraint WHERE conname = 'campaign_board_place_check'
+	) THEN
+		ALTER TABLE public.campaign_board
+			ADD CONSTRAINT campaign_board_place_check CHECK (place IN ('outside', 'inside'));
+	END IF;
+END $$;
 
 -- GM adventuring clock marks. Effect: start at_seconds plus duration_minutes. Event: at_seconds only.
 CREATE TABLE IF NOT EXISTS public.campaign_mark (
@@ -648,15 +661,201 @@ CREATE TABLE IF NOT EXISTS public.campaign_mark (
 );
 CREATE INDEX IF NOT EXISTS idx_campaign_mark_campaign ON public.campaign_mark USING btree (campaign_id, at_seconds);
 
+-- Play catalog. Stock rows set ruleset_id. A custom encounter table sets campaign_id instead. Never both.
+-- No stock numbers ship here. import-catalog.js loads these files. import-ruleset.js does not.
+
+CREATE TABLE IF NOT EXISTS public.monster (
+	id serial4 NOT NULL,
+	"name" varchar(80) NOT NULL,
+	hit_dice varchar(20) NOT NULL,
+	armor_class int4 NOT NULL,
+	morale int4 NULL,
+	treasure_type varchar(40) NULL,
+	movement varchar(80) NOT NULL,
+	number_appearing varchar(80) NOT NULL,
+	modified timestamp DEFAULT now() NOT NULL,
+	ruleset_id int4 NOT NULL,
+	CONSTRAINT monster_pkey PRIMARY KEY (id),
+	CONSTRAINT monster_ruleset_name_key UNIQUE (ruleset_id, name),
+	CONSTRAINT monster_morale_check CHECK (morale IS NULL OR (morale >= 2 AND morale <= 12)),
+	CONSTRAINT monster_ruleset_id_fkey FOREIGN KEY (ruleset_id) REFERENCES public.ruleset(id) ON DELETE RESTRICT
+);
+CREATE INDEX IF NOT EXISTS idx_monster_ruleset ON public.monster USING btree (ruleset_id);
+
+-- code is the book letter. definition is the percent-and-dice columns, stored as given.
+CREATE TABLE IF NOT EXISTS public.treasure_type (
+	id serial4 NOT NULL,
+	code varchar(8) NOT NULL,
+	definition jsonb NOT NULL,
+	modified timestamp DEFAULT now() NOT NULL,
+	ruleset_id int4 NOT NULL,
+	CONSTRAINT treasure_type_pkey PRIMARY KEY (id),
+	CONSTRAINT treasure_type_ruleset_code_key UNIQUE (ruleset_id, code),
+	CONSTRAINT treasure_type_definition_object CHECK (jsonb_typeof(definition) = 'object'),
+	CONSTRAINT treasure_type_ruleset_id_fkey FOREIGN KEY (ruleset_id) REFERENCES public.ruleset(id) ON DELETE RESTRICT
+);
+CREATE INDEX IF NOT EXISTS idx_treasure_type_ruleset ON public.treasure_type USING btree (ruleset_id);
+
+CREATE TABLE IF NOT EXISTS public.encounter_table (
+	id serial4 NOT NULL,
+	"name" varchar(80) NOT NULL,
+	die int4 NOT NULL,
+	modified timestamp DEFAULT now() NOT NULL,
+	ruleset_id int4 NULL,
+	campaign_id int4 NULL,
+	CONSTRAINT encounter_table_pkey PRIMARY KEY (id),
+	CONSTRAINT encounter_table_die_check CHECK (die >= 2 AND die <= 100),
+	CONSTRAINT encounter_table_owner_check CHECK (
+		(ruleset_id IS NOT NULL AND campaign_id IS NULL)
+		OR (ruleset_id IS NULL AND campaign_id IS NOT NULL)
+	),
+	CONSTRAINT encounter_table_ruleset_id_fkey FOREIGN KEY (ruleset_id) REFERENCES public.ruleset(id) ON DELETE RESTRICT,
+	CONSTRAINT encounter_table_campaign_id_fkey FOREIGN KEY (campaign_id) REFERENCES public.campaign(id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX IF NOT EXISTS encounter_table_ruleset_name_key
+	ON public.encounter_table (ruleset_id, name) WHERE ruleset_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS encounter_table_campaign_name_key
+	ON public.encounter_table (campaign_id, name) WHERE campaign_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_encounter_table_ruleset ON public.encounter_table USING btree (ruleset_id);
+CREATE INDEX IF NOT EXISTS idx_encounter_table_campaign ON public.encounter_table USING btree (campaign_id);
+
+-- face_lo and face_hi are inclusive. A row has a monster, a plain label, or both.
+CREATE TABLE IF NOT EXISTS public.encounter_table_row (
+	id serial4 NOT NULL,
+	encounter_table_id int4 NOT NULL,
+	face_lo int4 NOT NULL,
+	face_hi int4 NOT NULL,
+	monster_id int4 NULL,
+	"label" varchar(80) NULL,
+	quantity varchar(80) NULL,
+	CONSTRAINT encounter_table_row_pkey PRIMARY KEY (id),
+	CONSTRAINT encounter_table_row_faces_check CHECK (face_lo >= 1 AND face_hi >= face_lo),
+	CONSTRAINT encounter_table_row_result_check CHECK (monster_id IS NOT NULL OR label IS NOT NULL),
+	CONSTRAINT encounter_table_row_table_fkey FOREIGN KEY (encounter_table_id) REFERENCES public.encounter_table(id) ON DELETE CASCADE,
+	CONSTRAINT encounter_table_row_monster_fkey FOREIGN KEY (monster_id) REFERENCES public.monster(id) ON DELETE RESTRICT
+);
+CREATE INDEX IF NOT EXISTS idx_encounter_table_row_table ON public.encounter_table_row USING btree (encounter_table_id);
+CREATE INDEX IF NOT EXISTS idx_encounter_table_row_monster ON public.encounter_table_row USING btree (monster_id);
+
+-- A place the party can be. Selecting it sets the board place. The check is 1 or below on check_die.
+-- Inside defaults to every 3 turns (1800). Outside defaults to every watch (14400). The table is a real row.
+-- Outside may set terrain and movement_pct together. Inside leaves both empty. The percent is not travel.
+CREATE TABLE IF NOT EXISTS public.campaign_location (
+	id serial4 NOT NULL,
+	campaign_id int4 NOT NULL,
+	"name" varchar(80) NOT NULL,
+	place varchar(8) NOT NULL,
+	check_die int4 NOT NULL DEFAULT 6,
+	interval_seconds int4 NOT NULL,
+	encounter_table_id int4 NOT NULL,
+	terrain varchar(40) NULL,
+	movement_pct int4 NULL,
+	CONSTRAINT campaign_location_pkey PRIMARY KEY (id),
+	CONSTRAINT campaign_location_campaign_name_key UNIQUE (campaign_id, name),
+	CONSTRAINT campaign_location_place_check CHECK (place IN ('outside', 'inside')),
+	CONSTRAINT campaign_location_die_check CHECK (check_die >= 2 AND check_die <= 100),
+	CONSTRAINT campaign_location_interval_check CHECK (interval_seconds >= 1),
+	CONSTRAINT campaign_location_campaign_fkey FOREIGN KEY (campaign_id) REFERENCES public.campaign(id) ON DELETE CASCADE,
+	CONSTRAINT campaign_location_table_fkey FOREIGN KEY (encounter_table_id) REFERENCES public.encounter_table(id) ON DELETE RESTRICT
+);
+CREATE INDEX IF NOT EXISTS idx_campaign_location_campaign ON public.campaign_location USING btree (campaign_id);
+ALTER TABLE public.campaign_location ADD COLUMN IF NOT EXISTS terrain varchar(40) NULL;
+ALTER TABLE public.campaign_location ADD COLUMN IF NOT EXISTS movement_pct int4 NULL;
+DO $$
+BEGIN
+	IF NOT EXISTS (
+		SELECT 1 FROM pg_constraint WHERE conname = 'campaign_location_terrain_check'
+	) THEN
+		ALTER TABLE public.campaign_location
+			ADD CONSTRAINT campaign_location_terrain_check
+			CHECK (
+				(place = 'inside' AND terrain IS NULL AND movement_pct IS NULL)
+				OR (place = 'outside' AND terrain IS NULL AND movement_pct IS NULL)
+				OR (
+					place = 'outside'
+					AND terrain IN ('Clear', 'Road', 'Forest', 'Hills', 'Desert', 'Jungle', 'Swamp', 'Mountains')
+					AND movement_pct BETWEEN -100 AND 200
+				)
+			);
+	END IF;
+END $$;
+
+-- One stored roll per check the clock crossed. A miss has no table roll. This does not open an encounter.
+CREATE TABLE IF NOT EXISTS public.campaign_wander (
+	id serial4 NOT NULL,
+	campaign_id int4 NOT NULL,
+	location_id int4 NULL,
+	location_name varchar(80) NOT NULL,
+	at_seconds int4 NOT NULL,
+	check_die int4 NOT NULL,
+	check_roll int4 NOT NULL,
+	table_die int4 NULL,
+	table_roll int4 NULL,
+	monster_id int4 NULL,
+	"label" varchar(80) NULL,
+	quantity varchar(80) NULL,
+	accepted boolean NOT NULL DEFAULT false,
+	CONSTRAINT campaign_wander_pkey PRIMARY KEY (id),
+	CONSTRAINT campaign_wander_miss_check CHECK (
+		(table_roll IS NULL AND table_die IS NULL AND monster_id IS NULL AND label IS NULL AND quantity IS NULL)
+		OR (table_roll IS NOT NULL AND table_die IS NOT NULL)
+	),
+	CONSTRAINT campaign_wander_campaign_fkey FOREIGN KEY (campaign_id) REFERENCES public.campaign(id) ON DELETE CASCADE,
+	CONSTRAINT campaign_wander_location_fkey FOREIGN KEY (location_id) REFERENCES public.campaign_location(id) ON DELETE SET NULL,
+	CONSTRAINT campaign_wander_monster_fkey FOREIGN KEY (monster_id) REFERENCES public.monster(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_campaign_wander_campaign ON public.campaign_wander USING btree (campaign_id, at_seconds, id);
+
+ALTER TABLE public.campaign_board ADD COLUMN IF NOT EXISTS location_id int4 NULL;
+ALTER TABLE public.campaign_board ADD COLUMN IF NOT EXISTS check_seconds int4 NULL;
+DO $$
+BEGIN
+	IF NOT EXISTS (
+		SELECT 1 FROM pg_constraint WHERE conname = 'campaign_board_location_fkey'
+	) THEN
+		ALTER TABLE public.campaign_board
+			ADD CONSTRAINT campaign_board_location_fkey
+			FOREIGN KEY (location_id) REFERENCES public.campaign_location(id) ON DELETE SET NULL;
+	END IF;
+	IF NOT EXISTS (
+		SELECT 1 FROM pg_constraint WHERE conname = 'campaign_board_check_seconds_check'
+	) THEN
+		ALTER TABLE public.campaign_board
+			ADD CONSTRAINT campaign_board_check_seconds_check
+			CHECK (check_seconds IS NULL OR check_seconds >= 0);
+	END IF;
+END $$;
+
 -- Names in the open encounter. Deleted when the encounter ends.
+-- monster_id is set when the row came from the catalog. Null while the name was typed.
+-- quantity is the note from the table row. treasure_type is the monster's code, or one the GM typed.
 CREATE TABLE IF NOT EXISTS public.campaign_enemy (
 	id serial4 NOT NULL,
 	campaign_id int4 NOT NULL,
 	name varchar(80) NOT NULL,
+	monster_id int4 NULL,
+	quantity varchar(80) NULL,
+	treasure_type varchar(40) NULL,
 	CONSTRAINT campaign_enemy_pkey PRIMARY KEY (id),
-	CONSTRAINT campaign_enemy_campaign_fkey FOREIGN KEY (campaign_id) REFERENCES public.campaign(id) ON DELETE CASCADE
+	CONSTRAINT campaign_enemy_campaign_fkey FOREIGN KEY (campaign_id) REFERENCES public.campaign(id) ON DELETE CASCADE,
+	CONSTRAINT campaign_enemy_monster_fkey FOREIGN KEY (monster_id) REFERENCES public.monster(id) ON DELETE RESTRICT
 );
 CREATE INDEX IF NOT EXISTS idx_campaign_enemy_campaign ON public.campaign_enemy USING btree (campaign_id);
+ALTER TABLE public.campaign_enemy ADD COLUMN IF NOT EXISTS monster_id int4 NULL;
+DO $$
+BEGIN
+	IF NOT EXISTS (
+		SELECT 1 FROM pg_constraint WHERE conname = 'campaign_enemy_monster_fkey'
+	) THEN
+		ALTER TABLE public.campaign_enemy
+			ADD CONSTRAINT campaign_enemy_monster_fkey
+			FOREIGN KEY (monster_id) REFERENCES public.monster(id) ON DELETE RESTRICT;
+	END IF;
+END $$;
+CREATE INDEX IF NOT EXISTS idx_campaign_enemy_monster ON public.campaign_enemy (monster_id) WHERE monster_id IS NOT NULL;
+ALTER TABLE public.campaign_enemy ADD COLUMN IF NOT EXISTS quantity varchar(80) NULL;
+ALTER TABLE public.campaign_enemy ADD COLUMN IF NOT EXISTS treasure_type varchar(40) NULL;
+ALTER TABLE public.campaign_wander ADD COLUMN IF NOT EXISTS accepted boolean NOT NULL DEFAULT false;
 
 -- Last time the character's owner had that sheet open in this campaign.
 CREATE TABLE IF NOT EXISTS public.campaign_presence (

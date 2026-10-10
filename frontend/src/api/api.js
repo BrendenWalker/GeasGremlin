@@ -79,10 +79,20 @@ export const updateTransfer = (transferId, body) => api.patch(`/transfers/${tran
 
 export const getAdventuring = (campaignId) => api.get(`/campaigns/${campaignId}/adventuring`);
 export const tickAdventuring = (campaignId, step) => api.post(`/campaigns/${campaignId}/adventuring/tick`, { step });
+export const setAdventuringPlace = (campaignId, place) => api.post(`/campaigns/${campaignId}/adventuring/place`, { place });
+export const createEncounterTable = (campaignId, body) => api.post(`/campaigns/${campaignId}/adventuring/tables`, body);
+export const updateEncounterTable = (campaignId, tableId, body) => api.patch(`/campaigns/${campaignId}/adventuring/tables/${tableId}`, body);
+export const deleteEncounterTable = (campaignId, tableId) => api.delete(`/campaigns/${campaignId}/adventuring/tables/${tableId}`);
+export const createLocation = (campaignId, body) => api.post(`/campaigns/${campaignId}/adventuring/locations`, body);
+export const updateLocation = (campaignId, locationId, body) => api.patch(`/campaigns/${campaignId}/adventuring/locations/${locationId}`, body);
+export const selectLocation = (campaignId, locationId) => api.post(`/campaigns/${campaignId}/adventuring/locations/${locationId}/select`);
+export const deleteLocation = (campaignId, locationId) => api.delete(`/campaigns/${campaignId}/adventuring/locations/${locationId}`);
 export const giveParty = (campaignId, body) => api.post(`/campaigns/${campaignId}/adventuring/party`, body);
 export const startEncounter = (campaignId) => api.post(`/campaigns/${campaignId}/adventuring/encounter`);
 export const endEncounter = (campaignId) => api.delete(`/campaigns/${campaignId}/adventuring/encounter`);
-export const addEncounterEnemy = (campaignId, name) => api.post(`/campaigns/${campaignId}/adventuring/enemies`, { name });
+export const addEncounterEnemy = (campaignId, body) => api.post(`/campaigns/${campaignId}/adventuring/enemies`, body);
+export const acceptWander = (campaignId) => api.post(`/campaigns/${campaignId}/adventuring/accept`);
+export const rollTreasure = (campaignId, body) => api.post(`/campaigns/${campaignId}/adventuring/treasure`, body);
 export const removeEncounterEnemy = (campaignId, enemyId) => api.delete(`/campaigns/${campaignId}/adventuring/enemies/${enemyId}`);
 export const addAdventuringMark = (campaignId, body) => api.post(`/campaigns/${campaignId}/adventuring/marks`, body);
 export const removeAdventuringMark = (campaignId, markId) => api.delete(`/campaigns/${campaignId}/adventuring/marks/${markId}`);

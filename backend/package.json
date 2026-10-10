@@ -8,6 +8,11 @@
     "dev": "nodemon server.js",
     "export-ruleset": "node scripts/export-ruleset.js",
     "import-ruleset": "node scripts/import-ruleset.js",
+    "import-catalog": "node scripts/import-catalog.js",
+    "test:catalog-import": "node scripts/catalogImport.check.js",
+    "test:wander": "node wander.check.js",
+    "test:terrain": "node terrain.check.js",
+    "test:treasure": "node treasure.check.js",
     "test:ruleset-roundtrip": "node scripts/test-ruleset-roundtrip.js"
   },
   "dependencies": {

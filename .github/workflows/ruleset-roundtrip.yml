@@ -61,6 +61,22 @@ jobs:
       - name: Apply schema
         run: psql -h localhost -U postgres -d rpghub_ci -v ON_ERROR_STOP=1 -f database/schema.sql
 
+      - name: Wander schedule
+        working-directory: backend
+        run: npm run test:wander
+
+      - name: Location terrain
+        working-directory: backend
+        run: npm run test:terrain
+
+      - name: Treasure draft
+        working-directory: backend
+        run: npm run test:treasure
+
+      - name: Play catalog import
+        working-directory: backend
+        run: npm run test:catalog-import
+
       - name: Import → export → compare
         working-directory: backend
         run: npm run test:ruleset-roundtrip -- --dir ../GameSystems/${{ matrix.catalog }}

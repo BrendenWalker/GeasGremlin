@@ -6,6 +6,7 @@ import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage';
 import PlayPage from './pages/PlayPage';
 import AdventuringPage from './pages/AdventuringPage';
+import ConfigurationPage from './pages/ConfigurationPage';
 import PlayerCharacterPage from './pages/PlayerCharacterPage';
 import CampaignsPage from './pages/CampaignsPage';
 import CharactersPage from './pages/CharactersPage';
@@ -130,6 +131,7 @@ function Shell() {
                   {session?.role === 'gm' && (
                     <>
                       <NavLink to={`/play/${campaignId}/adventuring`} className={navClass}>Adventuring</NavLink>
+                      <NavLink to={`/play/${campaignId}/configuration`} className={navClass}>Configuration</NavLink>
                       <NavLink to={`/play/${campaignId}/reference`} className={navClass}>Reference</NavLink>
                     </>
                   )}
@@ -166,6 +168,9 @@ function Shell() {
               <Route path="characters/:id" element={<PlayerCharacterPage />} />
               <Route path="adventuring" element={<GmOnly session={session} />}>
                 <Route index element={<AdventuringPage campaignName={session?.name} />} />
+              </Route>
+              <Route path="configuration" element={<GmOnly session={session} />}>
+                <Route index element={<ConfigurationPage campaignName={session?.name} />} />
               </Route>
               <Route path="reference" element={<CampaignReference session={session} />}>
                 <Route path=":rulesetId" element={<RulesetLayout locked />}>

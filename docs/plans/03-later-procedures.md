@@ -42,7 +42,7 @@ Needs the watch, turn, and day steps.
 
 Needs the outside watch and a location with terrain. This is not a map.
 
-- [ ] `todo` Overland distance. Miles per day from movement, times the terrain factor. A forced march is 12 hours and +50% distance, with 1d6 damage on each day after the first unless a Death Ray save with Constitution bonus succeeds. One failure ends the saves. A day of rest resets it.
+- [ ] `todo` Overland distance. Miles per day from movement, times the terrain factor. Outside locations already store `terrain` and `movement_pct`. This item still computes the miles. A forced march is 12 hours and +50% distance, with 1d6 damage on each day after the first unless a Death Ray save with Constitution bonus succeeds. One failure ends the saves. A day of rest resets it.
 - [ ] `todo` Becoming lost. Off a road or river, a secret Death Ray save adjusted by the leader's Wisdom. The GM decides what failure means.
 - [ ] `todo` Sailing weather. Wind direction and strength for the day. Travel distances are a 12-hour day, or 24 with a navigator who does not stop at night.
 - [ ] `todo` Air travel. Overland rate doubled, terrain ignored. Most winged creatures must keep one-third of their move to stay aloft.
