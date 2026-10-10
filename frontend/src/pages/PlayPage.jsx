@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { getPlayerCharacters } from '../api/api';
 import { useAuth } from '../components/AuthContext';
 
 export default function PlayPage() {
+  const { campaignId } = useParams();
   const { user } = useAuth();
   const [characters, setCharacters] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -40,7 +41,7 @@ export default function PlayPage() {
             <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
               {characters.map((c) => (
                 <li key={c.id} style={{ marginBottom: '0.5rem' }}>
-                  <Link to={`/play/characters/${c.id}`} style={{ color: '#c9a227', textDecoration: 'none' }}>
+                  <Link to={`/play/${campaignId}/characters/${c.id}`} style={{ color: '#c9a227', textDecoration: 'none' }}>
                     <strong>{c.name}</strong>
                     {c.race_name || c.class_name ? (
                       <span style={{ color: '#8a7f72', marginLeft: 8 }}> · {[c.race_name, c.class_name].filter(Boolean).join(' ')}</span>
@@ -57,12 +58,6 @@ export default function PlayPage() {
           )}
         </>
       )}
-
-      <p style={{ marginTop: '1.5rem', borderTop: '1px solid #3d3530', paddingTop: '1rem' }}>
-        <Link to="/" style={{ color: '#8a7f72', textDecoration: 'none' }}>← Home</Link>
-        {' · '}
-        <Link to="/campaigns" style={{ color: '#8a7f72', textDecoration: 'none' }}>Manage campaigns</Link>
-      </p>
     </div>
   );
 }

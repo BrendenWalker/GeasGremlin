@@ -7,10 +7,27 @@ export const CATALOG_SECTIONS = [
 
 export const RULESET_STORAGE_KEY = 'rpghub_ruleset_id';
 
-/** Section segment of /rulesets/:id/:section/... — anything else is races. */
+/** Catalog section in a hub or campaign reference URL. Anything else is races. */
 export function catalogSection(pathname) {
-  const part = String(pathname || '').split('/')[3];
-  return CATALOG_SECTIONS.some((item) => item.path === part) ? part : 'races';
+  const parts = String(pathname || '').split('/');
+  const found = parts.find((part) => CATALOG_SECTIONS.some((item) => item.path === part));
+  return found || 'races';
+}
+
+/** Hub catalog lives under /rulesets/:id. Campaign reference stays under /play/:campaignId/reference/:id. */
+export function catalogBase(pathname, rulesetId) {
+  const play = String(pathname || '').match(/^\/play\/(\d+)\/reference\//);
+  if (play) return `/play/${play[1]}/reference/${rulesetId}`;
+  return `/rulesets/${rulesetId}`;
+}
+
+/** Path after /reference, without a ruleset id, defaulting to races. */
+export function referenceTail(pathname) {
+  const parts = String(pathname || '').split('/').filter(Boolean);
+  const idx = parts.indexOf('reference');
+  const after = idx >= 0 ? parts.slice(idx + 1) : [];
+  const rest = /^\d+$/.test(after[0] || '') ? after.slice(1) : after;
+  return rest.join('/') || 'races';
 }
 
 /**

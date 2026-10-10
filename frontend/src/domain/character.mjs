@@ -2,11 +2,19 @@
  * Character sheet rules, assembled in the browser from hub rows.
  * Combat strings follow the Delphi TClassDetails helpers in ClassClasses.pas.
  */
+import { armorClass, formatArmorClass } from '../utils/armorClass.mjs';
 import { abilityModifier, adjustedHitPoints, classHitDie, formatModifier } from '../utils/hitPoints.mjs';
 
 export { abilityModifier, adjustedHitPoints, classHitDie, formatModifier };
 
-const STAT_KEYS = ['str', 'int', 'wis', 'dex', 'con', 'chr'];
+const BFRPG_ATTRIBUTES = [
+  { name: 'STR', column: 'str' },
+  { name: 'INT', column: 'int' },
+  { name: 'WIS', column: 'wis' },
+  { name: 'DEX', column: 'dex' },
+  { name: 'CON', column: 'con' },
+  { name: 'CHR', column: 'chr' },
+];
 
 export function formatAdjustment(value) {
   const n = Number(value) || 0;
@@ -24,18 +32,19 @@ export function clampStat(value, min, max) {
 }
 
 /** Tightest race and class minimums, and the race maximum (18 when unset). */
-export function statBounds(race, cls, extraCls) {
+export function statBounds(race, cls, extraCls, attributes = BFRPG_ATTRIBUTES) {
   const mins = {};
   const maxs = {};
-  STAT_KEYS.forEach((key) => {
-    const column = `min_${key === 'int' ? 'int' : key}`;
+  attributes.forEach((attr) => {
+    const key = attr.column;
+    const column = `min_${key}`;
     const raceMin = race ? race[column] : null;
     const classMins = [cls, extraCls]
       .map((row) => (row ? row[column] : null))
       .filter((value) => value != null);
     const parts = [raceMin, ...classMins].filter((value) => value != null);
     mins[key] = parts.length ? Math.max(...parts) : 3;
-    const raceMax = race ? race[`max_${key === 'int' ? 'int' : key}`] : null;
+    const raceMax = race ? race[`max_${key}`] : null;
     maxs[key] = raceMax != null && raceMax > 0 ? raceMax : 18;
   });
   return { mins, maxs };
@@ -354,4 +363,47 @@ export function acceptTransfer(fromChar, toChar, transfer) {
     to: { id: toChar.id, money: toMoney + gold },
     items,
   };
+}
+
+const MECHANICS = {
+  bfrpg: {
+    id: 'bfrpg',
+    attributes: BFRPG_ATTRIBUTES,
+    abilityModifier,
+    adjustedHitPoints,
+    classHitDie,
+    armorClass,
+    formatArmorClass,
+    sheetCombat,
+  },
+};
+
+/** Missing id is bfrpg. Anything else outside the closed map throws. */
+export function resolveMechanic(id) {
+  const key = id == null || String(id).trim() === '' ? 'bfrpg' : String(id).trim();
+  const mechanic = MECHANICS[key];
+  if (!mechanic) throw new Error(`Unknown mechanic: ${key}`);
+  return mechanic;
+}
+
+/**
+ * Set compare of Attribute stat names against the mechanic's list.
+ * ponytail: stat rows are global, not per ruleset. A second family with a different attribute list needs its own stat partition before this compare can pass.
+ */
+export function attributesMatch(mechanic, statNames) {
+  const expected = mechanic.attributes.map((attr) => attr.name);
+  const actual = Array.isArray(statNames) ? statNames.map((name) => String(name)) : [];
+  if (expected.length !== actual.length) return false;
+  const seen = new Set(actual);
+  if (seen.size !== expected.length) return false;
+  return expected.every((name) => seen.has(name));
+}
+
+/** Resolve the ruleset's mechanic. Refuse when its Attribute stats are a different set. */
+export function openMechanic(ruleset) {
+  const mechanic = resolveMechanic(ruleset?.mechanic);
+  if (ruleset && Array.isArray(ruleset.attribute_stats) && !attributesMatch(mechanic, ruleset.attribute_stats)) {
+    throw new Error(`Attribute stats do not match mechanic ${mechanic.id}`);
+  }
+  return mechanic;
 }

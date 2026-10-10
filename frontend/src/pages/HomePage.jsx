@@ -12,7 +12,8 @@ export default function HomePage() {
       </p>
       <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
         <Link to="/campaigns" className="btn btn-primary">Campaigns</Link>
-        <Link to="/rulesets" className="btn btn-secondary">Ruleset</Link>
+        <Link to="/characters" className="btn btn-secondary">Characters</Link>
+        <Link to="/rulesets" className="btn btn-secondary">Ruleset Reference</Link>
       </div>
     </div>
   );

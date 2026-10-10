@@ -38,11 +38,13 @@ CREATE INDEX IF NOT EXISTS ability_categories_ability_categories_modified ON pub
 CREATE TABLE IF NOT EXISTS public.ruleset (
 	id serial4 NOT NULL,
 	"name" varchar(40) NOT NULL,
+	mechanic varchar(40) NOT NULL DEFAULT 'bfrpg',
 	modified timestamp DEFAULT CURRENT_TIMESTAMP NULL,
 	CONSTRAINT ruleset_name_key UNIQUE (name),
 	CONSTRAINT ruleset_pkey PRIMARY KEY (id)
 );
 CREATE INDEX IF NOT EXISTS ruleset_ruleset_modified ON public.ruleset USING btree (modified);
+ALTER TABLE public.ruleset ADD COLUMN IF NOT EXISTS mechanic varchar(40) NOT NULL DEFAULT 'bfrpg';
 
 -- public.campaign definition
 
@@ -53,10 +55,12 @@ CREATE TABLE IF NOT EXISTS public.campaign (
 	"name" varchar(80) NOT NULL,
 	modified timestamp DEFAULT CURRENT_TIMESTAMP NULL,
 	ruleset_id int4 NOT NULL DEFAULT 1,
+	running boolean NOT NULL DEFAULT false,
 	CONSTRAINT campaign_ruleset_name_key UNIQUE (ruleset_id, name),
 	CONSTRAINT campaign_pkey PRIMARY KEY (id),
 	CONSTRAINT campaign_ruleset_id_fkey FOREIGN KEY (ruleset_id) REFERENCES public.ruleset(id) ON DELETE RESTRICT
 );
+ALTER TABLE public.campaign ADD COLUMN IF NOT EXISTS running boolean NOT NULL DEFAULT false;
 
 
 -- public.classes definition
@@ -615,6 +619,54 @@ CREATE TABLE IF NOT EXISTS public.character_transfer (
 CREATE INDEX IF NOT EXISTS idx_character_transfer_to ON public.character_transfer USING btree (to_character_id);
 CREATE INDEX IF NOT EXISTS idx_character_transfer_from ON public.character_transfer USING btree (from_character_id);
 CREATE INDEX IF NOT EXISTS idx_character_transfer_pending ON public.character_transfer (to_character_id, status) WHERE status = 'pending';
+
+-- Clock and encounter flag. A row is created on the first tick or encounter.
+-- game_seconds: day 1 is 0. A round is 10 seconds.
+CREATE TABLE IF NOT EXISTS public.campaign_board (
+	campaign_id int4 NOT NULL,
+	game_seconds int4 NOT NULL DEFAULT 0,
+	in_encounter boolean NOT NULL DEFAULT false,
+	CONSTRAINT campaign_board_pkey PRIMARY KEY (campaign_id),
+	CONSTRAINT campaign_board_campaign_fkey FOREIGN KEY (campaign_id) REFERENCES public.campaign(id) ON DELETE CASCADE
+);
+
+-- GM adventuring clock marks. Effect: start at_seconds plus duration_minutes. Event: at_seconds only.
+CREATE TABLE IF NOT EXISTS public.campaign_mark (
+	id serial4 NOT NULL,
+	campaign_id int4 NOT NULL,
+	kind varchar(8) NOT NULL,
+	note varchar(120) NOT NULL,
+	at_seconds int4 NOT NULL,
+	duration_minutes int4 NULL,
+	CONSTRAINT campaign_mark_pkey PRIMARY KEY (id),
+	CONSTRAINT campaign_mark_campaign_fkey FOREIGN KEY (campaign_id) REFERENCES public.campaign(id) ON DELETE CASCADE,
+	CONSTRAINT campaign_mark_kind_check CHECK (kind IN ('effect', 'event')),
+	CONSTRAINT campaign_mark_shape_check CHECK (
+		(kind = 'effect' AND duration_minutes IS NOT NULL AND duration_minutes > 0 AND at_seconds >= 0)
+		OR (kind = 'event' AND duration_minutes IS NULL AND at_seconds >= 0)
+	)
+);
+CREATE INDEX IF NOT EXISTS idx_campaign_mark_campaign ON public.campaign_mark USING btree (campaign_id, at_seconds);
+
+-- Names in the open encounter. Deleted when the encounter ends.
+CREATE TABLE IF NOT EXISTS public.campaign_enemy (
+	id serial4 NOT NULL,
+	campaign_id int4 NOT NULL,
+	name varchar(80) NOT NULL,
+	CONSTRAINT campaign_enemy_pkey PRIMARY KEY (id),
+	CONSTRAINT campaign_enemy_campaign_fkey FOREIGN KEY (campaign_id) REFERENCES public.campaign(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_campaign_enemy_campaign ON public.campaign_enemy USING btree (campaign_id);
+
+-- Last time the character's owner had that sheet open in this campaign.
+CREATE TABLE IF NOT EXISTS public.campaign_presence (
+	campaign_id int4 NOT NULL,
+	character_id int4 NOT NULL,
+	seen_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CONSTRAINT campaign_presence_pkey PRIMARY KEY (campaign_id, character_id),
+	CONSTRAINT campaign_presence_campaign_fkey FOREIGN KEY (campaign_id) REFERENCES public.campaign(id) ON DELETE CASCADE,
+	CONSTRAINT campaign_presence_character_fkey FOREIGN KEY (character_id) REFERENCES public."characters"(id) ON DELETE CASCADE
+);
 
 
 -- ==================== Stat lookup seed (idempotent) ====================

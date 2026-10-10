@@ -7,15 +7,14 @@ import {
   createCharacter,
 } from '../api/api';
 import { useRuleset } from '../components/RulesetContext';
-import { abilityModifier, adjustedHitPoints, classHitDie, clampStat, formatModifier, statBounds } from '../domain/character.mjs';
+import { clampStat, formatModifier, openMechanic, statBounds } from '../domain/character.mjs';
 
 const STEPS = ['Class', 'Race', 'Attributes', 'Name, HP & gold'];
-const STAT_KEYS = ['str', 'int', 'wis', 'dex', 'con', 'chr'];
 
 export default function NewCharacterWizardPage() {
   const { campaignId } = useParams();
   const navigate = useNavigate();
-  const { rulesetId, error: rulesetError, loading: rulesetsLoading, rulesets } = useRuleset();
+  const { error: rulesetError, loading: rulesetsLoading, rulesets } = useRuleset();
   const [campaign, setCampaign] = useState(null);
   const [races, setRaces] = useState([]);
   const [classes, setClasses] = useState([]);
@@ -38,7 +37,6 @@ export default function NewCharacterWizardPage() {
       setError(rulesetError);
       return;
     }
-    if (!rulesetId) return undefined;
     let cancelled = false;
     setLoading(true);
     setError(null);
@@ -47,16 +45,27 @@ export default function NewCharacterWizardPage() {
     setSelectedRace(null);
     setBaseHp('');
     setStep(0);
-    Promise.all([
-      getCampaign(campaignId).then((r) => r.data).catch(() => null),
-      getRaces(rulesetId).then((r) => r.data || []),
-      getClasses(rulesetId).then((r) => r.data || []),
-    ])
-      .then(([c, r, cl]) => {
-        if (cancelled) return;
-        setCampaign(c);
-        setRaces(r);
-        setClasses(cl);
+    getCampaign(campaignId)
+      .then((r) => r.data)
+      .catch(() => null)
+      .then((c) => {
+        if (cancelled) return null;
+        if (!c?.ruleset_id) {
+          setCampaign(c);
+          setRaces([]);
+          setClasses([]);
+          return null;
+        }
+        return Promise.all([
+          getRaces(c.ruleset_id).then((r) => r.data || []),
+          getClasses(c.ruleset_id).then((r) => r.data || []),
+        ]).then(([r, cl]) => ({ campaign: c, races: r, classes: cl }));
+      })
+      .then((loaded) => {
+        if (cancelled || !loaded) return;
+        setCampaign(loaded.campaign);
+        setRaces(loaded.races);
+        setClasses(loaded.classes);
       })
       .catch((err) => {
         if (!cancelled) setError(err.response?.data?.error || err.message);
@@ -65,16 +74,31 @@ export default function NewCharacterWizardPage() {
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [campaignId, rulesetId, rulesetError]);
+  }, [campaignId, rulesetError]);
 
+  const ruleset = (rulesets || []).find((row) => String(row.id) === String(campaign?.ruleset_id));
+  let mechanic = null;
+  let mechanicError = null;
+  if (ruleset) {
+    try {
+      mechanic = openMechanic(ruleset);
+    } catch (err) {
+      mechanicError = err.message;
+    }
+  }
+  const attributes = mechanic?.attributes || [];
+  const conAttr = attributes.find((attr) => attr.name === 'CON');
+  const conScore = conAttr ? attrs[conAttr.column] : undefined;
   const cls = selectedClass != null ? classes.find((c) => c.id === parseInt(selectedClass, 10)) : null;
   const baseCls = selectedBase != null ? classes.find((c) => c.id === parseInt(selectedBase, 10)) : null;
   const race = selectedRace != null ? races.find((r) => r.id === parseInt(selectedRace, 10)) : null;
   const dieSource = cls?.is_quasi ? baseCls : cls;
-  const { mins, maxs } = statBounds(race, cls, cls?.is_quasi ? baseCls : null);
-  const hitdie = classHitDie(dieSource?.abilities);
-  const conMod = abilityModifier(attrs.con);
-  const hitPoints = adjustedHitPoints(baseHp, attrs.con, hitdie);
+  const { mins, maxs } = mechanic
+    ? statBounds(race, cls, cls?.is_quasi ? baseCls : null, attributes)
+    : { mins: {}, maxs: {} };
+  const hitdie = mechanic ? mechanic.classHitDie(dieSource?.abilities) : null;
+  const conMod = mechanic ? mechanic.abilityModifier(conScore) : 0;
+  const hitPoints = mechanic ? mechanic.adjustedHitPoints(baseHp, conScore, hitdie) : null;
 
   const canNext = () => {
     if (step === 0) {
@@ -101,7 +125,7 @@ export default function NewCharacterWizardPage() {
       name: name.trim(),
       level: 1,
       xp: 0,
-      ruleset_id: parseInt(rulesetId, 10),
+      ruleset_id: campaign.ruleset_id,
       race: selectedRace ? parseInt(selectedRace, 10) : null,
       class: cls?.is_quasi ? parseInt(selectedBase, 10) : (selectedClass ? parseInt(selectedClass, 10) : null),
       quasiclass: cls?.is_quasi ? parseInt(selectedClass, 10) : null,
@@ -109,7 +133,7 @@ export default function NewCharacterWizardPage() {
       int: attrs.int,
       wis: attrs.wis,
       dex: attrs.dex,
-      con: attrs.con,
+      con: conScore,
       chr: attrs.chr,
       hp: hitPoints,
       money: Math.round(startingGold) * 100 || 0,
@@ -138,10 +162,18 @@ export default function NewCharacterWizardPage() {
       </div>
     );
   }
-  if (loading && !campaign) {
+  if (rulesetsLoading || (loading && !campaign)) {
     return (
       <div className="card">
         <p style={{ color: '#8a7f72' }}>Loading…</p>
+      </div>
+    );
+  }
+  if (mechanicError) {
+    return (
+      <div className="card">
+        <p style={{ color: '#c95858' }}>{mechanicError}</p>
+        <Link to={`/campaigns/${campaignId}/characters`} className="btn btn-secondary">Back to characters</Link>
       </div>
     );
   }
@@ -263,23 +295,23 @@ export default function NewCharacterWizardPage() {
           <>
             <h3>Attributes</h3>
             <p style={{ color: '#8a7f72', marginBottom: '1rem' }}>
-              Min/max from race and class. STR, INT, WIS, DEX, CON, CHR.
+              Min/max from race and class. {attributes.map((attr) => attr.name).join(', ')}.
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '0.75rem' }}>
-              {STAT_KEYS.map((key) => (
-                <div key={key}>
+              {attributes.map((attr) => (
+                <div key={attr.column}>
                   <label style={{ display: 'block', marginBottom: 2 }}>
-                    {key.toUpperCase()} ({mins[key]}-{maxs[key]})
+                    {attr.name} ({mins[attr.column]}-{maxs[attr.column]})
                   </label>
                   <input
                     type="number"
-                    min={mins[key]}
-                    max={maxs[key]}
-                    value={attrs[key]}
+                    min={mins[attr.column]}
+                    max={maxs[attr.column]}
+                    value={attrs[attr.column]}
                     onChange={(e) =>
                       setAttrs((a) => ({
                         ...a,
-                        [key]: clampStat(e.target.value, mins[key], maxs[key]),
+                        [attr.column]: clampStat(e.target.value, mins[attr.column], maxs[attr.column]),
                       }))
                     }
                     style={{
@@ -340,7 +372,7 @@ export default function NewCharacterWizardPage() {
                 <span style={{ color: '#d4c4a8' }}>{hitdie ? `d${hitdie}` : 'No hit die'}</span>
               </div>
               <p style={{ color: '#8a7f72', margin: '0.4rem 0 0' }}>
-                Constitution {attrs.con}: {formatModifier(conMod)}
+                Constitution {conScore}: {formatModifier(conMod)}
                 {hitPoints != null && (
                   <>
                     {' '}

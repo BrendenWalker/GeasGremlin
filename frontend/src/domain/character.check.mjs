@@ -16,9 +16,24 @@ import {
   rangedAttackBonus,
   sheetCombat,
   statBounds,
+  resolveMechanic,
+  attributesMatch,
+  openMechanic,
 } from './character.mjs';
 
 assert.equal(abilityModifier(16), 2);
+const bfrpg = resolveMechanic('bfrpg');
+assert.equal(bfrpg.abilityModifier(16), 2);
+assert.equal(resolveMechanic(undefined).id, 'bfrpg');
+assert.equal(resolveMechanic('').id, 'bfrpg');
+assert.throws(() => resolveMechanic('nope'), /Unknown mechanic: nope/);
+assert.equal(attributesMatch(bfrpg, ['CHR', 'STR', 'INT', 'WIS', 'DEX', 'CON']), true);
+assert.equal(attributesMatch(bfrpg, ['STR', 'INT', 'WIS', 'DEX', 'CON', 'CHA']), false);
+assert.equal(openMechanic({ mechanic: 'bfrpg', attribute_stats: ['STR', 'INT', 'WIS', 'DEX', 'CON', 'CHR'] }).id, 'bfrpg');
+assert.throws(
+  () => openMechanic({ mechanic: 'bfrpg', attribute_stats: ['STR', 'DEX'] }),
+  /Attribute stats do not match mechanic bfrpg/
+);
 assert.equal(adjustedHitPoints(5, 16, 8), 7);
 
 assert.equal(

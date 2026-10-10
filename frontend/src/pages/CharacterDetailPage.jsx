@@ -18,13 +18,14 @@ import {
   createTransfer,
   getCharacterTransfers,
   updateTransfer,
+  postPresence,
 } from '../api/api';
-import { armorClass, formatArmorClass } from '../utils/armorClass.mjs';
-import { abilityModifier, acceptTransfer, castsRemaining, commandWrite, finishLevelUp, formatModifier, primaryClass, sheetCombat } from '../domain/character.mjs';
+import { useAuth } from '../components/AuthContext';
+import { useRuleset } from '../components/RulesetContext';
+import { acceptTransfer, castsRemaining, commandWrite, finishLevelUp, formatModifier, openMechanic, primaryClass } from '../domain/character.mjs';
 
 const TAB_IDS_GM = ['info', 'combat', 'spellbook', 'inventory'];
 const TAB_IDS_PLAYER = ['info', 'combat', 'spellbook', 'inventory', 'adventuring'];
-const STAT_KEYS = ['str', 'int', 'wis', 'dex', 'con', 'chr'];
 const INPUT_STYLE = {
   width: '100%',
   padding: '0.5rem',
@@ -70,7 +71,9 @@ function keepLoadedLists(prev, row) {
 }
 
 export default function CharacterDetailPage({ playerMode = false }) {
-  const { id } = useParams();
+  const { id, campaignId } = useParams();
+  const { user } = useAuth();
+  const { rulesets, error: rulesetError } = useRuleset();
   const [character, setCharacter] = useState(null);
   const [races, setRaces] = useState([]);
   const [classes, setClasses] = useState([]);
@@ -112,6 +115,20 @@ export default function CharacterDetailPage({ playerMode = false }) {
       .then((r) => setParty(r.data || []))
       .catch(() => setParty([]));
   }, [playerMode, character?.id, character?.campaign_ids?.[0]]);
+
+  const presenceKey = (character?.campaign_ids || []).join(',');
+  useEffect(() => {
+    if (!playerMode || !campaignId || !character?.id || !user?.username) return undefined;
+    const owns = String(character.user || '').toLowerCase() === user.username.toLowerCase();
+    const inThis = (character.campaign_ids || []).some((cid) => String(cid) === String(campaignId));
+    if (!owns || !inThis) return undefined;
+    const ping = () => {
+      postPresence(campaignId, Number(character.id)).catch(() => {});
+    };
+    ping();
+    const interval = setInterval(ping, 10000);
+    return () => clearInterval(interval);
+  }, [playerMode, campaignId, character?.id, character?.user, user?.username, presenceKey]);
 
   useEffect(() => {
     if (!playerMode || !id) return undefined;
@@ -353,13 +370,46 @@ export default function CharacterDetailPage({ playerMode = false }) {
   }
   if (!character) return null;
 
-  const statBlock = STAT_KEYS.map((k) => ({
-    label: k.toUpperCase(),
-    val: character[k],
-    mod: formatModifier(abilityModifier(character[k])),
-    key: k,
+  if (rulesetError) {
+    return (
+      <div className="card">
+        <p style={{ color: '#c95858' }}>{rulesetError}</p>
+        <Link to="/campaigns" className="btn btn-secondary">Back to Campaigns</Link>
+      </div>
+    );
+  }
+  if (!rulesets) {
+    return <div className="card"><p style={{ color: '#8a7f72' }}>Loading…</p></div>;
+  }
+
+  const ruleset = rulesets.find((row) => String(row.id) === String(character.ruleset_id));
+  if (!ruleset) {
+    return (
+      <div className="card">
+        <p style={{ color: '#c95858' }}>This character&apos;s ruleset is not available.</p>
+        <Link to="/campaigns" className="btn btn-secondary">Back to Campaigns</Link>
+      </div>
+    );
+  }
+  let mechanic;
+  try {
+    mechanic = openMechanic(ruleset);
+  } catch (err) {
+    return (
+      <div className="card">
+        <p style={{ color: '#c95858' }}>{err.message}</p>
+        <Link to="/campaigns" className="btn btn-secondary">Back to Campaigns</Link>
+      </div>
+    );
+  }
+
+  const statBlock = mechanic.attributes.map((attr) => ({
+    label: attr.name,
+    val: character[attr.column],
+    mod: formatModifier(mechanic.abilityModifier(character[attr.column])),
+    key: attr.column,
   }));
-  const combat = sheetCombat(character, classes);
+  const combat = mechanic.sheetCombat(character, classes);
   const nextLevelXp = combat.nextLevelXp ?? character.next_level_xp;
   const weapons = (character.items || []).filter(
     (i) => i.item_attackbonus != null || i.item_damage
@@ -379,7 +429,7 @@ export default function CharacterDetailPage({ playerMode = false }) {
     <div>
       <div className="card" style={{ marginBottom: '1rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-          <Link to={playerMode ? '/play' : (character.campaign_ids?.length ? `/campaigns/${character.campaign_ids[0]}/characters` : '/campaigns')} style={{ color: '#8a7f72', textDecoration: 'none' }}>← Back</Link>
+          <Link to={playerMode && campaignId ? `/play/${campaignId}` : (character.campaign_ids?.length ? `/campaigns/${character.campaign_ids[0]}/characters` : '/campaigns')} style={{ color: '#8a7f72', textDecoration: 'none' }}>← Back</Link>
           <h2 style={{ margin: 0 }}>{character.name}</h2>
           {character.race_name && <span style={{ color: '#b8b0a0' }}>{character.race_name}</span>}
           {character.class_name && <span style={{ color: '#b8b0a0' }}>{character.class_name}</span>}
@@ -461,15 +511,15 @@ export default function CharacterDetailPage({ playerMode = false }) {
                   </div>
                 </div>
                 <div style={{ marginBottom: '0.75rem' }}>
-                  <label style={{ display: 'block', marginBottom: 2 }}>STR INT WIS DEX CON CHR</label>
+                  <label style={{ display: 'block', marginBottom: 2 }}>{mechanic.attributes.map((attr) => attr.name).join(' ')}</label>
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    {STAT_KEYS.map((key) => (
+                    {mechanic.attributes.map((attr) => (
                       <input
-                        key={key}
+                        key={attr.column}
                         type="number"
-                        placeholder={key.toUpperCase()}
-                        value={form[key] ?? ''}
-                        onChange={(e) => setForm((f) => ({ ...f, [key]: parseInt(e.target.value, 10) || null }))}
+                        placeholder={attr.name}
+                        value={form[attr.column] ?? ''}
+                        onChange={(e) => setForm((f) => ({ ...f, [attr.column]: parseInt(e.target.value, 10) || null }))}
                         style={{ width: 48, padding: '0.5rem', borderRadius: 4, border: '1px solid #3d3530', background: '#1a1614', color: '#e8e0d5' }}
                       />
                     ))}
@@ -500,7 +550,7 @@ export default function CharacterDetailPage({ playerMode = false }) {
               </div>
               <div style={{ marginTop: '1rem', display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
                 <span>HP {character.hp ?? '—'}</span>
-                <span>AC {formatArmorClass(armorClass(character))}</span>
+                <span>AC {mechanic.formatArmorClass(mechanic.armorClass(character))}</span>
                 <span>Money {coinsDisplay(character.money)}</span>
               </div>
               {(character.gender || character.age || character.hair || character.eyes || character.height || character.weight) && (
@@ -630,7 +680,7 @@ export default function CharacterDetailPage({ playerMode = false }) {
             </div>
           </div>
           <div style={{ marginTop: '1rem' }}>
-            <strong>AC</strong> {formatArmorClass(armorClass(character))}
+            <strong>AC</strong> {mechanic.formatArmorClass(mechanic.armorClass(character))}
           </div>
           {(combat.melee || combat.ranged || combat.damage) && (
             <div style={{ marginTop: '0.75rem', color: '#b8b0a0' }}>

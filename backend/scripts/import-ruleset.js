@@ -89,8 +89,22 @@ function loadGamesystem(dir) {
   }
   return {
     name: meta.name.trim(),
+    mechanic: readMechanic(meta.mechanic, filePath),
     description: typeof meta.description === 'string' ? meta.description : null,
   };
+}
+
+function readMechanic(value, filePath) {
+  if (value == null || value === '') return 'bfrpg';
+  if (typeof value !== 'string') {
+    throw new Error(`${filePath}: "mechanic" must be a string`);
+  }
+  const mechanic = value.trim();
+  if (!mechanic) return 'bfrpg';
+  if (mechanic.length > 40) {
+    throw new Error(`${filePath}: "mechanic" exceeds ruleset.mechanic varchar(40)`);
+  }
+  return mechanic;
 }
 
 function emptyToNull(v) {
@@ -139,17 +153,20 @@ async function allocDestId(client, table, sourceId, reserved) {
   return id;
 }
 
-async function ensureRuleset(client, name) {
+async function ensureRuleset(client, name, mechanic) {
   const existing = await client.query('SELECT id, name FROM public.ruleset WHERE name = $1', [name]);
   if (existing.rows.length > 0) {
-    await client.query('UPDATE public.ruleset SET modified = NOW() WHERE id = $1', [existing.rows[0].id]);
+    await client.query(
+      'UPDATE public.ruleset SET mechanic = $2, modified = NOW() WHERE id = $1',
+      [existing.rows[0].id, mechanic]
+    );
     return existing.rows[0].id;
   }
   const id = await nextId(client, 'ruleset');
-  await client.query('INSERT INTO public.ruleset (id, name, modified) VALUES ($1, $2, NOW())', [
-    id,
-    name,
-  ]);
+  await client.query(
+    'INSERT INTO public.ruleset (id, name, mechanic, modified) VALUES ($1, $2, $3, NOW())',
+    [id, name, mechanic]
+  );
   return id;
 }
 
@@ -765,7 +782,7 @@ async function main() {
   try {
     await client.query('BEGIN');
 
-    const rulesetId = await ensureRuleset(client, meta.name);
+    const rulesetId = await ensureRuleset(client, meta.name, meta.mechanic);
     console.log(`Ruleset ${JSON.stringify(meta.name)} → id ${rulesetId}`);
 
     await assertReplaceAllowed(client, rulesetId);

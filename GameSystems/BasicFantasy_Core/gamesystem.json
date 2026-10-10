@@ -1,4 +1,5 @@
 {
   "name": "Basic Fantasy Core",
+  "mechanic": "bfrpg",
   "description": "Basic Fantasy RPG core reference data: the four base classes, races, spells, and equipment."
 }
