@@ -38,7 +38,7 @@ import {
   tickAdventuring,
   selectLocation,
 } from '../api/api';
-import { clockToSeconds, effectEndSeconds, formatGameTime, markStatus, primaryStep, splitGameTime } from '../domain/gameTime.mjs';
+import { clockToSeconds, effectEndSeconds, effectTurnsLeft, formatGameTime, markStatus, primaryStep, splitGameTime } from '../domain/gameTime.mjs';
 
 const COIN = new Set(['cp', 'sp', 'ep', 'gp', 'pp']);
 
@@ -214,7 +214,6 @@ export default function AdventuringPage({ campaignName }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
-  const [lightNote, setLightNote] = useState(null);
   const [marchNote, setMarchNote] = useState(null);
   const [lostNote, setLostNote] = useState(null);
   const [weatherNote, setWeatherNote] = useState(null);
@@ -284,8 +283,6 @@ export default function AdventuringPage({ campaignName }) {
   const [awardDraft, setAwardDraft] = useState(null);
   const [effectNote, setEffectNote] = useState('');
   const [effectDuration, setEffectDuration] = useState(10);
-  const [effectClock, setEffectClock] = useState(CLOCK_ZERO);
-  const [effectDirty, setEffectDirty] = useState(false);
   const [eventNote, setEventNote] = useState('');
   const [eventClock, setEventClock] = useState(CLOCK_ZERO);
   const [eventDirty, setEventDirty] = useState(false);
@@ -324,12 +321,6 @@ export default function AdventuringPage({ campaignName }) {
   }, [load]);
 
   const gameSeconds = board == null ? null : Number(board.game_seconds);
-
-  useEffect(() => {
-    if (gameSeconds == null || effectDirty) return;
-    const parts = splitGameTime(gameSeconds);
-    if (parts) setEffectClock(parts);
-  }, [gameSeconds, effectDirty]);
 
   useEffect(() => {
     if (gameSeconds == null || eventDirty) return;
@@ -555,14 +546,14 @@ export default function AdventuringPage({ campaignName }) {
   const addEffect = (e) => {
     e.preventDefault();
     const note = effectNote.trim();
-    const at = clockToSeconds(effectClock.day, effectClock.hour, effectClock.minute, effectClock.second);
+    const at = Number(board?.game_seconds);
     const duration = parseInt(effectDuration, 10);
     if (!note) {
       setError('Effect note is required.');
       return;
     }
-    if (at == null) {
-      setError('Effect start time is not a valid clock time.');
+    if (!Number.isInteger(at) || at < 0) {
+      setError('The clock is not ready.');
       return;
     }
     if (!Number.isInteger(duration) || duration < 1) {
@@ -577,7 +568,6 @@ export default function AdventuringPage({ campaignName }) {
     })).then((ok) => {
       if (!ok) return;
       setEffectNote('');
-      setEffectDirty(false);
     });
   };
 
@@ -866,9 +856,7 @@ export default function AdventuringPage({ campaignName }) {
   };
 
   const lightSource = (source) => {
-    run(() => lightAdventuring(campaignId, source)).then((res) => {
-      if (res?.data) setLightNote(`${res.data.note}. ${res.data.minutes} minutes.`);
-    });
+    run(() => lightAdventuring(campaignId, source));
   };
 
   const settleCharacter = (character) => {
@@ -1656,20 +1644,24 @@ export default function AdventuringPage({ campaignName }) {
         >
           Accept
         </button>
-        <h2>Timed</h2>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-          <button type="button" className="btn btn-secondary" disabled={busy || !board} onClick={() => lightSource('torch')}>Light a torch</button>
-          <button type="button" className="btn btn-secondary" disabled={busy || !board} onClick={() => lightSource('lantern')}>Light a lantern</button>
-        </div>
-        {lightNote && <p style={{ color: '#e8c547' }}>{lightNote}</p>}
+        <h2>Effects/Events</h2>
         {(board?.marks || []).length === 0 && <p className="muted">No effects or events.</p>}
         <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 1rem' }}>
           {(board?.marks || []).map((mark) => {
             const end = mark.kind === 'effect' ? effectEndSeconds(Number(mark.at_seconds), Number(mark.duration_minutes)) : null;
             const status = markStatus(mark, now);
+            const left = effectTurnsLeft(mark, now);
+            const expired = mark.kind === 'effect' && status === 'due';
+            const counting = left > 0;
+            const label = mark.kind === 'effect'
+              ? (counting ? `${left} turn${left === 1 ? '' : 's'} left` : (expired ? 'expired' : status))
+              : `${mark.kind} · ${status}`;
             return (
-              <li key={mark.id} style={{ marginBottom: 8 }}>
-                <div><strong>{mark.note}</strong> <span className="muted">{mark.kind} · {status}</span></div>
+              <li key={mark.id} className={expired ? 'mark-expired' : undefined} style={{ marginBottom: 8 }}>
+                <div>
+                  <strong>{mark.note} </strong>
+                  <span className={counting ? 'turns-left' : 'muted'}>{label}</span>
+                </div>
                 <div className="muted" style={{ fontSize: '0.9rem' }}>
                   {formatGameTime(Number(mark.at_seconds))}
                   {end != null ? ` – ${formatGameTime(end)}` : ''}
@@ -1679,16 +1671,14 @@ export default function AdventuringPage({ campaignName }) {
             );
           })}
         </ul>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: '1rem' }}>
+          <button type="button" className="btn btn-secondary" disabled={busy || !board} onClick={() => lightSource('torch')}>Light a torch</button>
+          <button type="button" className="btn btn-secondary" disabled={busy || !board} onClick={() => lightSource('lantern')}>Light a lantern</button>
+        </div>
 
         <form onSubmit={addEffect} style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: '1rem' }}>
           <h2 style={{ marginBottom: 0 }}>Add effect</h2>
           <input value={effectNote} onChange={(e) => setEffectNote(e.target.value)} placeholder="Note" maxLength={120} style={FIELD} />
-          <label>
-            Start
-            <div style={{ marginTop: 4 }} onChange={() => setEffectDirty(true)}>
-              <ClockFields value={effectClock} onChange={(next) => { setEffectDirty(true); setEffectClock(next); }} />
-            </div>
-          </label>
           <label>
             Duration (minutes)
             <input type="number" min={1} value={effectDuration} onChange={(e) => setEffectDuration(e.target.value)} style={{ ...FIELD, width: 90, marginLeft: 6 }} />

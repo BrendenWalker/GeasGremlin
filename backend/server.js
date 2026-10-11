@@ -306,8 +306,8 @@ app.get('/api/campaigns', async (req, res) => {
       `SELECT c.*, r.name AS ruleset_name, m.role
        FROM campaign c
        JOIN ruleset r ON r.id = c.ruleset_id
-       JOIN campaign_member m ON m.campaign_id = c.id
-       WHERE m.user_id = $1 AND m.status = 'accepted'
+       LEFT JOIN campaign_member m
+         ON m.campaign_id = c.id AND m.user_id = $1 AND m.status = 'accepted'
        ORDER BY c.name`,
       [req.user.id]
     );
@@ -323,19 +323,19 @@ app.get('/api/campaigns', async (req, res) => {
 
 app.get('/api/campaigns/:id', async (req, res) => {
   try {
-    const member = await requireCampaign(req, res, req.params.id, false);
-    if (!member) return;
     const result = await pool.query(
-      `SELECT c.*, r.name AS ruleset_name
+      `SELECT c.*, r.name AS ruleset_name, m.role
        FROM campaign c
        JOIN ruleset r ON r.id = c.ruleset_id
-       WHERE c.id = $1`,
-      [req.params.id]
+       LEFT JOIN campaign_member m
+         ON m.campaign_id = c.id AND m.user_id = $1 AND m.status = 'accepted'
+       WHERE c.id = $2`,
+      [req.user.id, req.params.id]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Campaign not found' });
     }
-    res.json({ ...result.rows[0], role: member.role });
+    res.json(result.rows[0]);
   } catch (error) {
     console.error('Error fetching campaign:', error);
     res.status(500).json({ error: 'Failed to fetch campaign' });
@@ -708,16 +708,17 @@ app.get('/api/characters/:id', async (req, res) => {
 app.post('/api/campaigns/:campaignId/characters', async (req, res) => {
   try {
     const campaignId = req.params.campaignId;
-    const member = await requireCampaign(req, res, campaignId, false);
-    if (!member) return;
     const {
       name, gender, age, hair, eyes, height, weight, race, class: classId,
       str, int: intVal, wis, dex, con, chr, hp, notes, quasiclass, level, xp, skillpoints, money,
       ruleset_id: rulesetRaw,
     } = req.body;
     const campaignRow = await pool.query('SELECT ruleset_id FROM campaign WHERE id = $1', [campaignId]);
-    const campaignRuleset = campaignRow.rows[0] ? Number(campaignRow.rows[0].ruleset_id) : null;
-    if (campaignRuleset == null) {
+    if (campaignRow.rows.length === 0) {
+      return res.status(404).json({ error: 'Campaign not found' });
+    }
+    const campaignRuleset = Number(campaignRow.rows[0].ruleset_id);
+    if (!Number.isInteger(campaignRuleset)) {
       return res.status(400).json({ error: 'Campaign has no ruleset' });
     }
     const sentRuleset = rulesetRaw == null || rulesetRaw === '' ? campaignRuleset : parseRulesetId(rulesetRaw);
@@ -732,31 +733,50 @@ app.post('/api/campaigns/:campaignId/characters', async (req, res) => {
     if (assignmentMessage) {
       return res.status(400).json({ error: assignmentMessage });
     }
-    const idResult = await pool.query('SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM characters');
-    const nextId = idResult.rows[0].next_id;
-    const result = await pool.query(
-      `INSERT INTO characters (id, name, "user", gender, age, hair, eyes, height, weight, race,
-       str, "int", wis, dex, con, chr, hp, notes, quasiclass, level, xp, skillpoints, money, ruleset_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
-       RETURNING *`,
-      [nextId, name || 'Unnamed', req.user.username, gender || null, age ?? null, hair || null, eyes || null, height || null, weight || null,
-        race ?? null, str ?? null, intVal ?? null, wis ?? null, dex ?? null, con ?? null, chr ?? null,
-        hp ?? null, notes || null, quasiclass ?? null, level ?? 1, xp ?? 0, skillpoints ?? null, money ?? null,
-        rulesetId]
-    );
-    const newId = result.rows[0].id;
-    await pool.query(
-      'INSERT INTO campaign_character (campaign_id, character_id) VALUES ($1, $2)',
-      [campaignId, newId]
-    );
-    if (classId != null) {
-      await pool.query(
-        `INSERT INTO character_classes (character_id, class_id, class_level, sort_order)
-         VALUES ($1, $2, $3, 0)
-         ON CONFLICT (character_id, class_id) DO UPDATE SET
-           class_level = EXCLUDED.class_level, modified = CURRENT_TIMESTAMP`,
-        [newId, classId, level ?? 1]
+    const client = await pool.connect();
+    let newId;
+    try {
+      await client.query('BEGIN');
+      const idResult = await client.query('SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM characters');
+      const nextId = idResult.rows[0].next_id;
+      const result = await client.query(
+        `INSERT INTO characters (id, name, "user", gender, age, hair, eyes, height, weight, race,
+         str, "int", wis, dex, con, chr, hp, notes, quasiclass, level, xp, skillpoints, money, ruleset_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
+         RETURNING *`,
+        [nextId, name || 'Unnamed', req.user.username, gender || null, age ?? null, hair || null, eyes || null, height || null, weight || null,
+          race ?? null, str ?? null, intVal ?? null, wis ?? null, dex ?? null, con ?? null, chr ?? null,
+          hp ?? null, notes || null, quasiclass ?? null, level ?? 1, xp ?? 0, skillpoints ?? null, money ?? null,
+          rulesetId]
       );
+      newId = result.rows[0].id;
+      await client.query(
+        'INSERT INTO campaign_character (campaign_id, character_id) VALUES ($1, $2)',
+        [campaignId, newId]
+      );
+      if (classId != null) {
+        await client.query(
+          `INSERT INTO character_classes (character_id, class_id, class_level, sort_order)
+           VALUES ($1, $2, $3, 0)
+           ON CONFLICT (character_id, class_id) DO UPDATE SET
+             class_level = EXCLUDED.class_level, modified = CURRENT_TIMESTAMP`,
+          [newId, classId, level ?? 1]
+        );
+      }
+      await client.query(
+        `INSERT INTO campaign_member (campaign_id, user_id, role, status)
+         VALUES ($1, $2, 'player', 'accepted')
+         ON CONFLICT (campaign_id, user_id) DO UPDATE
+           SET status = 'accepted'
+           WHERE campaign_member.role <> 'gm'`,
+        [campaignId, req.user.id]
+      );
+      await client.query('COMMIT');
+    } catch (error) {
+      try { await client.query('ROLLBACK'); } catch (_) { /* connection already failed */ }
+      throw error;
+    } finally {
+      client.release();
     }
     const full = await pool.query(
       `SELECT c.*, r.name as race_name, ${SQL_CHAR_CLASS_NAME} AS class_name,
@@ -2229,6 +2249,15 @@ app.post('/api/campaigns/:campaignId/adventuring/tick', async (req, res) => {
       return res.status(404).json({ error: 'Campaign not found' });
     }
     const now = Number(updated.rows[0].game_seconds);
+    const previous = now - step.seconds;
+    // Drop effects that were already expired before this tick. Ones that end on this tick stay for the red row.
+    await client.query(
+      `DELETE FROM campaign_mark
+       WHERE campaign_id = $1
+         AND kind = 'effect'
+         AND (at_seconds::bigint + duration_minutes::bigint * 60) <= $2::bigint`,
+      [req.params.campaignId, previous]
+    );
     let checks = 0;
     if (step.wander) {
       checks = await applyWander(client, req.params.campaignId, {

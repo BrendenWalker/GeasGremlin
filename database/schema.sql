@@ -618,7 +618,8 @@ CREATE INDEX IF NOT EXISTS idx_campaign_command_campaign ON public.campaign_comm
 CREATE INDEX IF NOT EXISTS idx_campaign_command_recipient ON public.campaign_command USING btree (recipient_character_id);
 CREATE INDEX IF NOT EXISTS idx_campaign_command_unread ON public.campaign_command (campaign_id, read_at) WHERE read_at IS NULL;
 
--- Accounts and campaign membership. Unowned campaigns stay hidden until a row exists here.
+-- Accounts and campaign membership. Any logged-in user can see a campaign.
+-- Creating a character adds an accepted player row. GM actions require role gm.
 
 CREATE TABLE IF NOT EXISTS public.app_user (
 	id serial4 NOT NULL,

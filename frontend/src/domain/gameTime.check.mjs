@@ -6,6 +6,7 @@ import {
   WATCH_SECONDS,
   clockToSeconds,
   effectEndSeconds,
+  effectTurnsLeft,
   formatGameTime,
   markStatus,
   primaryStep,
@@ -38,3 +39,12 @@ assert.equal(markStatus({ kind: 'effect', at_seconds: 0, duration_minutes: 1 }, 
 assert.equal(markStatus({ kind: 'effect', at_seconds: 0, duration_minutes: 1 }, 59), 'active');
 assert.equal(markStatus({ kind: 'effect', at_seconds: 0, duration_minutes: 1 }, 60), 'due');
 assert.equal(markStatus({ kind: 'effect', at_seconds: 100, duration_minutes: 1 }, 0), 'upcoming');
+const torch = { kind: 'effect', at_seconds: 0, duration_minutes: 50 };
+assert.equal(effectTurnsLeft(torch, 0), 5);
+assert.equal(effectTurnsLeft(torch, TURN_SECONDS), 4);
+assert.equal(effectTurnsLeft(torch, TURN_SECONDS + ROUND_SECONDS), 4);
+assert.equal(effectTurnsLeft(torch, 5 * TURN_SECONDS - 1), 1);
+assert.equal(effectTurnsLeft(torch, 5 * TURN_SECONDS), 0);
+assert.equal(effectTurnsLeft(torch, -1), null);
+assert.equal(effectTurnsLeft({ kind: 'effect', at_seconds: 100, duration_minutes: 10 }, 0), null);
+assert.equal(effectTurnsLeft({ kind: 'event', at_seconds: 0 }, 0), null);

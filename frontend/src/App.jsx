@@ -41,7 +41,7 @@ function CampaignSession({ session, sessionReady }) {
   const { campaignId } = useParams();
   if (!/^\d+$/.test(campaignId || '')) return <Navigate to="/" replace />;
   if (!sessionReady) return <p className="muted">Loading…</p>;
-  if (!session?.running) return <Navigate to="/" replace />;
+  if (!session?.running || !session.role) return <Navigate to="/" replace />;
   return <Outlet />;
 }
 
@@ -145,6 +145,9 @@ function Shell() {
                 </>
               )}
             </div>
+            {inCampaign && session?.name ? (
+              <p className="campaign-banner">Campaign: {session.name}</p>
+            ) : null}
             <span className="nav-ruleset" style={{ color: '#8a7f72' }}>{user.username}</span>
             <button type="button" className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem' }} onClick={logout}>Log out</button>
             {inCampaign && (

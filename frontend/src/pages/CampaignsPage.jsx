@@ -137,7 +137,7 @@ export default function CampaignsPage() {
                   {c.ruleset_name && <span className="muted">{c.ruleset_name}</span>}
                 </span>
                 <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
-                  {(c.role === 'gm' || c.running) && (
+                  {c.role && (c.role === 'gm' || c.running) && (
                     <button
                       type="button"
                       className="btn btn-primary"

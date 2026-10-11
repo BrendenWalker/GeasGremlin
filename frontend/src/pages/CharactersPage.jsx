@@ -209,7 +209,9 @@ export default function CharactersPage() {
               </li>
             ))}
             {characters.length === 0 && !loading && (
-              <li style={{ color: '#8a7f72' }}>No characters in this campaign.</li>
+              <li style={{ color: '#8a7f72' }}>
+                {campaign.role ? 'No characters in this campaign.' : 'Create a character to join this campaign.'}
+              </li>
             )}
           </ul>
         )}

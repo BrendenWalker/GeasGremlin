@@ -58,3 +58,15 @@ export function markStatus(mark, nowSeconds) {
   if (now < end) return 'active';
   return 'due';
 }
+
+/** Whole turns still to run. 0 once the end second is reached. Null before it starts. */
+export function effectTurnsLeft(mark, nowSeconds) {
+  if (mark?.kind !== 'effect') return null;
+  const at = Number(mark.at_seconds);
+  const now = Number(nowSeconds);
+  const end = effectEndSeconds(at, Number(mark.duration_minutes));
+  if (end == null || !Number.isInteger(now) || now < at) return null;
+  const left = end - now;
+  if (left <= 0) return 0;
+  return Math.ceil(left / TURN_SECONDS);
+}

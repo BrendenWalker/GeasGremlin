@@ -44,7 +44,7 @@ Needs monster hit dice, including asterisks, and the party list.
 Needs the watch, turn, and day steps.
 
 - [x] `done` Light. Torch 1d4+4 turns. Lantern oil 1d6+18 turns. A timed mark is enough if the duration is computed in seconds.
-  - Light a torch or lantern rolls that duration and stores an effect on `campaign_mark`. A turn is 10 minutes. The clock does not move.
+  - Light a torch or lantern rolls that duration and stores an effect on `campaign_mark`. The row shows turns left. The tick that reaches the end leaves it highlighted, and the next tick removes it. A turn is 10 minutes. Lighting does not move the clock.
 - [x] `done` Rations and water. One day of food and one quart of water. Food damage starts after two missed days. Water damage starts after one, 1d4 per day. Healing stops until they eat or drink.
   - Settle day on a character writes `campaign_character.food_missed`, `heal_food`, and `heal_water`. Hunger deals 1 hit point from the third missed day. Thirst deals 1d4 from the first. Eating or drinking clears its own block. Hit points stay on `characters.hp`. The clock does not move.
 - [x] `done` Daily healing. 1 hit point per day of sleep. Full bedrest adds 1. Required sleep is 6 hours minus the Constitution bonus.
