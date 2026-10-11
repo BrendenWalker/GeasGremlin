@@ -15,6 +15,7 @@ import {
   abilitiesGranted,
   rangedAttackBonus,
   sheetCombat,
+  overlaidExperience,
   statBounds,
   resolveMechanic,
   attributesMatch,
@@ -82,6 +83,27 @@ const combat = sheetCombat(character, [fighter]);
 assert.equal(combat.melee, '+4 (+1 base, +1 weapon, +2 stat)');
 assert.equal(combat.damage, '1d8 +3 (+1 Weapon, +2 Stat)');
 assert.equal(combat.nextLevelXp, 1500);
+
+const archer = {
+  id: 9,
+  is_quasi: true,
+  leveling: [
+    { level: 1, xp: 0, ab: null },
+    { level: 2, xp: 500, ab: null },
+    { level: 3, xp: 1000, ab: null },
+  ],
+};
+const quasiCharacter = { ...character, quasiclass: 9 };
+const overlaid = overlaidExperience(leveling, archer.leveling);
+assert.equal(nextLevelXp(overlaid, 1), 2000);
+assert.equal(overlaid[1].ab, 1);
+const quasiCombat = sheetCombat(quasiCharacter, [fighter, archer]);
+assert.equal(quasiCombat.nextLevelXp, 2000);
+assert.equal(quasiCombat.baseAttackBonus, 1);
+const held = commandWrite(quasiCharacter, [fighter, archer], { type: 'give_xp', payload: { amount: 200 } });
+assert.equal(held.character.xp, 1600);
+assert.equal(held.character.level, 1);
+assert.equal(sheetCombat({ ...character, quasiclass: 1 }, [fighter]).nextLevelXp, 1500);
 
 const granted = commandWrite(character, [fighter], { type: 'give_xp', payload: { amount: 200 } });
 assert.equal(granted.character.xp, 1600);

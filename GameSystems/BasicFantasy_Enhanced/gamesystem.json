@@ -1,5 +1,6 @@
 {
   "name": "Basic Fantasy Enhanced",
   "mechanic": "bfrpg",
-  "description": "Basic Fantasy RPG plus optional classes and related catalog content."
+  "description": "Basic Fantasy RPG plus optional classes and related catalog content.",
+  "parent_ruleset": "Basic Fantasy Core"
 }

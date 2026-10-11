@@ -153,6 +153,38 @@ export function primaryClass(character, classRows) {
   return { id, level: Number(level) || 1, row };
 }
 
+/**
+ * Quasi-class experience is added to the base class row for the same level.
+ * Hit dice and attack bonus stay on the base row.
+ */
+export function overlaidExperience(baseRows, quasiRows) {
+  const extra = new Map();
+  for (const row of quasiRows || []) {
+    const level = Number(row.level);
+    const xp = Number(row.xp);
+    if (!Number.isInteger(level) || !Number.isInteger(xp)) continue;
+    extra.set(level, xp);
+  }
+  if (extra.size === 0) return baseRows || [];
+  return (baseRows || []).map((row) => {
+    const add = extra.get(Number(row.level));
+    const xp = Number(row.xp);
+    if (!Number.isInteger(add) || add === 0 || !Number.isInteger(xp)) return row;
+    return { ...row, xp: xp + add };
+  });
+}
+
+function quasiClass(character, classRows) {
+  const id = character?.quasiclass;
+  if (id == null || id === '') return null;
+  const row = (classRows || []).find((entry) => String(entry.id) === String(id));
+  return row && row.is_quasi === true ? row : null;
+}
+
+function experienceFor(character, classRows, primary) {
+  return overlaidExperience(primary.row?.leveling, quasiClass(character, classRows)?.leveling);
+}
+
 function equippedItem(character, id) {
   if (id == null || id === '') return null;
   return (character?.items || []).find((item) => String(item.id) === String(id)) || null;
@@ -166,7 +198,7 @@ function wholeBonus(value) {
 /** Derived combat lines for the sheet. Null when the class has no attack-bonus row. */
 export function sheetCombat(character, classRows) {
   const primary = primaryClass(character, classRows);
-  const leveling = primary.row?.leveling || [];
+  const leveling = experienceFor(character, classRows, primary);
   const base = baseAttackBonus(leveling, primary.level);
   const meleeItem = equippedItem(character, character?.equipped_melee_primary_id);
   const offItem = equippedItem(character, character?.equipped_melee_secondary_id);
@@ -300,7 +332,7 @@ export function commandWrite(character, classRows, command) {
     if (!Number.isInteger(amount)) return { error: 'give_xp amount must be an integer' };
     const xp = (Number(character?.xp) || 0) + amount;
     const primary = primaryClass(character, classRows);
-    const leveling = primary.row?.leveling || [];
+    const leveling = experienceFor(character, classRows, primary);
     const leveled = levelForXp(leveling, xp);
     const level = leveled == null ? (Number(primary.level) || Number(character?.level) || 1) : leveled;
     const oldLevel = Number(primary.level) || Number(character?.level) || 1;
