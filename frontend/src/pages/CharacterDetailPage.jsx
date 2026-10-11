@@ -22,7 +22,7 @@ import {
 } from '../api/api';
 import { useAuth } from '../components/AuthContext';
 import { useRuleset } from '../components/RulesetContext';
-import { acceptTransfer, castTabs, castsRemaining, characterHasSpellbook, circleSpellList, commandWrite, finishLevelUp, formatModifier, learnableSpells, memorizeWithinCap, openMechanic, primaryClass, savingThrowTargets } from '../domain/character.mjs';
+import { acceptTransfer, castTabs, castsRemaining, characterHasSpellbook, circleSpellList, commandWrite, finishLevelUp, formatModifier, inventoryTabs, itemsOnTab, labelHeldItems, learnableSpells, memorizeWithinCap, openMechanic, primaryClass, savingThrowTargets } from '../domain/character.mjs';
 import { formatItemPrice } from '../domain/itemPrice.mjs';
 
 const INPUT_STYLE = {
@@ -130,6 +130,8 @@ export default function CharacterDetailPage({ playerMode = false }) {
   const [spellModal, setSpellModal] = useState(false);
   const [spellCircle, setSpellCircle] = useState(1);
   const [addItemModal, setAddItemModal] = useState(false);
+  const [itemTab, setItemTab] = useState(null);
+  const [addItemTab, setAddItemTab] = useState(null);
   const [hpAdjust, setHpAdjust] = useState(null);
   const [party, setParty] = useState([]);
   const [sendStuffModal, setSendStuffModal] = useState(false);
@@ -320,8 +322,13 @@ export default function CharacterDetailPage({ playerMode = false }) {
   };
 
   const handleAddItem = (itemId, quantity = 1) => {
+    const picked = allItems.find((item) => item.id === itemId);
     addCharacterItem(id, { item_id: itemId, quantity })
-      .then(() => { setAddItemModal(false); refreshCharacter(); })
+      .then(() => {
+        setAddItemModal(false);
+        if (picked) setItemTab(picked.category == null ? 'other' : String(picked.category));
+        refreshCharacter();
+      })
       .catch((err) => setError(err.response?.data?.error || err.message));
   };
 
@@ -439,6 +446,13 @@ export default function CharacterDetailPage({ playerMode = false }) {
   const knownSpellIds = new Set((character.spells || []).filter((s) => s.known).map((s) => s.spell_id));
   const spellTabs = castTabs(character.character_classes, classes);
   const activeSpellTab = spellTabs.find((tab) => tab.circle === spellCircle) || spellTabs[0] || null;
+  const labeledItems = labelHeldItems(character.items, allItems);
+  const heldTabs = inventoryTabs(labeledItems);
+  const activeHeld = heldTabs.find((tab) => tab.key === itemTab) || heldTabs[0] || null;
+  const heldItems = activeHeld ? itemsOnTab(labeledItems, activeHeld.key) : [];
+  const catalogTabs = inventoryTabs(allItems);
+  const activeCatalog = catalogTabs.find((tab) => tab.key === addItemTab) || catalogTabs[0] || null;
+  const catalogItems = activeCatalog ? itemsOnTab(allItems, activeCatalog.key) : [];
   const circleSpells = activeSpellTab
     ? circleSpellList(allSpells, character.spells, character.character_classes, classes, activeSpellTab.circle)
     : [];
@@ -839,7 +853,7 @@ export default function CharacterDetailPage({ playerMode = false }) {
 
       <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h2>Equipment</h2>
+            <h2>Inventory</h2>
             <button type="button" className="btn btn-primary" onClick={() => setAddItemModal(true)}>Add item</button>
           </div>
           <div style={{ marginBottom: '1rem' }}>
@@ -860,9 +874,25 @@ export default function CharacterDetailPage({ playerMode = false }) {
               <div style={{ fontSize: '1.25rem', color: '#c9a227' }}>{coinsDisplay(character.money)}</div>
             )}
           </div>
-          {character.items?.length > 0 && (
+          {heldTabs.length > 0 && (
+            <div className="catalog-tabs" role="tablist" aria-label="Inventory">
+              {heldTabs.map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab.key === activeHeld.key}
+                  className={`catalog-tab${tab.key === activeHeld.key ? ' active' : ''}`}
+                  onClick={() => setItemTab(tab.key)}
+                >
+                  {tab.name}
+                </button>
+              ))}
+            </div>
+          )}
+          {heldItems.length > 0 && (
             <ul style={{ listStyle: 'none' }}>
-              {character.items.map((i) => (
+              {heldItems.map((i) => (
                 <li
                   key={i.id}
                   style={{
@@ -894,8 +924,24 @@ export default function CharacterDetailPage({ playerMode = false }) {
             <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setAddItemModal(false)}>
               <div className="card" style={{ maxWidth: 400, maxHeight: '80vh', overflow: 'auto' }} onClick={(e) => e.stopPropagation()}>
                 <h3>Add item</h3>
+                {catalogTabs.length > 0 && (
+                  <div className="catalog-tabs" role="tablist" aria-label="Item categories">
+                    {catalogTabs.map((tab) => (
+                      <button
+                        key={tab.key}
+                        type="button"
+                        role="tab"
+                        aria-selected={tab.key === activeCatalog.key}
+                        className={`catalog-tab${tab.key === activeCatalog.key ? ' active' : ''}`}
+                        onClick={() => setAddItemTab(tab.key)}
+                      >
+                        {tab.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <ul style={{ listStyle: 'none', maxHeight: 300, overflow: 'auto' }}>
-                  {allItems.map((it) => (
+                  {catalogItems.map((it) => (
                     <li key={it.id} style={{ padding: '0.25rem 0' }}>
                       <button type="button" className="btn btn-secondary" style={{ width: '100%', textAlign: 'left' }} onClick={() => handleAddItem(it.id)}>
                         {it.name} {it.price != null && `(${formatItemPrice(it.price)})`}

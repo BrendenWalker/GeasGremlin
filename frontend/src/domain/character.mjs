@@ -356,6 +356,48 @@ function spellAccess(spell, casters) {
   };
 }
 
+function categoryKey(row) {
+  const id = row?.item_category ?? row?.category;
+  if (id == null || id === '') return 'other';
+  return String(id);
+}
+
+/** Fill category id and name from the catalog when the character row does not carry them. */
+export function labelHeldItems(held, catalog) {
+  const byId = new Map();
+  for (const row of catalog || []) byId.set(Number(row.id), row);
+  return (held || []).map((item) => {
+    if (item.item_category_name) return item;
+    const match = byId.get(Number(item.item_id));
+    if (!match) return item;
+    return {
+      ...item,
+      item_category: item.item_category ?? match.category ?? null,
+      item_category_name: match.category_name || null,
+    };
+  });
+}
+
+/** One tab per category present on these rows. Uncategorized items are Other, last. */
+export function inventoryTabs(rows) {
+  const byKey = new Map();
+  for (const row of rows || []) {
+    const key = categoryKey(row);
+    if (byKey.has(key)) continue;
+    const name = key === 'other' ? 'Other' : (row.item_category_name || row.category_name || 'Other');
+    byKey.set(key, { key, name });
+  }
+  return [...byKey.values()].sort((a, b) => {
+    if (a.key === 'other') return 1;
+    if (b.key === 'other') return -1;
+    return a.name.localeCompare(b.name);
+  });
+}
+
+export function itemsOnTab(rows, key) {
+  return (rows || []).filter((row) => categoryKey(row) === key);
+}
+
 /** Circles 1–7 that have slots. The cap is the largest slot count among the character's classes. */
 export function castTabs(classLinks, classRows) {
   const casters = characterCasters(classLinks, classRows);

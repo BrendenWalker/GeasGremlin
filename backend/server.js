@@ -622,9 +622,10 @@ app.get('/api/characters/:id', async (req, res) => {
             i.weight as item_weight, i.attackbonus as item_attackbonus, i.damagebonus as item_damagebonus, i.damage as item_damage,
             i.ac as item_ac, i.ac_melee as item_ac_melee, i.ac_ranged as item_ac_ranged,
             i.range_short as item_range_short, i.range_medium as item_range_medium, i.range_long as item_range_long,
-            i.rof as item_rof, i.category as item_category
+            i.rof as item_rof, i.category as item_category, ic.name as item_category_name
            FROM character_items ci
            LEFT JOIN items i ON ci.item_id = i.id
+           LEFT JOIN item_categories ic ON ic.id = i.category
            WHERE ci.character_id = $1`,
           [req.params.id]
         ),
@@ -965,8 +966,10 @@ app.post('/api/characters/:id/items', async (req, res) => {
         i.attackbonus as item_attackbonus, i.damagebonus as item_damagebonus, i.damage as item_damage, i.ac as item_ac,
         i.ac_melee as item_ac_melee, i.ac_ranged as item_ac_ranged,
         i.range_short as item_range_short, i.range_medium as item_range_medium, i.range_long as item_range_long,
-        i.rof as item_rof, i.category as item_category
-       FROM items i WHERE i.id = $1`,
+        i.rof as item_rof, i.category as item_category, ic.name as item_category_name
+       FROM items i
+       LEFT JOIN item_categories ic ON ic.id = i.category
+       WHERE i.id = $1`,
       [row.item_id]
     );
     const out = { ...row, item_name: itemRow.rows[0]?.item_name, item_description: itemRow.rows[0]?.item_description };

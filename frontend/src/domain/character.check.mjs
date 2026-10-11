@@ -16,6 +16,9 @@ import {
   learnableSpells,
   circleSpellList,
   castTabs,
+  inventoryTabs,
+  itemsOnTab,
+  labelHeldItems,
   memorizeWithinCap,
   rangedAttackBonus,
   sheetCombat,
@@ -255,5 +258,28 @@ const prepared = [
 ];
 assert.equal(memorizeWithinCap(prepared, 2, 1, 1), false);
 assert.equal(memorizeWithinCap(prepared, 1, 1, 1), true);
+
+const pack = [
+  { id: 1, item_category: 9, item_category_name: 'Weapon' },
+  { id: 2, item_category: 1, item_category_name: 'Armor' },
+  { id: 3, item_category: 9, item_category_name: 'Weapon' },
+  { id: 4, name: 'loose rock' },
+  { id: 5, category: 4, category_name: 'Goods' },
+];
+assert.deepEqual(inventoryTabs(pack).map((tab) => tab.name), ['Armor', 'Goods', 'Weapon', 'Other']);
+assert.deepEqual(itemsOnTab(pack, '9').map((row) => row.id), [1, 3]);
+assert.deepEqual(itemsOnTab(pack, 'other').map((row) => row.id), [4]);
+assert.deepEqual(inventoryTabs([]), []);
+assert.deepEqual(inventoryTabs(null), []);
+assert.deepEqual(
+  labelHeldItems(
+    [{ id: 1, item_id: 9 }, { id: 2, item_id: 1, item_category_name: 'Armor' }],
+    [{ id: 9, category: 9, category_name: 'Weapon' }]
+  ),
+  [
+    { id: 1, item_id: 9, item_category: 9, item_category_name: 'Weapon' },
+    { id: 2, item_id: 1, item_category_name: 'Armor' },
+  ]
+);
 
 console.log('character domain ok');
