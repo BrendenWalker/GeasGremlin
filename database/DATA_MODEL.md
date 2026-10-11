@@ -107,7 +107,7 @@ Writes `gamesystem.json` plus one table JSON file per catalog/junction the impor
 
 CI (`.github/workflows/ruleset-roundtrip.yml`) and `npm run test:ruleset-roundtrip` import each catalog, export to a temp dir, and semantically compare (ignore `modified`, gamesystem `description`, `PENDING_CHANGES.json`, and source-only fields the importer/exporter do not round-trip).
 
-Multiple rulesets (e.g. Core and Enhanced) can coexist: each gets its own `ruleset_id` and distinct catalog ids. Enhanced's `parent_ruleset` is Core. Its folder stores only rows that add to or override Core. Import Core first. A child junction may reference a parent class, race, spell, or ability by the source id in the parent JSON; import resolves that id to the parent row. Catalog lists for the child return the child's rows plus parent rows the child does not replace. Missing parent rows are inherited.
+Multiple rulesets (e.g. Core and Enhanced) can coexist: each gets its own `ruleset_id` and distinct catalog ids. Enhanced's `parent_ruleset` is Core. Its folder stores only rows that add to or override Core. Import Core first. A child junction may reference a parent class, race, spell, or ability by the source id in the parent JSON; import resolves that id to the parent row. Catalog lists for the child return the child's rows plus parent rows the child does not replace. Missing parent rows are inherited. What the Enhanced folder contains is [docs/enhanced-ruleset.md](../docs/enhanced-ruleset.md).
 
 ## Legacy SQL snapshots (`database/rulesets/*.sql`)
 

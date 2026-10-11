@@ -16,7 +16,7 @@ Item prices, character `money`, and transfer `gold_cp` are copper pieces. 100 co
 
 Race and class descriptions match PDF pages 9–13. Elf combination classes are on the Elf description. There is no combination-class row. The thief ability explanations are on the Thief description. The percentage table stays on the ability rows.
 
-Enhanced has no `ITEMS.json`, no `SPELLS.json`, and no copies of the four core races or four core classes. A catalog read inherits a parent row the child does not replace. Apply a Core correction to Enhanced only when that Enhanced row is still the old shared text. Leave Enhanced-only classes, races, and spells alone.
+Enhanced has no `ITEMS.json` and no copies of the four core races or four core classes. It does have its own `SPELLS.json` and `ABILITIES.json` for rows the supplements add. Current contents are [../enhanced-ruleset.md](../enhanced-ruleset.md). A catalog read inherits a parent row the child does not replace. Apply a Core correction to Enhanced only when that Enhanced row is still the old shared text. Leave Enhanced-only classes, races, and spells alone. Do not replace an Enhanced spell with a Core spell of the same name.
 
 ## Do not
 

@@ -44,7 +44,7 @@ If your database was migrated from the original system with **uppercase** table/
 
 ### Optional: load a game-system catalog from JSON
 
-Canonical ruleset reference data lives under [`GameSystems/`](GameSystems/) (one folder per system). Each folder has a required `gamesystem.json` (`name`, optional `parent_ruleset`, optional `description`) plus Firebird-style table dumps (`CLASSES.json`, `SPELLS.json`, …). `parent_ruleset` is one overlay hop: import the parent ruleset first. Basic Fantasy Enhanced parents Basic Fantasy Core and stores only the rows that differ.
+Canonical ruleset reference data lives under [`GameSystems/`](GameSystems/) (one folder per system). Each folder has a required `gamesystem.json` (`name`, optional `parent_ruleset`, optional `description`) plus Firebird-style table dumps (`CLASSES.json`, `SPELLS.json`, …). `parent_ruleset` is one overlay hop: import the parent ruleset first. Basic Fantasy Enhanced parents Basic Fantasy Core and stores only the rows that differ. What it adds, and which supplements are not in the folder, is [docs/enhanced-ruleset.md](docs/enhanced-ruleset.md). Incorporated PDFs are in `GameSystems/BasicFantasy_Enhanced/sources/`.
 
 After `schema.sql` is applied, import with the same `DB_*` settings as in repo-root `.env`:
 

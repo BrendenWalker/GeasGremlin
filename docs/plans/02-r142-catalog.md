@@ -20,6 +20,8 @@ Leave a short drift list in this file as the work proceeds: what changed, which 
 
 ## Enhanced, same change only
 
+Current Enhanced contents are [../enhanced-ruleset.md](../enhanced-ruleset.md). Drift notes below that say Enhanced has no spell rows describe this pass. Enhanced now has its own spell and ability rows.
+
 After a Core correction is verified, look for the same row in `GameSystems/BasicFantasy_Enhanced`.
 
 Apply the same edit when the Enhanced row is the shared rule: same name, and the text is the core wording rather than an Enhanced-only rewrite.
