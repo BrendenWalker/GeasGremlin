@@ -317,6 +317,122 @@ export function castsRemaining(classRow, charLevel, spellLevel, spellsCast) {
   return Math.max(0, slots - used);
 }
 
+function characterCasters(classLinks, classRows) {
+  const casters = [];
+  for (const link of classLinks || []) {
+    const id = Number(link.class_id ?? link.id);
+    const level = Number(link.class_level ?? link.level);
+    if (!Number.isInteger(id)) continue;
+    const row = (classRows || []).find((entry) => Number(entry.id) === id) || null;
+    casters.push({ id, level: Number.isInteger(level) ? level : 1, row });
+  }
+  return casters;
+}
+
+/** Circle this caster can prepare this spell at, or null. */
+function grantedCircle(spell, caster) {
+  for (const entry of spell.classes || []) {
+    if (Number(entry.class_id) !== caster.id) continue;
+    const circle = Number(entry.level);
+    if (spellSlots(caster.row, caster.level, circle) > 0) return circle;
+  }
+  return null;
+}
+
+/** Lowest circle with slots. Open when a non-spellbook class grants that circle. */
+function spellAccess(spell, casters) {
+  const grants = [];
+  for (const caster of casters) {
+    const circle = grantedCircle(spell, caster);
+    if (circle == null) continue;
+    grants.push({ circle, spellbook: Boolean(caster.row?.has_spellbook) });
+  }
+  if (grants.length === 0) return null;
+  const level = Math.min(...grants.map((grant) => grant.circle));
+  const atLevel = grants.filter((grant) => grant.circle === level);
+  return {
+    level,
+    open: atLevel.some((grant) => !grant.spellbook),
+  };
+}
+
+/** Circles 1–7 that have slots. The cap is the largest slot count among the character's classes. */
+export function castTabs(classLinks, classRows) {
+  const casters = characterCasters(classLinks, classRows);
+  const tabs = [];
+  for (let circle = 1; circle <= 7; circle += 1) {
+    let slots = 0;
+    for (const caster of casters) {
+      slots = Math.max(slots, spellSlots(caster.row, caster.level, circle));
+    }
+    if (slots > 0) tabs.push({ circle, slots });
+  }
+  return tabs;
+}
+
+export function characterHasSpellbook(classLinks, classRows) {
+  return characterCasters(classLinks, classRows).some((caster) => caster.row?.has_spellbook);
+}
+
+/** Spells a spellbook class can cast at this level. `level` is the lowest such circle. */
+export function learnableSpells(spells, classLinks, classRows) {
+  const casters = characterCasters(classLinks, classRows).filter((caster) => caster.row?.has_spellbook);
+  const out = [];
+  for (const spell of spells || []) {
+    const access = spellAccess(spell, casters);
+    if (!access) continue;
+    out.push({ ...spell, level: access.level });
+  }
+  out.sort((a, b) => a.level - b.level || String(a.name).localeCompare(String(b.name)));
+  return out;
+}
+
+/** Spells shown on one circle tab. Open lists include every spell. Spellbooks include learned spells only. */
+export function circleSpellList(spells, knownSpells, classLinks, classRows, circle) {
+  const casters = characterCasters(classLinks, classRows);
+  const known = new Map();
+  for (const row of knownSpells || []) {
+    known.set(Number(row.spell_id), row);
+  }
+  const out = [];
+  for (const spell of spells || []) {
+    const access = spellAccess(spell, casters);
+    if (!access || access.level !== Number(circle)) continue;
+    const learned = known.get(Number(spell.id));
+    const isKnown = Boolean(learned && Number(learned.known));
+    if (!access.open && !isKnown) continue;
+    out.push({
+      id: spell.id,
+      name: spell.name,
+      level: access.level,
+      memorized: Number(learned?.memorized) || 0,
+    });
+  }
+  out.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  return out;
+}
+
+/** True when setting this spell's memorized count keeps the circle total within the slot cap. */
+export function memorizeWithinCap(rows, spellId, nextCount, slots) {
+  const next = Number(nextCount);
+  const cap = Number(slots);
+  if (!Number.isInteger(next) || next < 0) return false;
+  if (!Number.isInteger(cap) || cap < 0) return false;
+  let sum = 0;
+  let seen = false;
+  for (const row of rows || []) {
+    const id = Number(row.id ?? row.spell_id);
+    if (id === Number(spellId)) {
+      sum += next;
+      seen = true;
+    } else {
+      sum += Number(row.memorized) || 0;
+    }
+  }
+  if (!seen) sum += next;
+  return sum <= cap;
+}
+
 /** Daily cast counters back to zero. Memorized spells stay prepared. */
 export function newDayWrite(character) {
   const casts = (character?.spells_cast || [])

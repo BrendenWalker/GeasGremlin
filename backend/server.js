@@ -1037,12 +1037,49 @@ app.delete('/api/characters/:id/items/:itemId', async (req, res) => {
 
 // ==================== CHARACTER SPELLS (learn, memorized, cast) ====================
 
+const CLASS_SPELL_SLOTS = `
+  JOIN LATERAL (
+    SELECT cs.level1, cs.level2, cs.level3, cs.level4, cs.level5, cs.level6, cs.level7
+    FROM class_spells cs
+    WHERE cs.class_id = cc.class_id
+      AND cs.char_level <= COALESCE(cc.class_level, 1)
+    ORDER BY cs.char_level DESC
+    LIMIT 1
+  ) slots ON true`;
+
+function spellSlotCount(levelSql) {
+  return `CASE ${levelSql}
+    WHEN 1 THEN slots.level1
+    WHEN 2 THEN slots.level2
+    WHEN 3 THEN slots.level3
+    WHEN 4 THEN slots.level4
+    WHEN 5 THEN slots.level5
+    WHEN 6 THEN slots.level6
+    WHEN 7 THEN slots.level7
+    ELSE 0
+  END`;
+}
+
 app.post('/api/characters/:id/spells', async (req, res) => {
   try {
     const gate = await characterGate(req, res, req.params.id, true);
     if (!gate) return;
     const characterId = req.params.id;
     const { spell_id, memorized = 0 } = req.body;
+    const allowed = await pool.query(
+      `SELECT 1
+       FROM spell_class sc
+       JOIN character_classes cc
+         ON cc.character_id = $1 AND cc.class_id = sc.class_id
+       JOIN classes cl ON cl.id = cc.class_id AND cl.has_spellbook
+       ${CLASS_SPELL_SLOTS}
+       WHERE sc.spell_id = $2
+         AND ${spellSlotCount('sc.level')} > 0`,
+      [characterId, spell_id]
+    );
+    if (allowed.rowCount === 0) {
+      return res.status(400).json({ error: 'Spell is not available at this class level' });
+    }
     await pool.query(
       `INSERT INTO character_spells (character_id, spell_id, known, memorized)
        VALUES ($1, $2, 1, $3)
@@ -1069,15 +1106,69 @@ app.put('/api/characters/:id/spells/:spellId', async (req, res) => {
     const gate = await characterGate(req, res, req.params.id, true);
     if (!gate) return;
     const { id: characterId, spellId } = req.params;
-    const { memorized } = req.body;
-    const result = await pool.query(
-      `UPDATE character_spells SET memorized = $1, modified = CURRENT_TIMESTAMP
-       WHERE character_id = $2 AND spell_id = $3 RETURNING *`,
-      [Math.max(0, memorized), characterId, spellId]
-    );
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Character spell not found' });
+    const memorized = Number(req.body.memorized);
+    if (!Number.isInteger(memorized) || memorized < 0) {
+      return res.status(400).json({ error: 'Memorized count must be a whole number' });
     }
+    const grants = await pool.query(
+      `SELECT sc.level AS circle, cl.has_spellbook, ${spellSlotCount('sc.level')} AS slots
+       FROM spell_class sc
+       JOIN character_classes cc ON cc.character_id = $1 AND cc.class_id = sc.class_id
+       JOIN classes cl ON cl.id = cc.class_id
+       ${CLASS_SPELL_SLOTS}
+       WHERE sc.spell_id = $2`,
+      [characterId, spellId]
+    );
+    const open = grants.rows.filter((row) => Number(row.slots) > 0);
+    if (open.length === 0) {
+      return res.status(400).json({ error: 'Spell is not available at this class level' });
+    }
+    const circle = Math.min(...open.map((row) => Number(row.circle)));
+    const atCircle = open.filter((row) => Number(row.circle) === circle);
+    if (!atCircle.some((row) => !row.has_spellbook)) {
+      const known = await pool.query(
+        'SELECT known FROM character_spells WHERE character_id = $1 AND spell_id = $2',
+        [characterId, spellId]
+      );
+      if (!Number(known.rows[0]?.known)) {
+        return res.status(400).json({ error: 'Learn this spell before memorizing it' });
+      }
+    }
+    const capResult = await pool.query(
+      `SELECT MAX(${spellSlotCount('$2')}) AS slots
+       FROM character_classes cc
+       ${CLASS_SPELL_SLOTS}
+       WHERE cc.character_id = $1
+         AND ${spellSlotCount('$2')} > 0`,
+      [characterId, circle]
+    );
+    const cap = Number(capResult.rows[0]?.slots) || 0;
+    const others = await pool.query(
+      `SELECT cs.spell_id, cs.memorized, MIN(sc.level) AS circle
+       FROM character_spells cs
+       JOIN spell_class sc ON sc.spell_id = cs.spell_id
+       JOIN character_classes cc ON cc.character_id = cs.character_id AND cc.class_id = sc.class_id
+       ${CLASS_SPELL_SLOTS}
+       WHERE cs.character_id = $1
+         AND cs.spell_id <> $2
+         AND ${spellSlotCount('sc.level')} > 0
+       GROUP BY cs.spell_id, cs.memorized`,
+      [characterId, spellId]
+    );
+    const used = others.rows.reduce((sum, row) => (
+      Number(row.circle) === circle ? sum + (Number(row.memorized) || 0) : sum
+    ), 0);
+    if (used + memorized > cap) {
+      return res.status(400).json({ error: `Only ${cap} spells of this level can be memorized` });
+    }
+    const result = await pool.query(
+      `INSERT INTO character_spells (character_id, spell_id, memorized)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (character_id, spell_id) DO UPDATE
+       SET memorized = EXCLUDED.memorized, modified = CURRENT_TIMESTAMP
+       RETURNING *`,
+      [characterId, spellId, memorized]
+    );
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Error updating character spell:', error);
@@ -1440,9 +1531,19 @@ app.get('/api/spells', async (req, res) => {
     const filter = readRulesetFilter(req, res);
     if (!filter) return;
     const result = await pool.query(
-      `SELECT * FROM spells
-       WHERE ($1::int IS NULL OR ${visibleInRuleset('spells', 'spells', 'child_row.name = spells.name')})
-       ORDER BY name`,
+      `SELECT s.*,
+         COALESCE(
+           json_agg(
+             json_build_object('class_id', sc.class_id, 'level', sc.level)
+             ORDER BY sc.class_id
+           ) FILTER (WHERE sc.class_id IS NOT NULL),
+           '[]'::json
+         ) AS classes
+       FROM spells s
+       LEFT JOIN spell_class sc ON sc.spell_id = s.id
+       WHERE ($1::int IS NULL OR ${visibleInRuleset('spells', 's', 'child_row.name = s.name')})
+       GROUP BY s.id
+       ORDER BY s.name`,
       [filter.id]
     );
     res.json(result.rows);

@@ -12,6 +12,7 @@
 			"ARMOR" : null,
 			"WEAPONS" : null,
 			"IS_QUASI" : false,
+			"HAS_SPELLBOOK" : false,
 			"DESCRIPTION" : "Druids are nature priests, revering the gods of the natural world.  Often a Druid uses mistletoe as a holy symbol, but this can vary with specific nature deities.  Druids spend their time contemplating nature or in mundane forms of service such as ministering in rural areas.  However, there are those who are called to go abroad to serve the natural order in a more direct way by working actively to restore balance.\r\n\r\nDruids advance at the same rate as Clerics, and they use the same combat and saving throw tables.  Druids can cast spells of divine nature starting at 2nd level, and they have the power of Control Animals (detailed at the end), working much like the Clerical ability to Turn Undead.  They can identify any natural animal or plant, and can identify clean water.\r\n\r\nThe Prime Requisite for Druid is Wisdom; a character must have a Wisdom score of 9 or higher to become a Druid.  Druids may not utilize metal armor of any type, and they are likewise limited to wooden shields.  Druids utilize any one-handed melee weapon, as well as staff, sling, and shortbow.",
 			"MODIFIED" : "2021-08-09 19:34:32"
 		},
@@ -27,6 +28,7 @@
 			"ARMOR" : null,
 			"WEAPONS" : null,
 			"IS_QUASI" : false,
+			"HAS_SPELLBOOK" : true,
 			"DESCRIPTION" : "Illusionists are \"specialist\" Magic-Users who focus on the creation and manipulation of illusions, whether visual, auditory, or mental, and at higher levels quasi-real things made of tangible shadow. Though \"normal\" Magic-Users can create illusions, those created by a true Illusionist are superior in quality and realism. \r\n\r\nThe Prime Requisite for an Illusionist is Intelligence. The Illusionist is required to have an Intelligence score of 13 or higher. Illusionists are poor fighters, with fighting ability equivalent to normal Magic-Users. Likewise they are no more hardy than standard Magic-Users (d4 hit die). They may not wear any armor of any sort or use shields. Like other Magic-Users, they can utilize a walking staff (or cudgel) or dagger, and of course they may use magical weapons of those types. Otherwise, Illusionists can generally be treated as equivalent to Magic-Users for any situation not covered here.\r\n\r\nBecause of their expertise at creating and understanding illusions, Illusionists always gain an additional +2 on saves vs. any sort of illusion or phantasm.\r\n\r\nIllusionists produce magic much like other types of  Magic-Users, but have different spell choices. They can learn spells from each other so long as the spells are available to both classes. Like other Magic-Users, a first level Illusionist begins play knowing read magic and one other spell of first level, recorded within a spell book.\r\n\r\nThe GM may roll for the spell, assign it as he or she sees fit, or allow the player to choose it, at his or her option. See the Illusionist Spells section below for more details.",
 			"MODIFIED" : "2021-08-09 19:33:50"
 		},
@@ -42,6 +44,7 @@
 			"ARMOR" : null,
 			"WEAPONS" : null,
 			"IS_QUASI" : false,
+			"HAS_SPELLBOOK" : true,
 			"DESCRIPTION" : "Necromancers are Magic-Users who practice necromancy, seeking expertise of the darker side of the arcane.  Necromancers are rare due to the unsavory nature of their profession, often living in proximity to graveyards, burial mounds, and other places associated with the dead.  They are sometimes known by other terms such as Bokor or even Death Master.  Regardless of what they are called or the culture they come from, they share certain traits.\r\n\r\nNecromancers are poor fighters, with fighting ability equivalent to normal Magic-Users.  Likewise they are no more hardy than standard Magic-Users (d4 hit die).  They may not wear armor of any sort or use shields, but unlike other Magic-Users they have expanded weapon choices.  In addition to the dagger and walking staff, Necromancers can use sickles, scythes, spades, and scimitars (see New Equipment below), and they can likewise use magical weapons of those types.  Otherwise, Necromancers can generally be treated as equivalent to Magic-Users for any situation not covered here.\r\n\r\nThe Prime Requisite for Necromancers is Intelligence.  In addition to requiring an Intelligence score of 11 or higher, a Necromancer also must have a Wisdom score of at least 9 in order to qualify for the rigors of the class.  Although not a requirement, most Necromancers do not score high in looks or Charisma.  The class generally attracts those who are persecuted or otherwise disenfranchised with normal society.\r\n\r\nNecromancers produce magic much like other types of  Magic-Users, but have different spell choices.  They can learn spells from each other so long as the spells are available to both classes.  Like other Magic-Users, a first-level Necromancer begins play knowing read magic and one other spell of first level, recorded within a spellbook.  The GM may roll for the spell, assign it as he or she sees fit, or allow the player to choose it, at his or her option.  See the Necromancer Spells section for more details.",
 			"MODIFIED" : "2021-08-09 19:33:52"
 		},
@@ -57,6 +60,7 @@
 			"ARMOR" : null,
 			"WEAPONS" : null,
 			"IS_QUASI" : false,
+			"HAS_SPELLBOOK" : false,
 			"DESCRIPTION" : "Scouts specialize in stealth operations in the wilderness. They are similar to Rangers in some ways, having similar functions and abilities.\r\n\r\nThe Scout is a subclass of the Thief, with the Thief attack bonus and saving throws, a d6 hit die, and the Cleric experience track.\r\n\r\nRequirements: To become a Scout, a character must have both a Wisdom and a Dexterity score of 9 or higher. A Scout may not wear metal armor, nor use shields. They may use any weapon. Humans, Elves, and Halflings may become Scouts. If the Half-Humans supplement is used, Half-Elves and Half-Orcs may also become Scouts.\r\n\r\nSpecial Abilities: Scouts can Move Silently, Hide, Listen, Open Locks, Detect Traps, Climb Walls, and Track. They detect traps, including wilderness snares and pits, and have no special ability to remove them. When tracking, the Scout rolls once per hour or loses the trail. If that roll fails, it is rolled again: a success means the Scout knows the trail is lost, and a failure means the Scout follows a false trail.\r\n\r\nUnlike a Thief, a Scout gains no special bonus for a sneak attack. With a shortbow or longbow, not a crossbow, a Scout adds +1 to attack rolls at 1st level. At 5th level a bow attack does double damage against an opponent who is not aware of the attack. At 9th level a Scout no longer suffers the penalty for attacking at long range with a bow. A Scout operating alone, more than 30 feet from a party, or in a party of only Scouts, surprises foes on 1-3 on 1d6. A Scout, or a party of only Scouts, moving on foot through wilderness treats the terrain as one category faster. That bonus never applies on a road.",
 			"MODIFIED" : "2021-08-09 19:34:08"
 		},
@@ -72,6 +76,7 @@
 			"ARMOR" : null,
 			"WEAPONS" : null,
 			"IS_QUASI" : false,
+			"HAS_SPELLBOOK" : false,
 			"DESCRIPTION" : "Rangers are specialized warriors who roam the borderlands, where their mission is to keep the beasts and monsters of the untamed lands at bay.  They generally operate alone or in small groups, and rely on stealth and surprise to meet their objectives.\r\n\r\nRequirements:  To become a Ranger, a character must have a Strength score of 9 or higher (just as with any Fighter), a Wisdom of 11 or higher, and a Dexterity of 11 or higher.  They may use any weapon and may wear any armor, but note that some of the RangerÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢s special talents and abilities are unavailable when wearing heavier than leather armor.  Humans, Elves, and Halflings may become Rangers.  If the Half-Humans supplement is used, Half-Elves and Half-Orcs may also become Rangers.\r\n\r\nSpecial Abilities:  Rangers can Move Silently, Hide, and Track when in wilderness areas, at percentages given in the table below.  Apply a -20% penalty when attempting these abilities in urban areas.  Move Silently and Hide may not be used in armor heavier than leather (unless the Thief Options supplement is in use, in which case the adjustments in that supplement should be applied).",
 			"MODIFIED" : "2021-08-09 19:34:19"
 		},
@@ -87,6 +92,7 @@
 			"ARMOR" : null,
 			"WEAPONS" : null,
 			"IS_QUASI" : false,
+			"HAS_SPELLBOOK" : false,
 			"DESCRIPTION" : "Requirements: To become a Paladin, a character must have at least a Strength score of 9, a Wisdom score of 11, and a Charisma score of 11. There are no racial restrictions for the Paladin. They may use any weapon and may wear any armor or shield. If your GM is using the nine alignments option/supplement, you must either be Lawful Good or Chaotic Evil.\r\n\r\nSpecial Abilities:  Paladins emanate an aura equivalent to the spell protection from evil (or good, depending on the Paladin's particular faith) in a 10' radius.  The Paladin can also detect evil (or good, as above) at will, as the spell.\r\n\r\nOnce per day, per level, a Paladin can make his or her non-magical melee weapon or attack form equivalent to a magic weapon for purposes of hitting creatures only able to be struck with a silver or magical weapon.  This effect lasts for a turn.\r\n\r\nOnce per day, the paladin can Lay on Hands to any wounded character and heal 2 points of damage; add the Paladin's Charisma bonus to this figure.  On each odd-numbered level (3rd, 5th, etc.) the Paladin may do this one additional time per day (so, twice per day at 3rd level, three times per day at 5th level, etc.)  Starting at 7th level, the Paladin may choose to cure disease (as the spell) instead of providing healing as above.  At 11th level, the Paladin may also substitute neutralize poison.\r\n\r\nA Paladin can Turn (or command) undead as if a Cleric of a level equal to half his or her own, rounded down, starting at 2nd level.\r\n\r\nPaladins gain the ability to cast appropriate Clerical spells at level 10.  For purposes of spell effects that vary based on the Cleric's level, use one-half the Paladin's level, rounded down.\r\n\r\nA Paladin must tithe, giving a minimum of 10% of all treasures gained or other profits as an offering to his or her deity.\r\n\r\nA Paladin must obey a code of honor, as defined by the Game Master, and must try to perform duties assigned by his or her deity or religious hierarchy. If the Paladin breaks the code, all powers granted are taken away, and the character must atone for his or her actions as soon as possible.  Until the Paladin successfully atones, as defined by the Game Master, he or she is considered an ordinary Fighter.",
 			"MODIFIED" : "2021-08-09 19:34:21"
 		},
@@ -102,6 +108,7 @@
 			"ARMOR" : null,
 			"WEAPONS" : null,
 			"IS_QUASI" : false,
+			"HAS_SPELLBOOK" : false,
 			"DESCRIPTION" : "There are those who make their living dealing death from the shadows. These people are called assassins. Most are trained by secret guilds or societies; civilized lands generally forbid and destroy such organizations.\r\n\r\nAssassins must abide by the same weapon and armor restrictions as Thieves, and use the same attack bonuses and saving throws.  A prospective Assassin must have a minimum Dexterity and Intelligence of 9 each.  Only Humans may become Assassins.\r\n\r\nAssassins have several special abilities, as listed on the table below.  Some abilities are shared with the Thief class, and are described in the Core Rules.  Those abilities special to the Assassin class are as follows:\r\n\r\nPoison:  Assassins learn the art of making lethal poisons.  Poisons are often quite expensive to make; it is not uncommon for a single application of contact poison to cost 500 gp or more.  The GM is advised to take care that poison does not become too much of an easy solution for the Assassin.\r\n\r\nAssassinate:  This is the Assassin's primary special ability.  As with the Thief's Sneak Attack ability, any time an Assassin is behind an opponent in melee and it is reasonably likely the opponent doesn't know they are there, an attempt to assassinate may be made.  The attack must be carried out with a one-handed piercing weapon, such as a dagger or sword.  The attack is rolled at an attack bonus of +4, and if the attack hits, the victim must roll a saving throw vs. Death Ray or be instantly killed.  If this saving throw is a success, the victim still suffers normal weapon damage.  At the GM's option, characters two or more levels lower than the Assassin may be denied a saving throw.\r\n\r\nWaylay:  An Assassin can attempt to knock out an opponent in a single strike.  This is performed in much the same way as the Assassinate ability, but the Assassin must be using a weapon that does subduing damage normally (i.e. a club or cudgel).  The attack is rolled at a +4 attack bonus; if the Assassin hits, the victim must make a saving throw vs. Death Ray or be knocked unconscious.  If this roll is made, the victim still suffers normal subduing damage.  Creatures knocked unconscious by a Waylay attack will remain that way for 2d8 turns if not awakened.\r\n\r\nNote that bounty hunters are often Assassins, who use the Waylay ability in the course of their (more or less) lawful activities.",
 			"MODIFIED" : "2021-08-26 00:25:21"
 		},
@@ -117,6 +124,7 @@
 			"ARMOR" : null,
 			"WEAPONS" : null,
 			"IS_QUASI" : true,
+			"HAS_SPELLBOOK" : false,
 			"DESCRIPTION" : "The term Archer is used to describe characters who specialize in ranged-weapons. Individuals may refer to themselves by more specific names such as Crossbowmen, Longbow-men, Slingers, and the like depending on their specific chosen weapon type of specialization. Regardless of this weapon choice, all Archers use similar techniques and abilities.\r\n\r\nThe pursuit of ranged weapon mastery can be utilized by any base class, however the Archer is limited to weapon choices of that base class. In addition to requirements of their main class, an Archer must have a Dexterity score of 13 or higher. The Archer adds a separate experience track to the base class requirement. \r\n\r\nWhile technically capable of using any allowed armors of their base class, Archers typically limit themselves to light or medium armors (leather or chain mail), as heavy armor generally negates their abilities. Archers are experts in one particular ranged weapon which they have certain benefits with. Archers may use many magical items, including but not limited to appropriate magical weapons and armor, generally only restricted as by their base class.\r\n\r\nArchers must select a single ranged weapon type as their Chosen Weapon. With their chosen weapon an archer's effective range increases (see table above) and they receive a bonus to damage rolls to targets at short range (also above on table). An Archer wearing heavy armor or otherwise heavily encumbered loses the benefits of their chosen weapon.\r\n\r\nArchers can take Careful Aim with any ranged weapon. By standing very still and taking aim they can increase their effective Dexterity bonus 'to hit' by +2, or by the Archer damage bonus if that is higher (11th level and above). Because they stand still and concentrate intently on their target, the Archer loses any Dexterity bonus to their Armor Class, and they may not move at all during the round.\r\n\r\nIn addition to the combat related bonuses, Archers are skilled in the craft of their particular weapon choice, whether as a fletcher or the equivalent for other weapons",
 			"MODIFIED" : "2021-08-09 05:26:53.675"
 		},
@@ -132,6 +140,7 @@
 			"ARMOR" : null,
 			"WEAPONS" : null,
 			"IS_QUASI" : true,
+			"HAS_SPELLBOOK" : false,
 			"DESCRIPTION" : "Barbaric Characters typically come from remote regions, the fringes of society, or sometimes regions where combat is at the center of society. They are consummate survivalists andare very hearty individuals. The defining feature of a barbarian is resilience. A Barbarian must have a Constitution of 15 or higher, and adds a separate experience track to the base class requirement. Barbaric Toughness rises with level. In leather or no armor it reduces each physical blow, to a minimum of 1 point, and it adds to saves against poison, disease, and environmental harm. Warrior types from these societies is the norm, but individuals of many different classes may also havebarbaric roots. Larceny is common to all societies, so Barbaric Thieves are possible. BarbaricClerics are often rather shamanistic or follow totemic spirituality. Probably rarest areBarbaric Magic-Users, usually found only as hermits, as the societies that barbarians come from usually shun all things arcane.",
 			"MODIFIED" : "2021-09-13 17:50:11.887"
 		},
@@ -147,6 +156,7 @@
 			"ARMOR" : "Light armor (chain or leather) from base class only.",
 			"WEAPONS" : "One handed only",
 			"IS_QUASI" : true,
+			"HAS_SPELLBOOK" : false,
 			"DESCRIPTION" : "Bardic characters are those who have learned history, oral tradition, music, and performance. They travel widely looking for inspiration for the nextgreat ballad or epic poem. Regardless of their base class, such Bards are welcome additions to most adventuring crews, as they have several useful skills to assist other characters. Bardic characters must have a minimum Charisma score of 13, a Dexterity score of 11, and an Intelligence score of 11. A Bard adds a higher separate experience track to the base class requirement.",
 			"MODIFIED" : "2021-09-13 17:50:11.889"
 		},
@@ -162,6 +172,7 @@
 			"ARMOR" : null,
 			"WEAPONS" : null,
 			"IS_QUASI" : true,
+			"HAS_SPELLBOOK" : false,
 			"DESCRIPTION" : "Holy characters are those who have dedicated themselves to serve the powers of goodness. Regardless of their base class, by adhering to ideals of care, charity, benevolence, and protection of innocence, the deities of goodness grant certain powers to those who prove themselves worthy. Holy characters must have a minimum Charisma score of 15. They add a separate experience track to the base class requirement. Lay on Hands restores hit points equal to the Holy character's level.",
 			"MODIFIED" : "2021-09-13 17:50:11.893"
 		},
@@ -177,6 +188,7 @@
 			"ARMOR" : null,
 			"WEAPONS" : null,
 			"IS_QUASI" : true,
+			"HAS_SPELLBOOK" : false,
 			"DESCRIPTION" : "Sages are scholars and collectors of esoteric information, often sequestering themselves in libraries containing obscure information. Regardless of their base class, a Sage is a valuable resource for most adventuring parties. Sage characters must have a minimum Intelligence score of 13. A Sage adds a separate experience track to the base class requirement.",
 			"MODIFIED" : "2021-09-13 17:50:11.896"
 		},
@@ -192,6 +204,7 @@
 			"ARMOR" : null,
 			"WEAPONS" : null,
 			"IS_QUASI" : true,
+			"HAS_SPELLBOOK" : false,
 			"DESCRIPTION" : "Confessors influence another being in a manner similar to a charm spell. In addition to the base class requirements, a Confessor must have a Charisma of 15 or higher. They detect spoken lies at +2, and save at +2 against charm and other mind control. Confessing a creature requires meeting its gaze in melee, costs 1d4 Constitution, and leaves the Confessor fatigued. The basic effect lasts one hour. At 4th level it can affect near-human creatures, at 8th level any living creature, and from 10th level a stronger, longer-lasting confession is available. A Confessor adds a separate experience track to the base class requirement.",
 			"MODIFIED" : "2026-10-11 00:00:00"
 		},
@@ -207,6 +220,7 @@
 			"ARMOR" : "Leather or none for stealth.",
 			"WEAPONS" : null,
 			"IS_QUASI" : true,
+			"HAS_SPELLBOOK" : false,
 			"DESCRIPTION" : "Hunters live by tracking, hunting, and guiding others through dangerous country. In addition to the base class requirements, a Hunter must have Wisdom 13 and Dexterity 11. While unarmored or in leather, a Hunter can Move Silently, Hide, and Track. Indoors, underground, or in town those chances take a -20% penalty. If the base class already has those abilities, the Hunter instead gains +20% with them in the wilderness. A Hunter adds a separate experience track to the base class requirement.",
 			"MODIFIED" : "2026-10-11 00:00:00"
 		},
@@ -222,8 +236,9 @@
 			"ARMOR" : null,
 			"WEAPONS" : "Base class weapons.",
 			"IS_QUASI" : true,
+			"HAS_SPELLBOOK" : false,
 			"DESCRIPTION" : "Monks combine monastic physical and mental training with a base class. In addition to that class, a Monk must have Strength 11, Wisdom 15, Dexterity 13, and Constitution 11. They save at +2 against mental influence, at +4 from 10th level, and are immune at 20th level. Weapons follow the base class. A Monk adds a higher separate experience track to the base class requirement.",
 			"MODIFIED" : "2026-10-11 00:00:00"
 		}
 	]
-}
+}

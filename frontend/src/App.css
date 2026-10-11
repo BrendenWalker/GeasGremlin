@@ -253,6 +253,15 @@
   border-bottom-color: #c9a227;
 }
 
+button.catalog-tab {
+  background: none;
+  border-top: none;
+  border-right: none;
+  border-left: none;
+  cursor: pointer;
+  font: inherit;
+}
+
 .catalog-heading {
   color: #d4c4a8;
   font-size: 1rem;

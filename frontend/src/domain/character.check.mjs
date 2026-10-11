@@ -13,6 +13,10 @@ import {
   nextLevelXp,
   nextRoundWrite,
   abilitiesGranted,
+  learnableSpells,
+  circleSpellList,
+  castTabs,
+  memorizeWithinCap,
   rangedAttackBonus,
   sheetCombat,
   overlaidExperience,
@@ -197,5 +201,59 @@ assert.deepEqual(savingThrowTargets(clericSaves, dwarfSaves, 1), {
 });
 assert.equal(savingThrowTargets(clericSaves, [], 3)['Death Ray or Poison'], 11);
 assert.equal(savingThrowTargets(clericSaves, [], 4)['Death Ray or Poison'], 9);
+
+const spellBook = [
+  { id: 1, name: 'Magic Missile', classes: [{ class_id: 3, level: 1 }] },
+  { id: 2, name: 'Cure Light Wounds', classes: [{ class_id: 1, level: 1 }] },
+  { id: 3, name: 'Light', classes: [{ class_id: 1, level: 1 }, { class_id: 3, level: 1 }] },
+  { id: 4, name: 'Wish', classes: [] },
+  { id: 5, name: 'Continual Light', classes: [{ class_id: 1, level: 3 }, { class_id: 3, level: 2 }] },
+  { id: 6, name: 'Spark', classes: [{ class_id: 3, level: 0 }] },
+];
+const magicUser = {
+  id: 3,
+  has_spellbook: true,
+  spell_slots: [
+    { char_level: 1, level1: 1 },
+    { char_level: 3, level1: 2, level2: 1 },
+  ],
+};
+const cleric = {
+  id: 1,
+  has_spellbook: false,
+  spell_slots: [
+    { char_level: 2, level1: 1 },
+    { char_level: 4, level1: 2, level2: 1, level3: 1 },
+  ],
+};
+assert.deepEqual(
+  learnableSpells(spellBook, [{ class_id: 3, class_level: 1 }], [magicUser]).map((spell) => [spell.name, spell.level]),
+  [['Light', 1], ['Magic Missile', 1]]
+);
+assert.deepEqual(
+  learnableSpells(spellBook, [{ class_id: 3, class_level: 3 }], [magicUser]).map((spell) => [spell.name, spell.level]),
+  [['Light', 1], ['Magic Missile', 1], ['Continual Light', 2]]
+);
+assert.deepEqual(learnableSpells(spellBook, [{ class_id: 1, class_level: 4 }], [cleric]), []);
+assert.deepEqual(learnableSpells(spellBook, [{ class_id: 1, class_level: 1 }], [cleric]), []);
+assert.deepEqual(learnableSpells(spellBook, [{ class_id: 2, class_level: 5 }], []), []);
+assert.deepEqual(learnableSpells(spellBook, [], []), []);
+assert.deepEqual(castTabs([{ class_id: 3, class_level: 1 }], [magicUser]), [{ circle: 1, slots: 1 }]);
+assert.deepEqual(castTabs([{ class_id: 1, class_level: 1 }], [cleric]), []);
+assert.deepEqual(
+  circleSpellList(spellBook, [{ spell_id: 1, known: 1, memorized: 1 }], [{ class_id: 3, class_level: 1 }], [magicUser], 1)
+    .map((spell) => [spell.name, spell.memorized]),
+  [['Magic Missile', 1]]
+);
+assert.deepEqual(
+  circleSpellList(spellBook, [], [{ class_id: 1, class_level: 2 }], [cleric], 1).map((spell) => spell.name),
+  ['Cure Light Wounds', 'Light']
+);
+const prepared = [
+  { id: 1, memorized: 1 },
+  { id: 2, memorized: 0 },
+];
+assert.equal(memorizeWithinCap(prepared, 2, 1, 1), false);
+assert.equal(memorizeWithinCap(prepared, 1, 1, 1), true);
 
 console.log('character domain ok');

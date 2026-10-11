@@ -22,7 +22,7 @@ import {
 } from '../api/api';
 import { useAuth } from '../components/AuthContext';
 import { useRuleset } from '../components/RulesetContext';
-import { acceptTransfer, castsRemaining, commandWrite, finishLevelUp, formatModifier, openMechanic, primaryClass, savingThrowTargets } from '../domain/character.mjs';
+import { acceptTransfer, castTabs, castsRemaining, characterHasSpellbook, circleSpellList, commandWrite, finishLevelUp, formatModifier, learnableSpells, memorizeWithinCap, openMechanic, primaryClass, savingThrowTargets } from '../domain/character.mjs';
 import { formatItemPrice } from '../domain/itemPrice.mjs';
 
 const INPUT_STYLE = {
@@ -128,6 +128,7 @@ export default function CharacterDetailPage({ playerMode = false }) {
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
   const [spellModal, setSpellModal] = useState(false);
+  const [spellCircle, setSpellCircle] = useState(1);
   const [addItemModal, setAddItemModal] = useState(false);
   const [hpAdjust, setHpAdjust] = useState(null);
   const [party, setParty] = useState([]);
@@ -435,13 +436,16 @@ export default function CharacterDetailPage({ playerMode = false }) {
   const armors = (character.items || []).filter(
     (i) => i.item_ac != null || i.item_ac_melee != null
   );
-  const spellsByLevel = {};
-  (character.spells || []).forEach((s) => {
-    const lvl = s.spell_level ?? 0;
-    if (!spellsByLevel[lvl]) spellsByLevel[lvl] = [];
-    spellsByLevel[lvl].push(s);
-  });
   const knownSpellIds = new Set((character.spells || []).filter((s) => s.known).map((s) => s.spell_id));
+  const spellTabs = castTabs(character.character_classes, classes);
+  const activeSpellTab = spellTabs.find((tab) => tab.circle === spellCircle) || spellTabs[0] || null;
+  const circleSpells = activeSpellTab
+    ? circleSpellList(allSpells, character.spells, character.character_classes, classes, activeSpellTab.circle)
+    : [];
+  const memorizedHere = circleSpells.reduce((sum, spell) => sum + spell.memorized, 0);
+  const showLearn = characterHasSpellbook(character.character_classes, classes);
+  const learnChoices = learnableSpells(allSpells, character.character_classes, classes)
+    .filter((spell) => !knownSpellIds.has(spell.id));
   const saveStats = new Set(SAVE_ROWS.map((row) => row.stat));
   const otherAbilities = (character.abilities || []).filter((ability) => !saveStats.has(ability.stat_name));
   const sheetClass = primaryClass(character, classes);
@@ -743,64 +747,95 @@ export default function CharacterDetailPage({ playerMode = false }) {
       </div>
       </form>
 
+      {activeSpellTab && (
       <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
             <h2>Spells</h2>
-            <button type="button" className="btn btn-primary" onClick={() => setSpellModal(true)}>Learn spell</button>
+            {showLearn && (
+              <button type="button" className="btn btn-primary" onClick={() => setSpellModal(true)}>Learn spell</button>
+            )}
           </div>
-          {[0, 1, 2, 3, 4, 5, 6, 7].map((lvl) => {
-            const list = spellsByLevel[lvl] || [];
-            if (list.length === 0) return null;
-            const primary = primaryClass(character, classes);
-            const remaining = lvl >= 1
-              ? castsRemaining(primary.row, primary.level, lvl, character.spells_cast)
-              : null;
-            return (
-              <div key={lvl} style={{ marginBottom: '1rem' }}>
-                <h3 style={{ marginBottom: '0.5rem' }}>
-                  Level {lvl}
-                  {remaining != null && <span style={{ color: '#8a7f72', fontWeight: 400 }}> · {remaining} slots left</span>}
-                </h3>
-                <ul style={{ listStyle: 'none' }}>
-                  {list.map((s) => (
-                    <li key={s.spell_id} style={{ padding: '0.25rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                      <strong>{s.spell_name}</strong>
-                      <span style={{ color: '#8a7f72' }}>Memorized:</span>
-                      <input
-                        type="number"
-                        min={0}
-                        value={s.memorized ?? 0}
-                        onChange={(e) => handleSetMemorized(s.spell_id, parseInt(e.target.value, 10) || 0)}
-                        style={{ width: 48, ...INPUT_STYLE }}
-                      />
-                      <button type="button" className="btn btn-secondary" size="small" onClick={() => handleCastSpell(s.spell_id)} disabled={!(s.memorized > 0) || (remaining != null && remaining <= 0)}>Cast</button>
-                      {s.spell_description && <span style={{ color: '#8a7f72', fontSize: '0.9rem' }}>— {s.spell_description.slice(0, 60)}…</span>}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            );
-          })}
-          {Object.keys(spellsByLevel).length === 0 && <p style={{ color: '#8a7f72' }}>No spells learned. Use “Learn spell” to add from your class list.</p>}
-          {spellModal && (
+          <div className="catalog-tabs" role="tablist">
+            {spellTabs.map((tab) => (
+              <button
+                key={tab.circle}
+                type="button"
+                role="tab"
+                aria-selected={tab.circle === activeSpellTab.circle}
+                className={`catalog-tab${tab.circle === activeSpellTab.circle ? ' active' : ''}`}
+                onClick={() => setSpellCircle(tab.circle)}
+              >
+                Level {tab.circle}
+              </button>
+            ))}
+          </div>
+          <p style={{ color: '#8a7f72', marginTop: 0 }}>
+            {memorizedHere} / {activeSpellTab.slots} memorized
+          </p>
+          {circleSpells.length === 0 && (
+            <p style={{ color: '#8a7f72' }}>
+              {showLearn ? 'No spells learned at this level.' : 'No spells at this level.'}
+            </p>
+          )}
+          <ul style={{ listStyle: 'none' }}>
+            {circleSpells.map((s) => {
+              const remaining = castsRemaining(sheetClass.row, sheetClass.level, activeSpellTab.circle, character.spells_cast);
+              return (
+                <li key={s.id} style={{ padding: '0.25rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <strong style={{ flex: '1 1 auto' }}>{s.name}</strong>
+                  <input
+                    type="number"
+                    min={0}
+                    aria-label={`${s.name} memorized`}
+                    value={s.memorized}
+                    onChange={(e) => {
+                      const next = parseInt(e.target.value, 10);
+                      if (!Number.isInteger(next) || next < 0) return;
+                      if (!memorizeWithinCap(circleSpells, s.id, next, activeSpellTab.slots)) {
+                        setError(`Only ${activeSpellTab.slots} spells of this level can be memorized`);
+                        return;
+                      }
+                      setError(null);
+                      handleSetMemorized(s.id, next);
+                    }}
+                    style={{ width: 48, ...INPUT_STYLE }}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => handleCastSpell(s.id)}
+                    disabled={!(s.memorized > 0) || (remaining != null && remaining <= 0)}
+                  >
+                    Cast
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          {spellModal && showLearn && (
             <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setSpellModal(false)}>
               <div className="card" style={{ maxWidth: 400, maxHeight: '80vh', overflow: 'auto' }} onClick={(e) => e.stopPropagation()}>
                 <h3>Learn spell</h3>
-                <p style={{ color: '#8a7f72', fontSize: '0.9rem' }}>Choose a spell to learn (class-agnostic list).</p>
-                <ul style={{ listStyle: 'none', maxHeight: 300, overflow: 'auto' }}>
-                  {allSpells.filter((s) => !knownSpellIds.has(s.id)).map((s) => (
-                    <li key={s.id} style={{ padding: '0.25rem 0' }}>
-                      <button type="button" className="btn btn-secondary" style={{ width: '100%', textAlign: 'left' }} onClick={() => handleLearnSpell(s.id)}>
-                        {s.name}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                <p style={{ color: '#8a7f72', fontSize: '0.9rem' }}>Spells your class can cast at this level.</p>
+                {learnChoices.length === 0 ? (
+                  <p style={{ color: '#8a7f72' }}>Nothing you can learn at this level.</p>
+                ) : (
+                  <ul style={{ listStyle: 'none', maxHeight: 300, overflow: 'auto' }}>
+                    {learnChoices.map((s) => (
+                      <li key={s.id} style={{ padding: '0.25rem 0' }}>
+                        <button type="button" className="btn btn-secondary" style={{ width: '100%', textAlign: 'left' }} onClick={() => handleLearnSpell(s.id)}>
+                          {s.name} <span style={{ color: '#8a7f72' }}>· level {s.level}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
                 <button type="button" className="btn btn-secondary" onClick={() => setSpellModal(false)}>Cancel</button>
               </div>
             </div>
           )}
         </div>
+      )}
 
       <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>

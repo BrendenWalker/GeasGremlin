@@ -260,12 +260,13 @@ async function main() {
       'armor',
       'weapons',
       'is_quasi',
+      'has_spellbook',
       'description',
       'modified',
     ];
     const classesResult = await pool.query(
       `SELECT id, name, min_str, min_int, min_wis, min_dex, min_con, min_chr,
-              armor, weapons, is_quasi, description, modified
+              armor, weapons, is_quasi, has_spellbook, description, modified
        FROM public.classes WHERE ruleset_id = $1 ORDER BY id`,
       [rulesetId]
     );

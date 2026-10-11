@@ -32,7 +32,7 @@ Imported or authored **definition** data for a game system. Typically read-heavy
 
 **Core definitions**
 
-- `classes` — `is_quasi` marks a quasi-class. It is layered on a base class the player chooses. The base is a `character_classes` row. Hit die comes from that base. The overlay id is `characters.quasiclass`.
+- `classes` — `is_quasi` marks a quasi-class. It is layered on a base class the player chooses. The base is a `character_classes` row. Hit die comes from that base. The overlay id is `characters.quasiclass`. `has_spellbook` means the class must learn a spell before it can be memorized. Other casters prepare from the full list for circles they have slots for.
 - `races`
 - `spells`
 - `abilities` — definition text plus an optional link to `stat` (`stat_id`, `stat_modifier`). Category is no longer stored on the ability.

@@ -122,6 +122,7 @@ CREATE TABLE IF NOT EXISTS public.classes (
 	weapons varchar(200) NULL,
 	description text NULL,
 	is_quasi boolean NOT NULL DEFAULT false,
+	has_spellbook boolean NOT NULL DEFAULT false,
 	modified timestamp DEFAULT now() NOT NULL,
 	ruleset_id int4 NOT NULL DEFAULT 1,
 	subclass_of int4 NULL,
@@ -137,6 +138,7 @@ CREATE INDEX IF NOT EXISTS classes_classes_modified ON public.classes USING btre
 ALTER TABLE public.classes DROP COLUMN IF EXISTS hitdie;
 ALTER TABLE public.classes DROP COLUMN IF EXISTS xpadjustment;
 ALTER TABLE public.classes ADD COLUMN IF NOT EXISTS is_quasi boolean NOT NULL DEFAULT false;
+ALTER TABLE public.classes ADD COLUMN IF NOT EXISTS has_spellbook boolean NOT NULL DEFAULT false;
 
 
 -- public.item_categories definition
