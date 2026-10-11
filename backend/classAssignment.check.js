@@ -14,5 +14,7 @@ assert.equal(assignmentError(1, archer, null), 'Base class cannot be a quasi-cla
 assert.equal(assignmentError(1, archer, archer), 'Base class cannot be a quasi-class');
 assert.equal(assignmentError(1, otherFighter, archer), 'Base class is not in this ruleset');
 assert.equal(assignmentError(1, fighter, { ruleset_id: 2, is_quasi: true }), 'Quasi-class is not in this ruleset');
+assert.equal(assignmentError(2, fighter, null, 1), null);
+assert.equal(assignmentError(2, { ruleset_id: 3, is_quasi: false }, null, 1), 'Base class is not in this ruleset');
 
 console.log('classAssignment ok');

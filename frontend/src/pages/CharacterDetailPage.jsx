@@ -23,6 +23,7 @@ import {
 import { useAuth } from '../components/AuthContext';
 import { useRuleset } from '../components/RulesetContext';
 import { acceptTransfer, castsRemaining, commandWrite, finishLevelUp, formatModifier, openMechanic, primaryClass } from '../domain/character.mjs';
+import { formatItemPrice } from '../domain/itemPrice.mjs';
 
 const TAB_IDS_GM = ['info', 'combat', 'spellbook', 'inventory'];
 const TAB_IDS_PLAYER = ['info', 'combat', 'spellbook', 'inventory', 'adventuring'];
@@ -807,7 +808,7 @@ export default function CharacterDetailPage({ playerMode = false }) {
                   {allItems.map((it) => (
                     <li key={it.id} style={{ padding: '0.25rem 0' }}>
                       <button type="button" className="btn btn-secondary" style={{ width: '100%', textAlign: 'left' }} onClick={() => handleAddItem(it.id)}>
-                        {it.name} {it.price != null && `(${coinsDisplay(it.price)})`}
+                        {it.name} {it.price != null && `(${formatItemPrice(it.price)})`}
                       </button>
                     </li>
                   ))}

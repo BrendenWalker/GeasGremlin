@@ -10,10 +10,67 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
 const { createDbPool, testConnection } = require('./db-config');
-const { assignmentError } = require('./classAssignment');
+const { assignmentError, inCatalog } = require('./classAssignment');
 const { INSIDE_INTERVAL, OUTSIDE_INTERVAL, checksDue, checkHit, matchingRow, acceptRoll } = require('./wander');
 const { rollTreasure } = require('./treasure');
+const {
+  abilityModifier,
+  resolveUndead,
+  rollSurprise,
+  rollReaction,
+  rollInitiative,
+  rollMorale,
+  rollTurn,
+} = require('./encounterDice');
+const {
+  armorClass,
+  applyHitPoints,
+  characterAttackBonus,
+  characterDamageDice,
+  monsterAttackBonus,
+  rollAttack,
+  rollMonsterHitPoints,
+  rollWeaponDamage,
+} = require('./blows');
+const { awardLine, splitAward, cappedAward } = require('./awards');
+const {
+  rollLight,
+  encumbrance,
+  slowestMember,
+  requiredSleep,
+  settleBody,
+  applyBodyHitPoints,
+} = require('./body');
 const { TERRAINS, locationTerrain } = require('./terrain');
+const {
+  adjustedMiles,
+  forcedMiles,
+  airMiles,
+  stallFeet,
+  marchDay,
+  lostCheck,
+  sailingDay,
+} = require('./travel');
+const {
+  SPECIALISTS,
+  MERCENARIES,
+  retainerCap,
+  maxRetainerLevel,
+  startingLoyalty,
+  hireReaction,
+  canHireRetainer,
+  loyaltyCheck,
+  specialistCost,
+  mercenaryOffer,
+} = require('./hirelings');
+const {
+  VEHICLE_AC,
+  TRAPS,
+  VEHICLES,
+  stockRoom,
+  vehicleDamage,
+  fieldRepair,
+} = require('./prep');
 const {
   COOKIE,
   SESSION_SECONDS,
@@ -90,12 +147,18 @@ function primaryClassIdFromBody(body, fallback) {
   return fallback;
 }
 
+async function rulesetParentId(rulesetId) {
+  const result = await pool.query('SELECT parent_ruleset_id FROM ruleset WHERE id = $1', [rulesetId]);
+  return result.rows[0] ? result.rows[0].parent_ruleset_id : null;
+}
+
 async function classAssignmentMessage(rulesetId, classId, quasiclassId) {
   const base = await readClass(classId);
   if (base.error) return base.error;
   const quasi = await readClass(quasiclassId);
   if (quasi.error) return quasi.error;
-  return assignmentError(rulesetId, base.row, quasi.row);
+  const parentId = await rulesetParentId(rulesetId);
+  return assignmentError(rulesetId, base.row, quasi.row, parentId);
 }
 
 async function loadSessionUser(req) {
@@ -606,8 +669,13 @@ app.get('/api/characters/:id', async (req, res) => {
         const clid = primary.rows[0].class_id;
         const clvl = primary.rows[0].class_level || 1;
         const nextLevel = await pool.query(
-          `SELECT xp FROM class_leveling WHERE class_id = $1 AND level = $2`,
-          [clid, clvl + 1]
+          `SELECT base.xp + COALESCE(quasi.xp, 0) AS xp
+           FROM class_leveling base
+           JOIN characters ch ON ch.id = $3
+           LEFT JOIN class_leveling quasi
+             ON quasi.class_id = ch.quasiclass AND quasi.level = base.level
+           WHERE base.class_id = $1 AND base.level = $2`,
+          [clid, clvl + 1, req.params.id]
         );
         character.next_level_xp = nextLevel.rows[0] ? nextLevel.rows[0].xp : null;
       }
@@ -751,6 +819,7 @@ app.put('/api/characters/:id', async (req, res) => {
     }
     const baseId = primaryClassIdFromBody(body, merged.class);
     if (Object.prototype.hasOwnProperty.call(body, 'character_classes') && Array.isArray(body.character_classes)) {
+      const parentId = await rulesetParentId(row.ruleset_id);
       for (const cc of body.character_classes) {
         if (cc == null || cc.class_id == null || cc.class_id === '') continue;
         const extra = await readClass(cc.class_id);
@@ -758,7 +827,7 @@ app.put('/api/characters/:id', async (req, res) => {
         if (extra.row && extra.row.is_quasi) {
           return res.status(400).json({ error: 'Base class cannot be a quasi-class' });
         }
-        if (extra.row && Number(extra.row.ruleset_id) !== Number(row.ruleset_id)) {
+        if (extra.row && !inCatalog(extra.row, row.ruleset_id, parentId)) {
           return res.status(400).json({ error: 'Base class is not in this ruleset' });
         }
       }
@@ -1034,6 +1103,34 @@ function parseRulesetId(raw) {
   return id;
 }
 
+/**
+ * A catalog row is visible when it belongs to the asked ruleset, or to that
+ * ruleset's parent and the child has no row with the same key.
+ * sameKey is SQL that compares child_row to alias. $1 is the asked ruleset id.
+ */
+function visibleInRuleset(table, alias, sameKey) {
+  return `(${alias}.ruleset_id = $1 OR (
+    ${alias}.ruleset_id = (SELECT parent_ruleset_id FROM ruleset WHERE id = $1)
+    AND NOT EXISTS (
+      SELECT 1 FROM ${table} child_row
+      WHERE child_row.ruleset_id = $1 AND ${sameKey}
+    )
+  ))`;
+}
+
+/** Stock encounter tables follow the campaign ruleset, then its parent. Child name wins. */
+function visibleStockTable(alias) {
+  return `(${alias}.ruleset_id = c.ruleset_id OR (
+    ${alias}.ruleset_id = (SELECT parent_ruleset_id FROM ruleset WHERE id = c.ruleset_id)
+    AND NOT EXISTS (
+      SELECT 1 FROM encounter_table child_row
+      WHERE child_row.ruleset_id = c.ruleset_id
+        AND child_row.campaign_id IS NULL
+        AND child_row.name = ${alias}.name
+    )
+  ))`;
+}
+
 /** Optional ?ruleset_id= on catalog lists. Missing means every ruleset. Invalid is 400. */
 function readRulesetFilter(req, res) {
   if (!Object.prototype.hasOwnProperty.call(req.query, 'ruleset_id')) return { id: null };
@@ -1049,11 +1146,16 @@ app.get('/api/rulesets', async (req, res) => {
   try {
     let result;
     try {
-      result = await pool.query('SELECT id, name, mechanic FROM ruleset ORDER BY name');
+      result = await pool.query('SELECT id, name, mechanic, parent_ruleset_id FROM ruleset ORDER BY name');
     } catch (error) {
       if (error.code !== '42703') throw error;
-      console.error('ruleset.mechanic is missing; serving bfrpg until the column is added');
-      result = await pool.query('SELECT id, name FROM ruleset ORDER BY name');
+      try {
+        result = await pool.query('SELECT id, name, mechanic FROM ruleset ORDER BY name');
+      } catch (again) {
+        if (again.code !== '42703') throw again;
+        console.error('ruleset.mechanic is missing; serving bfrpg until the column is added');
+        result = await pool.query('SELECT id, name FROM ruleset ORDER BY name');
+      }
     }
     const attrs = await pool.query(
       `SELECT s.name
@@ -1098,11 +1200,28 @@ app.get('/api/races', async (req, res) => {
             JOIN abilities a ON a.id = ra.ability_id
             LEFT JOIN stat s ON s.id = a.stat_id
             LEFT JOIN ability_categories ac ON ac.id = s.category
-            WHERE ra.race_id = r.id),
+            WHERE ra.race_id IN (
+              SELECT owner.id FROM races owner
+              WHERE owner.name = r.name
+                AND owner.ruleset_id IN ($1, (SELECT parent_ruleset_id FROM ruleset WHERE id = $1))
+            )
+            AND ra.ruleset_id IN ($1, (SELECT parent_ruleset_id FROM ruleset WHERE id = $1))
+            AND NOT (
+              ra.ruleset_id IS DISTINCT FROM $1
+              AND EXISTS (
+                SELECT 1
+                FROM race_abilities ra2
+                JOIN abilities a2 ON a2.id = ra2.ability_id
+                JOIN races owner2 ON owner2.id = ra2.race_id
+                WHERE ra2.ruleset_id = $1
+                  AND owner2.name = r.name
+                  AND a2.description = a.description
+              )
+            )),
            '[]'::json
          ) AS abilities
        FROM races r
-       WHERE r.ruleset_id = $1
+       WHERE ${visibleInRuleset('races', 'r', 'child_row.name = r.name')}
        ORDER BY r.name`,
       [filter.id]
     );
@@ -1153,7 +1272,25 @@ app.get('/api/classes', async (req, res) => {
             JOIN abilities a ON a.id = ca.ability_id
             LEFT JOIN stat s ON s.id = a.stat_id
             LEFT JOIN ability_categories ac ON ac.id = s.category
-            WHERE ca.class_id = c.id),
+            WHERE ca.class_id IN (
+              SELECT owner.id FROM classes owner
+              WHERE owner.name = c.name
+                AND owner.ruleset_id IN ($1, (SELECT parent_ruleset_id FROM ruleset WHERE id = $1))
+            )
+            AND ca.ruleset_id IN ($1, (SELECT parent_ruleset_id FROM ruleset WHERE id = $1))
+            AND NOT (
+              ca.ruleset_id IS DISTINCT FROM $1
+              AND EXISTS (
+                SELECT 1
+                FROM class_abilities ca2
+                JOIN abilities a2 ON a2.id = ca2.ability_id
+                JOIN classes owner2 ON owner2.id = ca2.class_id
+                WHERE ca2.ruleset_id = $1
+                  AND owner2.name = c.name
+                  AND a2.description = a.description
+                  AND ca2.level = ca.level
+              )
+            )),
            '[]'::json
          ) AS abilities,
          COALESCE(
@@ -1168,7 +1305,23 @@ app.get('/api/classes', async (req, res) => {
               ORDER BY cl.level
             )
             FROM class_leveling cl
-            WHERE cl.class_id = c.id),
+            WHERE cl.class_id IN (
+              SELECT owner.id FROM classes owner
+              WHERE owner.name = c.name
+                AND owner.ruleset_id IN ($1, (SELECT parent_ruleset_id FROM ruleset WHERE id = $1))
+            )
+            AND cl.ruleset_id IN ($1, (SELECT parent_ruleset_id FROM ruleset WHERE id = $1))
+            AND NOT (
+              cl.ruleset_id IS DISTINCT FROM $1
+              AND EXISTS (
+                SELECT 1
+                FROM class_leveling cl2
+                JOIN classes owner2 ON owner2.id = cl2.class_id
+                WHERE cl2.ruleset_id = $1
+                  AND owner2.name = c.name
+                  AND cl2.level = cl.level
+              )
+            )),
            '[]'::json
          ) AS leveling,
          COALESCE(
@@ -1186,12 +1339,28 @@ app.get('/api/classes', async (req, res) => {
               ORDER BY cs.char_level
             )
             FROM class_spells cs
-            WHERE cs.class_id = c.id),
+            WHERE cs.class_id IN (
+              SELECT owner.id FROM classes owner
+              WHERE owner.name = c.name
+                AND owner.ruleset_id IN ($1, (SELECT parent_ruleset_id FROM ruleset WHERE id = $1))
+            )
+            AND cs.ruleset_id IN ($1, (SELECT parent_ruleset_id FROM ruleset WHERE id = $1))
+            AND NOT (
+              cs.ruleset_id IS DISTINCT FROM $1
+              AND EXISTS (
+                SELECT 1
+                FROM class_spells cs2
+                JOIN classes owner2 ON owner2.id = cs2.class_id
+                WHERE cs2.ruleset_id = $1
+                  AND owner2.name = c.name
+                  AND cs2.char_level = cs.char_level
+              )
+            )),
            '[]'::json
          ) AS spell_slots
        FROM classes c
        LEFT JOIN classes parent ON parent.id = c.subclass_of
-       WHERE c.ruleset_id = $1
+       WHERE ${visibleInRuleset('classes', 'c', 'child_row.name = c.name')}
        ORDER BY c.name`,
       [filter.id]
     );
@@ -1250,7 +1419,7 @@ app.get('/api/spells', async (req, res) => {
     if (!filter) return;
     const result = await pool.query(
       `SELECT * FROM spells
-       WHERE ($1::int IS NULL OR ruleset_id = $1)
+       WHERE ($1::int IS NULL OR ${visibleInRuleset('spells', 'spells', 'child_row.name = spells.name')})
        ORDER BY name`,
       [filter.id]
     );
@@ -1283,7 +1452,14 @@ app.get('/api/items', async (req, res) => {
        FROM items i
        LEFT JOIN item_categories ic ON i.category = ic.id
        LEFT JOIN item_types it ON i.type = it.id
-       WHERE ($1::int IS NULL OR i.ruleset_id = $1)
+       WHERE ($1::int IS NULL OR ${visibleInRuleset(
+         'items',
+         'i',
+         `child_row.category IS NOT DISTINCT FROM i.category
+          AND child_row.type IS NOT DISTINCT FROM i.type
+          AND child_row.name = i.name
+          AND child_row.size IS NOT DISTINCT FROM i.size`
+       )})
        ORDER BY i.name`,
       [filter.id]
     );
@@ -1807,6 +1983,11 @@ function nonNegativeInt(value, name) {
   return n;
 }
 
+function booleanField(value, name) {
+  if (typeof value !== 'boolean') throw storedError(`${name} must be true or false`, 400);
+  return value;
+}
+
 function optionalText(value, name, max) {
   if (value == null || String(value).trim() === '') return null;
   const text = String(value).trim();
@@ -1826,13 +2007,19 @@ async function loadAdventuring(campaignId) {
     [campaignId]
   );
   if (camp.rows.length === 0) return null;
-  const [enemies, characters, marks, locations, tables, wanders] = await Promise.all([
+  const gameSeconds = Number(camp.rows[0].game_seconds);
+  const [enemies, characters, marks, locations, tables, wanders, turnBlocks, bodies, hirelings] = await Promise.all([
     pool.query(
-      'SELECT id, name, monster_id, quantity, treasure_type FROM campaign_enemy WHERE campaign_id = $1 ORDER BY id',
+      `SELECT e.id, e.name, e.monster_id, e.quantity, e.treasure_type, e.hp,
+              m.hit_dice, m.morale, m.morale_engaged, m.armor_class, m.defense_note, m.attack_note
+       FROM campaign_enemy e
+       LEFT JOIN monster m ON m.id = e.monster_id
+       WHERE e.campaign_id = $1
+       ORDER BY e.id`,
       [campaignId]
     ),
     pool.query(
-      `SELECT c.id, c.name, c."user",
+      `SELECT c.id, c.name, c."user", c.hp,
               (p.seen_at IS NOT NULL AND p.seen_at > CURRENT_TIMESTAMP - make_interval(secs => $2)) AS active
        FROM characters c
        INNER JOIN campaign_character cc ON cc.character_id = c.id AND cc.campaign_id = $1
@@ -1854,7 +2041,7 @@ async function loadAdventuring(campaignId) {
       `SELECT t.id, t.name, t.die, (t.campaign_id IS NOT NULL) AS custom
        FROM encounter_table t
        JOIN campaign c ON c.id = $1
-       WHERE t.campaign_id = c.id OR (t.ruleset_id = c.ruleset_id AND t.campaign_id IS NULL)
+       WHERE t.campaign_id = c.id OR (t.campaign_id IS NULL AND ${visibleStockTable('t')})
        ORDER BY t.name, t.id`,
       [campaignId]
     ),
@@ -1863,6 +2050,41 @@ async function loadAdventuring(campaignId) {
        FROM campaign_wander WHERE campaign_id = $1
        ORDER BY at_seconds DESC, id DESC
        LIMIT 30`,
+      [campaignId]
+    ),
+    pool.query(
+      `SELECT character_id, until_seconds
+       FROM campaign_turn_block
+       WHERE campaign_id = $1 AND until_seconds > $2
+       ORDER BY character_id`,
+      [campaignId, gameSeconds]
+    ),
+    pool.query(
+      `SELECT c.id, c.name, c.str, c.con, c.chr, c.hp,
+              r.name AS race_name,
+              cc.food_missed, cc.heal_food, cc.heal_water,
+              cc.march_days, cc.march_failed, cc.hire_penalty,
+              (SELECT MAX(cls.class_level) FROM character_classes cls WHERE cls.character_id = c.id) AS employer_level,
+              it.ac AS armor_ac,
+              COALESCE(ci.bonus, 0) AS armor_bonus,
+              COALESCE(w.ounces, 0) AS ounces
+       FROM characters c
+       INNER JOIN campaign_character cc ON cc.character_id = c.id AND cc.campaign_id = $1
+       LEFT JOIN races r ON r.id = c.race
+       LEFT JOIN character_items ci ON ci.id = c.equipped_armor_id AND ci.character_id = c.id
+       LEFT JOIN items it ON it.id = ci.item_id
+       LEFT JOIN (
+         SELECT character_id, SUM(COALESCE(quantity, 1) * COALESCE(i.weight, 0)) AS ounces
+         FROM character_items
+         JOIN items i ON i.id = character_items.item_id
+         WHERE character_id IN (SELECT character_id FROM campaign_character WHERE campaign_id = $1)
+         GROUP BY character_id
+       ) w ON w.character_id = c.id`,
+      [campaignId]
+    ),
+    pool.query(
+      `SELECT id, employer_id, kind, name, detail, level, loyalty, morale, cost_gp, quantity
+       FROM campaign_hireling WHERE campaign_id = $1 ORDER BY kind, name, id`,
       [campaignId]
     ),
   ]);
@@ -1876,6 +2098,48 @@ async function loadAdventuring(campaignId) {
        ORDER BY face_lo, id`,
       [tableIds]
     );
+  const bodyById = new Map(bodies.rows.map((row) => [row.id, row]));
+  const characterRows = characters.rows.map((row) => {
+    const body = bodyById.get(row.id);
+    const carried = body ? encumbrance({
+      raceName: body.race_name,
+      strength: body.str,
+      ounces: Number(body.ounces) || 0,
+      armorAc: body.armor_ac == null ? null : Number(body.armor_ac),
+      armorMagic: Number(body.armor_bonus) > 0,
+    }) : null;
+    return {
+      id: row.id,
+      name: row.name,
+      user: row.user,
+      hp: row.hp == null ? null : Number(row.hp),
+      active: row.active === true,
+      pounds: carried ? carried.pounds : null,
+      light_lb: carried ? carried.light_lb : null,
+      heavy_lb: carried ? carried.heavy_lb : null,
+      load: carried ? carried.load : null,
+      armor: carried ? carried.armor : null,
+      move: carried ? carried.move : null,
+      turn_feet: carried ? carried.turn_feet : null,
+      miles: carried ? carried.miles : null,
+      food_missed: body ? Number(body.food_missed) || 0 : 0,
+      heal_food: body ? body.heal_food === true : false,
+      heal_water: body ? body.heal_water === true : false,
+      required_hours: body ? requiredSleep(body.con) : 6,
+      march_days: body ? Number(body.march_days) || 0 : 0,
+      march_failed: body ? body.march_failed === true : false,
+      hire_penalty: body ? Number(body.hire_penalty) || 0 : 0,
+      retainer_cap: body ? retainerCap(body.chr) : 4,
+      max_retainer_level: body ? maxRetainerLevel(body.employer_level == null ? 1 : Number(body.employer_level)) : 0,
+    };
+  });
+  const slow = slowestMember(characterRows.filter((row) => row.move != null));
+  const selected = locations.rows.find((row) => String(row.id) === String(camp.rows[0].location_id));
+  const outsidePct = selected && selected.place === 'outside' && selected.movement_pct != null
+    ? Number(selected.movement_pct)
+    : null;
+  const baseMiles = slow ? slow.miles : null;
+  const overland = adjustedMiles(baseMiles, outsidePct);
   const rowsByTable = new Map();
   for (const row of faces.rows) {
     if (!rowsByTable.has(row.encounter_table_id)) rowsByTable.set(row.encounter_table_id, []);
@@ -1892,12 +2156,18 @@ async function loadAdventuring(campaignId) {
     place: camp.rows[0].place,
     location_id: camp.rows[0].location_id,
     enemies: enemies.rows,
-    characters: characters.rows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      user: row.user,
-      active: row.active === true,
-    })),
+    characters: characterRows,
+    party_move: slow ? slow.move : null,
+    party_turn: slow ? slow.turn_feet : null,
+    party_miles: slow ? slow.miles : null,
+    party_slow: slow ? slow.name : null,
+    overland_miles: overland,
+    forced_miles: forcedMiles(overland),
+    air_miles: airMiles(baseMiles),
+    stall_feet: stallFeet(slow ? slow.move : null),
+    hirelings: hirelings.rows,
+    specialists: SPECIALISTS,
+    mercenaries: MERCENARIES,
     marks: marks.rows,
     locations: locations.rows,
     tables: tables.rows.map((row) => ({
@@ -1909,6 +2179,7 @@ async function loadAdventuring(campaignId) {
     })),
     terrains: TERRAINS,
     wanders: wanders.rows,
+    turn_blocks: turnBlocks.rows,
   };
 }
 
@@ -1993,6 +2264,264 @@ app.post('/api/campaigns/:campaignId/adventuring/tick', async (req, res) => {
 
 function rollDie(sides) {
   return randomInt(1, sides + 1);
+}
+
+function optionalAdjustment(value, name, min, max) {
+  if (value == null || value === '') return 0;
+  const n = integerField(value, name);
+  if (n < min || n > max) throw storedError(`${name} must be from ${min} to ${max}`, 400);
+  return n;
+}
+
+async function openEncounter(campaignId) {
+  const camp = await pool.query(
+    `SELECT COALESCE(b.in_encounter, false) AS in_encounter,
+            COALESCE(b.game_seconds, 0) AS game_seconds
+     FROM campaign c
+     LEFT JOIN campaign_board b ON b.campaign_id = c.id
+     WHERE c.id = $1`,
+    [campaignId]
+  );
+  if (camp.rows.length === 0) return { missing: true };
+  if (camp.rows[0].in_encounter !== true) return { closed: true };
+  return { game_seconds: Number(camp.rows[0].game_seconds) };
+}
+
+function rejectEncounter(res, open) {
+  if (open.missing) {
+    res.status(404).json({ error: 'Campaign not found' });
+    return true;
+  }
+  if (open.closed) {
+    res.status(400).json({ error: 'Start an encounter first' });
+    return true;
+  }
+  return false;
+}
+
+async function loadPartyActors(campaignId) {
+  const result = await pool.query(
+    `SELECT c.id, c.name, c.dex, c.chr,
+            EXISTS (
+              SELECT 1 FROM abilities a
+              WHERE a.description = 'Less likely to be surprised 1 in d6'
+                AND (
+                  (c.race IS NOT NULL AND EXISTS (
+                    SELECT 1 FROM race_abilities ra
+                    WHERE ra.race_id = c.race AND ra.ability_id = a.id
+                  ))
+                  OR EXISTS (
+                    SELECT 1 FROM character_abilities ca
+                    WHERE ca.character_id = c.id AND ca.ability_id = a.id
+                  )
+                )
+            ) AS less_likely,
+            COALESCE((
+              SELECT SUM(grant_row.bonus)::int
+              FROM (
+                SELECT DISTINCT a.id, COALESCE(a.stat_modifier, 0) AS bonus
+                FROM abilities a
+                JOIN stat s ON s.id = a.stat_id AND s.name = 'Initiative'
+                WHERE (c.race IS NOT NULL AND EXISTS (
+                        SELECT 1 FROM race_abilities ra
+                        WHERE ra.race_id = c.race AND ra.ability_id = a.id
+                      ))
+                   OR EXISTS (
+                        SELECT 1 FROM character_abilities ca
+                        WHERE ca.character_id = c.id AND ca.ability_id = a.id
+                      )
+                   OR EXISTS (
+                        SELECT 1 FROM character_classes cc
+                        JOIN class_abilities cla
+                          ON cla.class_id = cc.class_id AND cla.ability_id = a.id
+                        WHERE cc.character_id = c.id
+                          AND cla.level <= COALESCE(cc.class_level, 0)
+                      )
+              ) grant_row
+            ), 0) AS initiative_bonus
+     FROM characters c
+     JOIN campaign_character cc ON cc.character_id = c.id AND cc.campaign_id = $1
+     ORDER BY c.name, c.id`,
+    [campaignId]
+  );
+  return result.rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    dex: row.dex,
+    chr: row.chr,
+    lessLikely: row.less_likely === true,
+    initiativeBonus: Number(row.initiative_bonus) || 0,
+  }));
+}
+
+async function loadEncounterEnemies(campaignId) {
+  const result = await pool.query(
+    `SELECT e.id, e.name, m.hit_dice, m.morale, m.morale_engaged
+     FROM campaign_enemy e
+     LEFT JOIN monster m ON m.id = e.monster_id
+     WHERE e.campaign_id = $1
+     ORDER BY e.id`,
+    [campaignId]
+  );
+  return result.rows;
+}
+
+function combatantRef(raw, name) {
+  if (!raw || typeof raw !== 'object') throw storedError(`${name} is required`, 400);
+  const side = raw.side;
+  if (side !== 'character' && side !== 'enemy') {
+    throw storedError(`${name} side must be character or enemy`, 400);
+  }
+  return { side, id: positiveInt(raw.id, name) };
+}
+
+function optionalBounded(value, name, min, max) {
+  if (value == null || value === '') return null;
+  const n = integerField(value, name);
+  if (n < min || n > max) throw storedError(`${name} must be from ${min} to ${max}`, 400);
+  return n;
+}
+
+function findEquipped(items, id) {
+  if (id == null) return null;
+  return items.find((item) => String(item.id) === String(id)) || null;
+}
+
+async function loadCharacterFighter(campaignId, characterId) {
+  const result = await pool.query(
+    `SELECT c.id, c.name, c.str, c.dex, c.hp,
+            c.equipped_melee_primary_id, c.equipped_melee_secondary_id,
+            c.equipped_ranged_id, c.equipped_armor_id, c.equipped_shield_id,
+            cc.class_level, lvl.ab
+     FROM characters c
+     JOIN campaign_character camp ON camp.character_id = c.id AND camp.campaign_id = $1
+     LEFT JOIN LATERAL (
+       SELECT class_id, class_level
+       FROM character_classes
+       WHERE character_id = c.id
+       ORDER BY sort_order NULLS LAST, class_id
+       LIMIT 1
+     ) cc ON true
+     LEFT JOIN class_leveling lvl ON lvl.class_id = cc.class_id AND lvl.level = cc.class_level
+     WHERE c.id = $2`,
+    [campaignId, characterId]
+  );
+  if (result.rows.length === 0) return null;
+  const row = result.rows[0];
+  const items = await pool.query(
+    `SELECT ci.id, i.attackbonus, i.damagebonus, i.damage, i.ac, i.ac_melee, i.ac_ranged
+     FROM character_items ci
+     LEFT JOIN items i ON i.id = ci.item_id
+     WHERE ci.character_id = $1`,
+    [characterId]
+  );
+  const packed = items.rows.map((item) => ({
+    id: item.id,
+    item_attackbonus: item.attackbonus,
+    item_damagebonus: item.damagebonus,
+    item_damage: item.damage,
+    item_ac: item.ac,
+    item_ac_melee: item.ac_melee,
+    item_ac_ranged: item.ac_ranged,
+  }));
+  return {
+    side: 'character',
+    id: row.id,
+    name: row.name,
+    hp: row.hp == null ? null : Number(row.hp),
+    str: row.str,
+    dex: row.dex,
+    baseAb: row.ab == null || row.ab === '' ? null : Number(row.ab),
+    dualWielding: row.equipped_melee_secondary_id != null,
+    melee: findEquipped(packed, row.equipped_melee_primary_id),
+    ranged: findEquipped(packed, row.equipped_ranged_id),
+    sheet: {
+      dex: row.dex,
+      equipped_armor_id: row.equipped_armor_id,
+      equipped_shield_id: row.equipped_shield_id,
+      items: packed,
+    },
+  };
+}
+
+async function loadEnemyFighter(campaignId, enemyId) {
+  const result = await pool.query(
+    `SELECT e.id, e.name, e.hp, m.hit_dice, m.armor_class, m.defense_note, m.attack_note
+     FROM campaign_enemy e
+     LEFT JOIN monster m ON m.id = e.monster_id
+     WHERE e.campaign_id = $1 AND e.id = $2`,
+    [campaignId, enemyId]
+  );
+  if (result.rows.length === 0) return null;
+  const row = result.rows[0];
+  return {
+    side: 'enemy',
+    id: row.id,
+    name: row.name,
+    hp: row.hp == null ? null : Number(row.hp),
+    hitDice: row.hit_dice,
+    armorClass: row.armor_class == null ? null : Number(row.armor_class),
+    defenseNote: row.defense_note,
+    attackNote: row.attack_note,
+  };
+}
+
+async function loadFighter(campaignId, ref) {
+  if (ref.side === 'character') return loadCharacterFighter(campaignId, ref.id);
+  return loadEnemyFighter(campaignId, ref.id);
+}
+
+function attackBonusFor(figure, mode, typedBonus) {
+  if (figure.side === 'character') {
+    const weapon = mode === 'missile' ? figure.ranged : figure.melee;
+    return characterAttackBonus({
+      baseAb: figure.baseAb,
+      mode,
+      strength: figure.str,
+      dexterity: figure.dex,
+      weaponBonus: weapon ? weapon.item_attackbonus : 0,
+      dualWielding: mode !== 'missile' && figure.dualWielding,
+    });
+  }
+  const fromDice = monsterAttackBonus(figure.hitDice);
+  if (fromDice == null) {
+    if (typedBonus == null) return { error: 'that monster has no attack bonus' };
+    return { bonus: mode === 'back' ? typedBonus + 2 : typedBonus };
+  }
+  return { bonus: mode === 'back' ? fromDice + 2 : fromDice };
+}
+
+function armorFor(figure, mode, typedAc) {
+  if (figure.side === 'character') {
+    const ac = armorClass(figure.sheet);
+    return mode === 'missile' ? ac.ranged : ac.melee;
+  }
+  if (Number.isInteger(figure.armorClass)) return figure.armorClass;
+  return typedAc;
+}
+
+function damageDiceFor(figure, mode) {
+  if (figure.side !== 'character') return null;
+  const weapon = mode === 'missile' ? figure.ranged : figure.melee;
+  if (!weapon) return null;
+  return characterDamageDice({
+    mode,
+    damage: weapon.item_damage,
+    damageBonus: weapon.item_damagebonus,
+    strength: figure.str,
+  });
+}
+
+async function writeHitPoints(campaignId, figure, hp) {
+  if (figure.side === 'character') {
+    await applyStoredCharacterPatch(pool, figure.id, { hp });
+    return;
+  }
+  const updated = await pool.query(
+    'UPDATE campaign_enemy SET hp = $1 WHERE id = $2 AND campaign_id = $3',
+    [hp, figure.id, campaignId]
+  );
+  if (updated.rowCount === 0) throw storedError('Enemy not found', 404);
 }
 
 async function applyWander(client, campaignId, clock) {
@@ -2124,7 +2653,7 @@ async function tableForCampaign(client, campaignId, tableId) {
   const found = await client.query(
     `SELECT t.id, t.campaign_id FROM encounter_table t
      JOIN campaign c ON c.id = $1
-     WHERE t.id = $2 AND (t.campaign_id = c.id OR (t.ruleset_id = c.ruleset_id AND t.campaign_id IS NULL))`,
+     WHERE t.id = $2 AND (t.campaign_id = c.id OR (t.campaign_id IS NULL AND ${visibleStockTable('t')}))`,
     [campaignId, tableId]
   );
   return found.rows[0] || null;
@@ -2414,8 +2943,15 @@ app.post('/api/campaigns/:campaignId/adventuring/party', async (req, res) => {
       const quantity = req.body.quantity == null ? 1 : positiveInt(req.body.quantity, 'quantity');
       const item = await pool.query(
         `SELECT i.id FROM items i
-         JOIN campaign c ON c.ruleset_id = i.ruleset_id
-         WHERE i.id = $1 AND c.id = $2`,
+         JOIN campaign c ON c.id = $2
+         WHERE i.id = $1 AND ${visibleInRuleset(
+           'items',
+           'i',
+           `child_row.category IS NOT DISTINCT FROM i.category
+            AND child_row.type IS NOT DISTINCT FROM i.type
+            AND child_row.name = i.name
+            AND child_row.size IS NOT DISTINCT FROM i.size`
+         ).replaceAll('$1', 'c.ruleset_id')}`,
         [itemId, req.params.campaignId]
       );
       if (item.rows.length === 0) {
@@ -2432,6 +2968,185 @@ app.post('/api/campaigns/:campaignId/adventuring/party', async (req, res) => {
     if (error.status) return res.status(error.status).json({ error: error.message });
     console.error('Error queuing party command:', error);
     res.status(500).json({ error: error.message || 'Failed to queue party command' });
+  }
+});
+
+async function loadAwardParty(campaignId) {
+  const result = await pool.query(
+    `SELECT c.id, c.name, COALESCE(c.xp, 0) AS xp,
+            COALESCE((
+              SELECT SUM((cmd.payload->>'amount')::int)
+              FROM campaign_command cmd
+              WHERE cmd.campaign_id = $1
+                AND cmd.recipient_character_id = c.id
+                AND cmd.type = 'give_xp'
+                AND cmd.read_at IS NULL
+                AND (cmd.payload->>'amount') ~ '^[0-9]+$'
+            ), 0) AS pending,
+            COALESCE((
+              SELECT json_agg(json_build_object(
+                'level', base.level,
+                'xp', base.xp + COALESCE(quasi.xp, 0)
+              ) ORDER BY base.level)
+              FROM class_leveling base
+              LEFT JOIN class_leveling quasi
+                ON quasi.class_id = c.quasiclass AND quasi.level = base.level
+              WHERE base.class_id = (
+                SELECT cc.class_id FROM character_classes cc
+                WHERE cc.character_id = c.id
+                ORDER BY cc.sort_order, cc.class_id
+                LIMIT 1
+              )
+            ), '[]'::json) AS leveling
+     FROM characters c
+     JOIN campaign_character camp ON camp.character_id = c.id AND camp.campaign_id = $1
+     ORDER BY c.name, c.id`,
+    [campaignId]
+  );
+  return result.rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    xp: Number(row.xp) || 0,
+    pending: Number(row.pending) || 0,
+    leveling: Array.isArray(row.leveling) ? row.leveling : [],
+  }));
+}
+
+async function resolveAwardGroups(campaignId, rawGroups) {
+  if (!Array.isArray(rawGroups) || rawGroups.length === 0) {
+    throw storedError('Add at least one monster or NPC', 400);
+  }
+  const groups = [];
+  for (const raw of rawGroups) {
+    const count = positiveInt(raw?.count, 'count');
+    let hitDice = raw?.hit_dice == null ? '' : String(raw.hit_dice).trim();
+    let name = raw?.name == null ? '' : String(raw.name).trim().slice(0, 80);
+    if (raw?.enemy_id != null && String(raw.enemy_id).trim() !== '') {
+      const enemyId = positiveInt(raw.enemy_id, 'enemy_id');
+      const enemy = await pool.query(
+        `SELECT e.name, m.hit_dice
+         FROM campaign_enemy e
+         LEFT JOIN monster m ON m.id = e.monster_id
+         WHERE e.id = $1 AND e.campaign_id = $2`,
+        [enemyId, campaignId]
+      );
+      if (enemy.rows.length === 0) throw storedError('Enemy not found', 404);
+      if (!hitDice) hitDice = enemy.rows[0].hit_dice || '';
+      if (!name) name = enemy.rows[0].name;
+    }
+    const level = raw?.level == null || raw.level === '' ? null : optionalBounded(raw.level, 'level', 1, 100);
+    const figured = awardLine({
+      hitDice,
+      level,
+      spells: raw?.spells === true,
+      count,
+    });
+    if (figured.error) throw storedError(name ? `${name}: ${figured.error}` : figured.error, 400);
+    groups.push({ name: name || hitDice || `level ${level}`, ...figured });
+  }
+  return groups;
+}
+
+function awardShares(total, party, requested) {
+  const byId = new Map(requested.map((row) => [row.id, row.retainer === true]));
+  const members = [];
+  for (const [id, retainer] of byId) {
+    const person = party.find((row) => row.id === id);
+    if (!person) throw storedError('Character is not in this campaign', 404);
+    members.push({ ...person, retainer });
+  }
+  if (members.length === 0) throw storedError('no one to award', 400);
+  const split = splitAward(total, members);
+  if (split.error) throw storedError(split.error, 400);
+  return {
+    full: split.full,
+    half: split.half,
+    shares: split.shares.map((share) => {
+      const person = members.find((row) => row.id === share.id);
+      const capped = cappedAward(person.xp, person.pending, person.leveling, share.amount);
+      return {
+        character_id: share.id,
+        name: share.name,
+        retainer: share.retainer,
+        table: share.amount,
+        amount: capped.amount,
+        capped: capped.capped,
+        ceiling: capped.ceiling,
+      };
+    }),
+  };
+}
+
+app.post('/api/campaigns/:campaignId/adventuring/award', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const groups = await resolveAwardGroups(req.params.campaignId, req.body?.groups);
+    const total = groups.reduce((sum, group) => sum + group.subtotal, 0);
+    const requested = Array.isArray(req.body?.members) ? req.body.members : [];
+    const party = await loadAwardParty(req.params.campaignId);
+    const shares = awardShares(total, party, requested.map((row) => ({
+      id: positiveInt(row?.character_id, 'character_id'),
+      retainer: row?.retainer === true,
+    })));
+    res.json({ total, groups, ...shares });
+  } catch (error) {
+    if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    console.error('Error tallying experience:', error);
+    res.status(500).json({ error: error.message || 'Failed to tally experience' });
+  }
+});
+
+app.post('/api/campaigns/:campaignId/adventuring/award/apply', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    if (!Array.isArray(req.body?.awards) || req.body.awards.length === 0) {
+      return res.status(400).json({ error: 'no one to award' });
+    }
+    const party = await loadAwardParty(req.params.campaignId);
+    const rows = [];
+    for (const raw of req.body.awards) {
+      const characterId = positiveInt(raw?.character_id, 'character_id');
+      const person = party.find((row) => row.id === characterId);
+      if (!person) return res.status(404).json({ error: 'Character is not in this campaign' });
+      const asked = nonNegativeInt(raw?.amount, 'amount');
+      const capped = cappedAward(person.xp, person.pending, person.leveling, asked);
+      if (capped.error) return res.status(400).json({ error: capped.error });
+      rows.push({
+        character_id: person.id,
+        name: person.name,
+        amount: capped.amount,
+        capped: capped.capped,
+        ceiling: capped.ceiling,
+      });
+    }
+    const giving = rows.filter((row) => row.amount >= 1);
+    if (giving.length === 0) return res.status(400).json({ error: 'Nothing to award' });
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      for (const row of giving) {
+        await client.query(
+          `INSERT INTO campaign_command (campaign_id, recipient_character_id, type, payload)
+           VALUES ($1, $2, 'give_xp', $3::jsonb)`,
+          [req.params.campaignId, row.character_id, JSON.stringify({ amount: row.amount })]
+        );
+      }
+      await client.query('COMMIT');
+    } catch (error) {
+      try { await client.query('ROLLBACK'); } catch (_) { /* connection already failed */ }
+      throw error;
+    } finally {
+      client.release();
+    }
+    res.status(201).json({ queued: giving.length, awards: rows });
+  } catch (error) {
+    if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    console.error('Error applying experience:', error);
+    res.status(500).json({ error: error.message || 'Failed to apply experience' });
   }
 });
 
@@ -2454,8 +3169,19 @@ app.post('/api/campaigns/:campaignId/adventuring/treasure', async (req, res) => 
     const found = await pool.query(
       `SELECT t.code, t.definition
        FROM treasure_type t
-       JOIN campaign c ON c.ruleset_id = t.ruleset_id
-       WHERE c.id = $1 AND lower(t.code) = lower($2)`,
+       JOIN campaign c ON c.id = $1
+       WHERE lower(t.code) = lower($2)
+         AND (
+           t.ruleset_id = c.ruleset_id
+           OR (
+             t.ruleset_id = (SELECT parent_ruleset_id FROM ruleset WHERE id = c.ruleset_id)
+             AND NOT EXISTS (
+               SELECT 1 FROM treasure_type child_row
+               WHERE child_row.ruleset_id = c.ruleset_id
+                 AND lower(child_row.code) = lower(t.code)
+             )
+           )
+         )`,
       [req.params.campaignId, code]
     );
     if (found.rows.length === 0) return res.status(400).json({ error: `No treasure type ${code}` });
@@ -2468,6 +3194,357 @@ app.post('/api/campaigns/:campaignId/adventuring/treasure', async (req, res) => 
     if (error.status) return res.status(error.status).json({ error: error.message });
     console.error('Error rolling treasure:', error);
     res.status(500).json({ error: error.message || 'Failed to roll treasure' });
+  }
+});
+
+app.post('/api/campaigns/:campaignId/adventuring/surprise', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const open = await openEncounter(req.params.campaignId);
+    if (rejectEncounter(res, open)) return;
+    const party = await loadPartyActors(req.params.campaignId);
+    const enemies = await loadEncounterEnemies(req.params.campaignId);
+    const keenIds = req.body?.less_likely_enemy_ids;
+    const keen = new Set();
+    if (keenIds != null) {
+      if (!Array.isArray(keenIds)) return res.status(400).json({ error: 'less_likely_enemy_ids must be a list' });
+      for (const raw of keenIds) keen.add(positiveInt(raw, 'less_likely_enemy_ids'));
+    }
+    for (const id of keen) {
+      if (!enemies.some((enemy) => enemy.id === id)) {
+        return res.status(400).json({ error: 'That enemy is not in this encounter' });
+      }
+    }
+    const rolled = rollSurprise({
+      party: party.map((actor) => ({ id: actor.id, name: actor.name, lessLikely: actor.lessLikely })),
+      enemies: enemies.map((enemy) => ({ id: enemy.id, name: enemy.name, lessLikely: keen.has(enemy.id) })),
+      partyAmbushed: req.body?.party_ambush === true,
+      enemiesAmbushed: req.body?.enemy_ambush === true,
+      rollDie,
+    });
+    if (rolled.error) return res.status(400).json({ error: rolled.error });
+    res.json(rolled);
+  } catch (error) {
+    if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    console.error('Error rolling surprise:', error);
+    res.status(500).json({ error: error.message || 'Failed to roll surprise' });
+  }
+});
+
+app.post('/api/campaigns/:campaignId/adventuring/reaction', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const open = await openEncounter(req.params.campaignId);
+    if (rejectEncounter(res, open)) return;
+    const characterId = positiveInt(req.body?.character_id, 'character_id');
+    const party = await loadPartyActors(req.params.campaignId);
+    const lead = party.find((actor) => actor.id === characterId);
+    if (!lead) return res.status(404).json({ error: 'Character is not in this campaign' });
+    const adjustment = optionalAdjustment(req.body?.adjustment, 'adjustment', -10, 10);
+    const rolled = rollReaction({ bonus: abilityModifier(lead.chr), adjustment, rollDie });
+    if (rolled.error) return res.status(400).json({ error: rolled.error });
+    res.json({ character_id: lead.id, name: lead.name, ...rolled });
+  } catch (error) {
+    if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    console.error('Error rolling reaction:', error);
+    res.status(500).json({ error: error.message || 'Failed to roll reaction' });
+  }
+});
+
+app.post('/api/campaigns/:campaignId/adventuring/initiative', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const open = await openEncounter(req.params.campaignId);
+    if (rejectEncounter(res, open)) return;
+    const party = await loadPartyActors(req.params.campaignId);
+    const enemies = await loadEncounterEnemies(req.params.campaignId);
+    const actors = [
+      ...party.map((actor) => ({
+        id: actor.id,
+        name: actor.name,
+        side: 'party',
+        bonus: abilityModifier(actor.dex) + actor.initiativeBonus,
+      })),
+      ...enemies.map((enemy) => ({
+        id: enemy.id,
+        name: enemy.name,
+        side: 'enemy',
+        bonus: 0,
+      })),
+    ];
+    const rolled = rollInitiative({ actors, rollDie });
+    if (rolled.error) return res.status(400).json({ error: rolled.error });
+    res.json(rolled);
+  } catch (error) {
+    if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    console.error('Error rolling initiative:', error);
+    res.status(500).json({ error: error.message || 'Failed to roll initiative' });
+  }
+});
+
+app.post('/api/campaigns/:campaignId/adventuring/morale', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const open = await openEncounter(req.params.campaignId);
+    if (rejectEncounter(res, open)) return;
+    const enemyId = positiveInt(req.body?.enemy_id, 'enemy_id');
+    const enemies = await loadEncounterEnemies(req.params.campaignId);
+    const enemy = enemies.find((row) => row.id === enemyId);
+    if (!enemy) return res.status(404).json({ error: 'Enemy not found' });
+    const engaged = req.body?.engaged === true;
+    let score = enemy.morale;
+    if (engaged) {
+      if (enemy.morale_engaged == null) return res.status(400).json({ error: 'That monster has no engaged morale' });
+      score = enemy.morale_engaged;
+    }
+    if (score == null) return res.status(400).json({ error: 'That monster has no morale' });
+    const adjustment = optionalAdjustment(req.body?.adjustment, 'adjustment', -2, 2);
+    const rolled = rollMorale({ score: Number(score), adjustment, rollDie });
+    if (rolled.error) return res.status(400).json({ error: rolled.error });
+    res.json({ enemy_id: enemy.id, name: enemy.name, engaged, ...rolled });
+  } catch (error) {
+    if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    console.error('Error rolling morale:', error);
+    res.status(500).json({ error: error.message || 'Failed to roll morale' });
+  }
+});
+
+app.post('/api/campaigns/:campaignId/adventuring/turn', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const open = await openEncounter(req.params.campaignId);
+    if (rejectEncounter(res, open)) return;
+    const characterId = positiveInt(req.body?.character_id, 'character_id');
+    const blocked = await pool.query(
+      `SELECT until_seconds FROM campaign_turn_block
+       WHERE campaign_id = $1 AND character_id = $2 AND until_seconds > $3`,
+      [req.params.campaignId, characterId, open.game_seconds]
+    );
+    if (blocked.rows.length > 0) {
+      return res.status(400).json({ error: 'That cleric cannot turn undead again yet' });
+    }
+    const cleric = await pool.query(
+      `SELECT c.name, cc.class_level
+       FROM characters c
+       JOIN campaign_character camp ON camp.character_id = c.id AND camp.campaign_id = $1
+       JOIN character_classes cc ON cc.character_id = c.id
+       JOIN classes cl ON cl.id = cc.class_id
+       WHERE c.id = $2 AND lower(cl.name) = 'cleric'
+       ORDER BY cc.class_level DESC NULLS LAST
+       LIMIT 1`,
+      [req.params.campaignId, characterId]
+    );
+    if (cleric.rows.length === 0) return res.status(400).json({ error: 'That character is not a cleric' });
+    const level = Number(cleric.rows[0].class_level);
+    if (!Number.isInteger(level) || level < 1) return res.status(400).json({ error: 'That cleric has no level' });
+    if (!Array.isArray(req.body?.groups) || req.body.groups.length === 0) {
+      return res.status(400).json({ error: 'choose undead to turn' });
+    }
+    const enemies = await loadEncounterEnemies(req.params.campaignId);
+    const seen = new Set();
+    const groups = [];
+    for (const raw of req.body.groups) {
+      const enemyId = positiveInt(raw?.enemy_id, 'enemy_id');
+      if (seen.has(enemyId)) return res.status(400).json({ error: 'That enemy is listed twice' });
+      seen.add(enemyId);
+      const enemy = enemies.find((row) => row.id === enemyId);
+      if (!enemy) return res.status(400).json({ error: 'That enemy is not in this encounter' });
+      const count = positiveInt(raw?.count, 'count');
+      const rawHd = raw?.hit_dice;
+      const override = rawHd == null || rawHd === '' ? null : positiveInt(rawHd, 'hit_dice');
+      const resolved = resolveUndead(enemy.name, enemy.hit_dice, override);
+      if (resolved.error) return res.status(400).json({ error: `${enemy.name}: ${resolved.error}` });
+      groups.push({
+        id: enemy.id,
+        name: enemy.name,
+        count,
+        column: resolved.column,
+        label: resolved.label,
+        hitDice: resolved.hitDice,
+      });
+    }
+    const rolled = rollTurn({ level, groups, rollDie });
+    if (rolled.error) return res.status(400).json({ error: rolled.error });
+    const until = open.game_seconds + TURN_SECONDS;
+    if (rolled.block) {
+      await pool.query(
+        `INSERT INTO campaign_turn_block (campaign_id, character_id, until_seconds)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (campaign_id, character_id) DO UPDATE SET until_seconds = EXCLUDED.until_seconds`,
+        [req.params.campaignId, characterId, until]
+      );
+    } else {
+      await pool.query(
+        'DELETE FROM campaign_turn_block WHERE campaign_id = $1 AND character_id = $2',
+        [req.params.campaignId, characterId]
+      );
+    }
+    res.json({
+      character_id: characterId,
+      name: cleric.rows[0].name,
+      until_seconds: rolled.block ? until : null,
+      ...rolled,
+    });
+  } catch (error) {
+    if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    console.error('Error turning undead:', error);
+    res.status(500).json({ error: error.message || 'Failed to turn undead' });
+  }
+});
+
+app.post('/api/campaigns/:campaignId/adventuring/attack', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const open = await openEncounter(req.params.campaignId);
+    if (rejectEncounter(res, open)) return;
+    const mode = req.body?.mode;
+    if (mode !== 'melee' && mode !== 'missile' && mode !== 'back') {
+      return res.status(400).json({ error: 'mode must be melee, missile, or back' });
+    }
+    const attackerRef = combatantRef(req.body?.attacker, 'attacker');
+    const defenderRef = combatantRef(req.body?.defender, 'defender');
+    if (attackerRef.side === defenderRef.side && attackerRef.id === defenderRef.id) {
+      return res.status(400).json({ error: 'The attacker and the defender are the same' });
+    }
+    const attacker = await loadFighter(req.params.campaignId, attackerRef);
+    const defender = await loadFighter(req.params.campaignId, defenderRef);
+    if (!attacker) return res.status(404).json({ error: 'Attacker not found' });
+    if (!defender) return res.status(404).json({ error: 'Defender not found' });
+    const typedBonus = attacker.side === 'enemy' && monsterAttackBonus(attacker.hitDice) == null
+      ? optionalBounded(req.body?.attack_bonus, 'attack_bonus', -10, 20)
+      : null;
+    const bonus = attackBonusFor(attacker, mode, typedBonus);
+    if (bonus.error) return res.status(400).json({ error: bonus.error });
+    const typedAc = defender.side === 'enemy' && !Number.isInteger(defender.armorClass)
+      ? optionalBounded(req.body?.armor_class, 'armor_class', -10, 40)
+      : null;
+    const defenderAc = armorFor(defender, mode, typedAc);
+    if (!Number.isInteger(defenderAc)) {
+      const note = defender.defenseNote ? `: ${defender.defenseNote}` : '';
+      return res.status(400).json({ error: `No armor class${note}` });
+    }
+    const adjustment = optionalAdjustment(req.body?.adjustment, 'adjustment', -10, 10);
+    const rolled = rollAttack({
+      attackBonus: bonus.bonus,
+      adjustment,
+      armorClass: defenderAc,
+      rollDie,
+    });
+    if (rolled.error) return res.status(400).json({ error: rolled.error });
+    res.json({
+      attacker: { side: attacker.side, id: attacker.id, name: attacker.name },
+      defender: { side: defender.side, id: defender.id, name: defender.name },
+      mode,
+      attack_note: attacker.attackNote || null,
+      damage: damageDiceFor(attacker, mode),
+      roll: rolled.roll,
+      attack_bonus: rolled.attackBonus,
+      adjustment: rolled.adjustment,
+      bonus: rolled.bonus,
+      total: rolled.total,
+      armor_class: rolled.armorClass,
+      hit: rolled.hit,
+      natural: rolled.natural,
+    });
+  } catch (error) {
+    if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    console.error('Error rolling attack:', error);
+    res.status(500).json({ error: error.message || 'Failed to roll attack' });
+  }
+});
+
+app.post('/api/campaigns/:campaignId/adventuring/damage', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const open = await openEncounter(req.params.campaignId);
+    if (rejectEncounter(res, open)) return;
+    const defenderRef = combatantRef(req.body?.defender, 'defender');
+    const defender = await loadFighter(req.params.campaignId, defenderRef);
+    if (!defender) return res.status(404).json({ error: 'Defender not found' });
+    let amount;
+    let faces = null;
+    let flat = null;
+    if (req.body?.roll === true) {
+      const mode = req.body?.mode;
+      if (mode !== 'melee' && mode !== 'missile' && mode !== 'back') {
+        return res.status(400).json({ error: 'mode must be melee, missile, or back' });
+      }
+      const attacker = await loadFighter(req.params.campaignId, combatantRef(req.body?.attacker, 'attacker'));
+      if (!attacker) return res.status(404).json({ error: 'Attacker not found' });
+      const dice = damageDiceFor(attacker, mode);
+      if (!dice) return res.status(400).json({ error: 'Enter the damage' });
+      const rolled = rollWeaponDamage({ ...dice, rollDie });
+      if (rolled.error) return res.status(400).json({ error: rolled.error });
+      amount = rolled.amount;
+      faces = rolled.faces;
+      flat = rolled.flat;
+    } else {
+      amount = positiveInt(req.body?.amount, 'amount');
+    }
+    const applied = applyHitPoints(defender.hp, amount);
+    if (applied.error) {
+      const message = defender.side === 'enemy' && applied.error === 'no hit points'
+        ? 'Set hit points on that enemy first'
+        : applied.error;
+      return res.status(400).json({ error: message });
+    }
+    await writeHitPoints(req.params.campaignId, defender, applied.hp);
+    res.json({
+      defender: { side: defender.side, id: defender.id, name: defender.name },
+      amount,
+      faces,
+      flat,
+      hp: applied.hp,
+      down: applied.down,
+    });
+  } catch (error) {
+    if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    console.error('Error applying damage:', error);
+    res.status(500).json({ error: error.message || 'Failed to apply damage' });
+  }
+});
+
+app.post('/api/campaigns/:campaignId/adventuring/enemies/:enemyId/hit-points', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const open = await openEncounter(req.params.campaignId);
+    if (rejectEncounter(res, open)) return;
+    const enemy = await loadEnemyFighter(req.params.campaignId, positiveInt(req.params.enemyId, 'enemy'));
+    if (!enemy) return res.status(404).json({ error: 'Enemy not found' });
+    let hp;
+    let faces = null;
+    let flat = null;
+    if (req.body?.roll === true) {
+      const rolled = rollMonsterHitPoints(enemy.hitDice, rollDie);
+      if (rolled.error) return res.status(400).json({ error: rolled.error });
+      hp = rolled.amount;
+      faces = rolled.faces;
+      flat = rolled.flat;
+    } else {
+      hp = nonNegativeInt(req.body?.hp, 'hp');
+    }
+    await writeHitPoints(req.params.campaignId, enemy, hp);
+    res.json({ enemy_id: enemy.id, name: enemy.name, hp, faces, flat, down: hp === 0 });
+  } catch (error) {
+    if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    console.error('Error setting enemy hit points:', error);
+    res.status(500).json({ error: error.message || 'Failed to set hit points' });
   }
 });
 
@@ -2632,6 +3709,577 @@ app.delete('/api/campaigns/:campaignId/adventuring/enemies/:enemyId', async (req
     if (adventuringMissing(res, error)) return;
     console.error('Error removing enemy:', error);
     res.status(500).json({ error: error.message || 'Failed to remove enemy' });
+  }
+});
+
+function marchPartySql(lock) {
+  return `SELECT c.id, c.name, c.hp, c.con, c.wis,
+            cc.march_days, cc.march_failed,
+            (
+              SELECT ca.int_param
+              FROM character_classes cls
+              JOIN class_abilities ca
+                ON ca.class_id = cls.class_id
+               AND ca.ability_id = 5
+               AND ca.ruleset_id = c.ruleset_id
+               AND ca.level <= COALESCE(cls.class_level, 1)
+              WHERE cls.character_id = c.id
+              ORDER BY cls.sort_order, cls.class_id, ca.level DESC
+              LIMIT 1
+            ) AS death_ray
+     FROM characters c
+     INNER JOIN campaign_character cc ON cc.character_id = c.id AND cc.campaign_id = $1
+     ORDER BY c.name
+     ${lock ? 'FOR UPDATE OF c, cc' : ''}`;
+}
+
+app.post('/api/campaigns/:campaignId/adventuring/march', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const rest = booleanField(req.body?.rest, 'rest');
+    await client.query('BEGIN');
+    const found = await client.query(marchPartySql(true), [req.params.campaignId]);
+    if (found.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'No characters in this campaign' });
+    }
+    if (rest) {
+      await client.query(
+        'UPDATE campaign_character SET march_days = 0, march_failed = false WHERE campaign_id = $1',
+        [req.params.campaignId]
+      );
+      await client.query('COMMIT');
+      return res.json({ rested: true });
+    }
+    const results = [];
+    for (const row of found.rows) {
+      const day = marchDay({
+        days: Number(row.march_days) || 0,
+        failed: row.march_failed === true,
+        constitution: row.con,
+        target: row.death_ray == null ? null : Number(row.death_ray),
+      }, () => rollDie(20), () => rollDie(6));
+      if (day.error) {
+        await client.query('ROLLBACK');
+        const message = day.error === 'no Death Ray save' ? `No Death Ray save for ${row.name}` : day.error;
+        return res.status(400).json({ error: message });
+      }
+      const current = row.hp == null ? null : Number(row.hp);
+      const applied = applyBodyHitPoints(current, day.damage === 0 ? 0 : -day.damage);
+      if (applied.error) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: `${row.name}: ${applied.error}` });
+      }
+      if (applied.changed) {
+        await client.query('UPDATE characters SET hp = $1 WHERE id = $2', [applied.hp, row.id]);
+      }
+      await client.query(
+        `UPDATE campaign_character SET march_days = $3, march_failed = $4
+         WHERE campaign_id = $1 AND character_id = $2`,
+        [req.params.campaignId, row.id, day.day, day.failed]
+      );
+      results.push({
+        character_id: row.id,
+        name: row.name,
+        day: day.day,
+        damage: day.damage,
+        saved: day.saved,
+        failed: day.failed,
+        hp: applied.hp,
+        down: applied.down,
+        roll: day.save ? day.save.roll : null,
+        total: day.save ? day.save.total : null,
+        target: day.save ? day.save.target : null,
+      });
+    }
+    await client.query('COMMIT');
+    res.json({ rested: false, results });
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch (_) { /* connection already failed */ }
+    if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    console.error('Error marching:', error);
+    res.status(500).json({ error: error.message || 'Failed to march' });
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/campaigns/:campaignId/adventuring/lost', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const characterId = positiveInt(req.body?.character_id, 'character_id');
+    const following = booleanField(req.body?.following, 'following');
+    const found = await pool.query(
+      `${marchPartySql(false)} `.replace('ORDER BY c.name', 'AND c.id = $2 ORDER BY c.name'),
+      [req.params.campaignId, characterId]
+    );
+    if (found.rows.length === 0) return res.status(404).json({ error: 'Character not found' });
+    const row = found.rows[0];
+    const result = lostCheck({
+      following,
+      wisdom: row.wis,
+      target: row.death_ray == null ? null : Number(row.death_ray),
+    }, () => rollDie(20));
+    if (result.error) {
+      const message = result.error === 'no Death Ray save' ? `No Death Ray save for ${row.name}` : result.error;
+      return res.status(400).json({ error: message });
+    }
+    res.json({
+      character_id: row.id,
+      name: row.name,
+      lost: result.lost,
+      skipped: result.skipped,
+      roll: result.save ? result.save.roll : null,
+      modifier: result.save ? result.save.modifier : null,
+      total: result.save ? result.save.total : null,
+      target: result.save ? result.save.target : null,
+    });
+  } catch (error) {
+    if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    console.error('Error checking lost:', error);
+    res.status(500).json({ error: error.message || 'Failed to check lost' });
+  }
+});
+
+app.post('/api/campaigns/:campaignId/adventuring/weather', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const navigator = booleanField(req.body?.navigator, 'navigator');
+    res.json(sailingDay(rollDie(12), rollDie(100), navigator));
+  } catch (error) {
+    if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    console.error('Error rolling weather:', error);
+    res.status(500).json({ error: error.message || 'Failed to roll weather' });
+  }
+});
+
+async function loadEmployer(campaignId, characterId) {
+  const found = await pool.query(
+    `SELECT c.id, c.name, c.chr, cc.hire_penalty,
+            (SELECT MAX(class_level) FROM character_classes WHERE character_id = c.id) AS employer_level,
+            (SELECT COUNT(*)::int FROM campaign_hireling h
+              WHERE h.campaign_id = cc.campaign_id AND h.employer_id = c.id AND h.kind = 'retainer') AS retained
+     FROM characters c
+     INNER JOIN campaign_character cc ON cc.character_id = c.id AND cc.campaign_id = $1
+     WHERE c.id = $2`,
+    [campaignId, characterId]
+  );
+  return found.rows[0] || null;
+}
+
+app.post('/api/campaigns/:campaignId/adventuring/hire/roll', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const characterId = positiveInt(req.body?.character_id, 'character_id');
+    const adjustment = optionalAdjustment(req.body?.adjustment, 'adjustment', -10, 10);
+    const employer = await loadEmployer(req.params.campaignId, characterId);
+    if (!employer) return res.status(404).json({ error: 'Character not found' });
+    const level = employer.employer_level == null ? 1 : Number(employer.employer_level);
+    const gate = canHireRetainer({
+      employerLevel: level,
+      retainerLevel: 1,
+      charisma: employer.chr,
+      retained: Number(employer.retained) || 0,
+    });
+    if (gate.error && gate.maxLevel < 1) return res.status(400).json({ error: gate.error });
+    if ((Number(employer.retained) || 0) >= gate.cap) return res.status(400).json({ error: gate.error });
+    const rolled = hireReaction({
+      bonus: retainerCap(employer.chr) - 4,
+      penalty: Number(employer.hire_penalty) || 0,
+      adjustment,
+      rollDie,
+    });
+    if (rolled.error) return res.status(400).json({ error: rolled.error });
+    if (rolled.further === -1) {
+      await pool.query(
+        'UPDATE campaign_character SET hire_penalty = -1 WHERE campaign_id = $1 AND character_id = $2',
+        [req.params.campaignId, characterId]
+      );
+    }
+    res.json({ ...rolled, character_id: characterId, name: employer.name });
+  } catch (error) {
+    if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    console.error('Error hiring:', error);
+    res.status(500).json({ error: error.message || 'Failed to hire' });
+  }
+});
+
+app.post('/api/campaigns/:campaignId/adventuring/hire/clear', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const characterId = positiveInt(req.body?.character_id, 'character_id');
+    const updated = await pool.query(
+      `UPDATE campaign_character SET hire_penalty = 0
+       WHERE campaign_id = $1 AND character_id = $2
+       RETURNING character_id`,
+      [req.params.campaignId, characterId]
+    );
+    if (updated.rows.length === 0) return res.status(404).json({ error: 'Character not found' });
+    res.json({ character_id: characterId, hire_penalty: 0 });
+  } catch (error) {
+    if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    console.error('Error clearing hire penalty:', error);
+    res.status(500).json({ error: error.message || 'Failed to clear the penalty' });
+  }
+});
+
+app.post('/api/campaigns/:campaignId/adventuring/hire', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const characterId = positiveInt(req.body?.character_id, 'character_id');
+    const kind = req.body?.kind;
+    const employer = await loadEmployer(req.params.campaignId, characterId);
+    if (!employer) return res.status(404).json({ error: 'Character not found' });
+    let name;
+    let detail = null;
+    let level = null;
+    let loyalty = null;
+    let morale = null;
+    let cost = null;
+    let quantity = 1;
+    if (kind === 'retainer') {
+      const total = integerField(req.body?.total, 'total');
+      if (!Number.isInteger(total) || total < 9) return res.status(400).json({ error: 'They have not accepted' });
+      name = optionalText(req.body?.name, 'name', 80);
+      if (!name) return res.status(400).json({ error: 'name must be 1 to 80 characters' });
+      level = positiveInt(req.body?.level, 'level');
+      const gate = canHireRetainer({
+        employerLevel: employer.employer_level == null ? 1 : Number(employer.employer_level),
+        retainerLevel: level,
+        charisma: employer.chr,
+        retained: Number(employer.retained) || 0,
+      });
+      if (gate.error) return res.status(400).json({ error: gate.error });
+      loyalty = startingLoyalty(employer.chr, total >= 12);
+    } else if (kind === 'specialist') {
+      const priced = specialistCost(req.body?.role, req.body?.cost == null ? null : integerField(req.body.cost, 'cost'));
+      if (priced.error) return res.status(400).json({ error: priced.error });
+      name = priced.role;
+      cost = priced.cost;
+    } else if (kind === 'mercenary') {
+      level = req.body?.level == null ? 1 : positiveInt(req.body.level, 'level');
+      quantity = req.body?.quantity == null ? 1 : positiveInt(req.body.quantity, 'quantity');
+      const offer = mercenaryOffer(req.body?.role, level, quantity);
+      if (offer.error) return res.status(400).json({ error: offer.error });
+      name = offer.role;
+      detail = offer.equipment;
+      morale = offer.morale;
+      cost = offer.cost;
+      level = offer.level;
+      quantity = offer.quantity;
+    } else {
+      return res.status(400).json({ error: 'kind must be retainer, specialist, or mercenary' });
+    }
+    const inserted = await pool.query(
+      `INSERT INTO campaign_hireling
+         (campaign_id, employer_id, kind, name, detail, level, loyalty, morale, cost_gp, quantity)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       RETURNING id, employer_id, kind, name, detail, level, loyalty, morale, cost_gp, quantity`,
+      [req.params.campaignId, characterId, kind, name, detail, level, loyalty, morale, cost, quantity]
+    );
+    res.status(201).json(inserted.rows[0]);
+  } catch (error) {
+    if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    console.error('Error adding hireling:', error);
+    res.status(500).json({ error: error.message || 'Failed to add hireling' });
+  }
+});
+
+app.post('/api/campaigns/:campaignId/adventuring/hirelings/:hirelingId/check', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const adjustment = optionalAdjustment(req.body?.adjustment, 'adjustment', -2, 2);
+    const combat = booleanField(req.body?.combat, 'combat');
+    const end = booleanField(req.body?.end, 'end');
+    const found = await pool.query(
+      `SELECT id, kind, name, loyalty, morale FROM campaign_hireling
+       WHERE id = $1 AND campaign_id = $2`,
+      [req.params.hirelingId, req.params.campaignId]
+    );
+    if (found.rows.length === 0) return res.status(404).json({ error: 'Hireling not found' });
+    const row = found.rows[0];
+    if (row.kind === 'specialist') return res.status(400).json({ error: 'A specialist has no loyalty or morale' });
+    let checked;
+    if (row.kind === 'retainer') {
+      checked = loyaltyCheck({
+        score: Number(row.loyalty),
+        adjustment,
+        combat,
+        rollDie,
+      });
+    } else {
+      checked = rollMorale({ score: Number(row.morale), adjustment, rollDie });
+      checked = checked.error ? checked : { ...checked, loyalty: null, result: checked.result === 'holds' ? 'holds' : 'leaves' };
+    }
+    if (checked.error) return res.status(400).json({ error: checked.error });
+    let removed = false;
+    if (row.kind === 'retainer' && checked.loyalty !== Number(row.loyalty)) {
+      await pool.query('UPDATE campaign_hireling SET loyalty = $1 WHERE id = $2', [checked.loyalty, row.id]);
+    }
+    if (end && checked.result === 'leaves') {
+      await pool.query('DELETE FROM campaign_hireling WHERE id = $1', [row.id]);
+      removed = true;
+    }
+    res.json({
+      id: row.id,
+      name: row.name,
+      kind: row.kind,
+      roll: checked.roll,
+      target: checked.target,
+      result: checked.result,
+      loyalty: checked.loyalty,
+      removed,
+    });
+  } catch (error) {
+    if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    console.error('Error checking hireling:', error);
+    res.status(500).json({ error: error.message || 'Failed to check hireling' });
+  }
+});
+
+app.post('/api/campaigns/:campaignId/adventuring/hire/adventure', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const adjustment = optionalAdjustment(req.body?.adjustment, 'adjustment', -2, 2);
+    const found = await pool.query(
+      `SELECT id, name, loyalty FROM campaign_hireling
+       WHERE campaign_id = $1 AND kind = 'retainer' ORDER BY name, id`,
+      [req.params.campaignId]
+    );
+    if (found.rows.length === 0) return res.status(400).json({ error: 'No retainers' });
+    const results = [];
+    for (const row of found.rows) {
+      const checked = loyaltyCheck({
+        score: Number(row.loyalty),
+        adjustment,
+        combat: false,
+        rollDie,
+      });
+      if (checked.error) return res.status(400).json({ error: checked.error });
+      if (checked.result === 'leaves') {
+        await pool.query('DELETE FROM campaign_hireling WHERE id = $1', [row.id]);
+      }
+      results.push({
+        id: row.id,
+        name: row.name,
+        roll: checked.roll,
+        target: checked.target,
+        result: checked.result,
+      });
+    }
+    res.json({ results });
+  } catch (error) {
+    if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    console.error('Error ending the adventure:', error);
+    res.status(500).json({ error: error.message || 'Failed to check retainers' });
+  }
+});
+
+app.delete('/api/campaigns/:campaignId/adventuring/hirelings/:hirelingId', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const deleted = await pool.query(
+      'DELETE FROM campaign_hireling WHERE id = $1 AND campaign_id = $2 RETURNING id',
+      [req.params.hirelingId, req.params.campaignId]
+    );
+    if (deleted.rows.length === 0) return res.status(404).json({ error: 'Hireling not found' });
+    res.json({ id: deleted.rows[0].id });
+  } catch (error) {
+    if (adventuringMissing(res, error)) return;
+    console.error('Error removing hireling:', error);
+    res.status(500).json({ error: error.message || 'Failed to remove hireling' });
+  }
+});
+
+app.get('/api/campaigns/:campaignId/prep', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    res.json({ vehicle_ac: VEHICLE_AC, traps: TRAPS, vehicles: VEHICLES });
+  } catch (error) {
+    console.error('Error loading prep:', error);
+    res.status(500).json({ error: error.message || 'Failed to load prep' });
+  }
+});
+
+app.post('/api/campaigns/:campaignId/prep/stock', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const stocked = stockRoom(rollDie(100));
+    if (stocked.error) return res.status(400).json({ error: stocked.error });
+    res.json(stocked);
+  } catch (error) {
+    console.error('Error stocking a room:', error);
+    res.status(500).json({ error: error.message || 'Failed to stock a room' });
+  }
+});
+
+app.post('/api/campaigns/:campaignId/prep/damage', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const body = req.body || {};
+    const result = vehicleDamage({
+      listed: integerField(body.listed, 'listed'),
+      hardness: integerField(body.hardness, 'hardness'),
+      taken: integerField(body.taken, 'taken'),
+      amount: integerField(body.amount, 'amount'),
+      water: body.water === true,
+    });
+    if (result.error) return res.status(400).json({ error: result.error });
+    res.json(result);
+  } catch (error) {
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    console.error('Error applying vehicle damage:', error);
+    res.status(500).json({ error: error.message || 'Failed to apply vehicle damage' });
+  }
+});
+
+app.post('/api/campaigns/:campaignId/prep/repair', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const body = req.body || {};
+    const result = fieldRepair({
+      listed: integerField(body.listed, 'listed'),
+      taken: integerField(body.taken, 'taken'),
+      crew: integerField(body.crew, 'crew'),
+      water: body.water === true,
+      rollDie,
+    });
+    if (result.error) return res.status(400).json({ error: result.error });
+    res.json(result);
+  } catch (error) {
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    console.error('Error repairing a vehicle:', error);
+    res.status(500).json({ error: error.message || 'Failed to repair a vehicle' });
+  }
+});
+
+app.post('/api/campaigns/:campaignId/adventuring/light', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const source = req.body?.source;
+    const rolled = rollLight(source, rollDie);
+    if (rolled.error) return res.status(400).json({ error: rolled.error });
+    const board = await pool.query(
+      'SELECT COALESCE(game_seconds, 0) AS game_seconds FROM campaign_board WHERE campaign_id = $1',
+      [req.params.campaignId]
+    );
+    const atSeconds = board.rows.length === 0 ? 0 : Number(board.rows[0].game_seconds);
+    const inserted = await pool.query(
+      `INSERT INTO campaign_mark (campaign_id, kind, note, at_seconds, duration_minutes)
+       VALUES ($1, 'effect', $2, $3, $4)
+       RETURNING id, kind, note, at_seconds, duration_minutes`,
+      [req.params.campaignId, rolled.note, atSeconds, rolled.minutes]
+    );
+    res.status(201).json({ ...rolled, mark: inserted.rows[0] });
+  } catch (error) {
+    if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    console.error('Error lighting:', error);
+    res.status(500).json({ error: error.message || 'Failed to light' });
+  }
+});
+
+app.post('/api/campaigns/:campaignId/adventuring/body', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const characterId = positiveInt(req.body?.character_id, 'character_id');
+    const ate = booleanField(req.body?.ate, 'ate');
+    const drank = booleanField(req.body?.drank, 'drank');
+    const bedrest = booleanField(req.body?.bedrest, 'bedrest');
+    const hours = nonNegativeInt(req.body?.hours, 'hours');
+    if (hours > 24) return res.status(400).json({ error: 'hours cannot exceed 24' });
+    await client.query('BEGIN');
+    const found = await client.query(
+      `SELECT c.hp, c.con, cc.food_missed, cc.heal_food, cc.heal_water
+       FROM characters c
+       INNER JOIN campaign_character cc ON cc.character_id = c.id AND cc.campaign_id = $1
+       WHERE c.id = $2
+       FOR UPDATE`,
+      [req.params.campaignId, characterId]
+    );
+    if (found.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Character not found' });
+    }
+    const row = found.rows[0];
+    const settled = settleBody({
+      foodMissed: Number(row.food_missed) || 0,
+      healFood: row.heal_food === true,
+      healWater: row.heal_water === true,
+    }, {
+      ate,
+      drank,
+      hours,
+      bedrest,
+      constitution: row.con,
+    }, rollDie);
+    if (settled.error) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: settled.error });
+    }
+    const current = row.hp == null ? null : Number(row.hp);
+    const applied = applyBodyHitPoints(current, settled.delta);
+    if (applied.error) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: applied.error });
+    }
+    if (applied.changed) {
+      await client.query('UPDATE characters SET hp = $1 WHERE id = $2', [applied.hp, characterId]);
+    }
+    await client.query(
+      `UPDATE campaign_character
+       SET food_missed = $3, heal_food = $4, heal_water = $5
+       WHERE campaign_id = $1 AND character_id = $2`,
+      [req.params.campaignId, characterId, settled.foodMissed, settled.healFood, settled.healWater]
+    );
+    await client.query('COMMIT');
+    res.json({
+      character_id: characterId,
+      hp: applied.hp,
+      down: applied.down,
+      food_missed: settled.foodMissed,
+      heal_food: settled.healFood,
+      heal_water: settled.healWater,
+      food_damage: settled.foodDamage,
+      water_damage: settled.waterDamage,
+      water_roll: settled.waterRoll,
+      healed: settled.healed,
+      required_hours: settled.required,
+      slept: settled.slept,
+    });
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch (_) { /* connection already failed */ }
+    if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    console.error('Error settling the day:', error);
+    res.status(500).json({ error: error.message || 'Failed to settle the day' });
+  } finally {
+    client.release();
   }
 });
 

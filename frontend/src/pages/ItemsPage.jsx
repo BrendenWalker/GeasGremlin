@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { getItems } from '../api/api';
 import FormattedText from '../components/FormattedText';
+import { formatItemPrice } from '../domain/itemPrice.mjs';
 
 export default function ItemsPage() {
   const { rulesetId } = useParams();
@@ -48,7 +49,7 @@ export default function ItemsPage() {
                       — {[item.category_name, item.type_name].filter(Boolean).join(' / ')}
                     </span>
                   )}
-                  {item.price != null && <span className="catalog-meta"> ({item.price} gp)</span>}
+                  {item.price != null && <span className="catalog-meta"> ({formatItemPrice(item.price)})</span>}
                 </h4>
                 <FormattedText text={text} />
               </article>

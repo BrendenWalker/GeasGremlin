@@ -3,7 +3,13 @@
  * each column is { percent, dice } and dice is NdS or NdSxM. An optional
  * multiplier field is the same xM. A d100 above the percent drops the column.
  * This returns a draft. It does not grant XP or items.
+ *
+ * ponytail: magic, note, and tables are stored and not rolled. Ceiling: the
+ * draft never shows the phrase. Upgrade path: append those notes when a GM
+ * view wants them.
  */
+
+const NOTE_KEYS = new Set(['magic', 'note', 'tables']);
 
 function parseDice(dice) {
   const match = String(dice ?? '').trim().match(/^(\d+)d(\d+)(?:\s*x\s*(\d+))?$/i);
@@ -41,6 +47,18 @@ function parseColumn(column, spec) {
   return { percent, count: dice.count, sides: dice.sides, multiplier };
 }
 
+function noteProblem(column, spec) {
+  if (column === 'magic' || column === 'note') {
+    if (typeof spec !== 'string' || spec.trim() === '') return `treasure note ${column} must be text`;
+    if (spec.length > 500) return `treasure note ${column} exceeds 500 characters`;
+    return null;
+  }
+  if (spec == null || typeof spec !== 'object' || Array.isArray(spec)) {
+    return 'treasure note tables must be an object';
+  }
+  return null;
+}
+
 function rollTreasure(definition, rollDie) {
   if (definition == null || typeof definition !== 'object' || Array.isArray(definition)) {
     return { error: 'Treasure type definition must be an object' };
@@ -48,6 +66,11 @@ function rollTreasure(definition, rollDie) {
   if (typeof rollDie !== 'function') return { error: 'Treasure roll needs a die' };
   const lines = [];
   for (const [column, spec] of Object.entries(definition)) {
+    if (NOTE_KEYS.has(column)) {
+      const problem = noteProblem(column, spec);
+      if (problem) return { error: problem };
+      continue;
+    }
     const parsed = parseColumn(column, spec);
     if (parsed.error) return { error: parsed.error };
     const chance = rollDie(100);

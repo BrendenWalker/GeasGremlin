@@ -9,6 +9,7 @@
 const fs = require('fs');
 const path = require('path');
 const { Pool } = require('pg');
+const { findRulesetDir } = require('../overlay');
 
 const repoRoot = path.join(__dirname, '..', '..');
 const repoEnv = path.join(repoRoot, '.env');
@@ -50,6 +51,8 @@ Shared category/type/stat tables are matched by name (not wiped).
 JSON IDs only remap references; destination PKs are newly allocated
 (preferring a free source id when available).
 Fails if any characters belong to the target ruleset.
+A gamesystem.json parent_ruleset names an overlay parent. Import that ruleset first.
+The parent must not itself have a parent, and this ruleset must not already have children.
 Ignores MONSTERS, TREASURE_TYPES, and ENCOUNTER_TABLES. Those load through import-catalog.js.
 `);
       process.exit(0);
@@ -96,11 +99,29 @@ function loadGamesystem(dir) {
   if (meta.name.length > 40) {
     throw new Error(`${filePath}: "name" exceeds ruleset.name varchar(40)`);
   }
+  const name = meta.name.trim();
   return {
-    name: meta.name.trim(),
+    name,
     mechanic: readMechanic(meta.mechanic, filePath),
     description: typeof meta.description === 'string' ? meta.description : null,
+    parentRuleset: readParentRuleset(meta, filePath, name),
   };
+}
+
+function readParentRuleset(meta, filePath, name) {
+  if (meta.parent_ruleset == null || meta.parent_ruleset === '') return null;
+  if (typeof meta.parent_ruleset !== 'string') {
+    throw new Error(`${filePath}: "parent_ruleset" must be a string`);
+  }
+  const parent = meta.parent_ruleset.trim();
+  if (!parent) return null;
+  if (parent.length > 40) {
+    throw new Error(`${filePath}: "parent_ruleset" exceeds ruleset.name varchar(40)`);
+  }
+  if (parent === name) {
+    throw new Error(`${filePath}: parent_ruleset cannot be the ruleset itself`);
+  }
+  return parent;
 }
 
 function readMechanic(value, filePath) {
@@ -177,6 +198,77 @@ async function ensureRuleset(client, name, mechanic) {
     [id, name, mechanic]
   );
   return id;
+}
+
+async function assignParent(client, rulesetId, parentName) {
+  if (!parentName) {
+    await client.query(
+      'UPDATE public.ruleset SET parent_ruleset_id = NULL, modified = NOW() WHERE id = $1 AND parent_ruleset_id IS NOT NULL',
+      [rulesetId]
+    );
+    return null;
+  }
+  const parent = await client.query(
+    'SELECT id, parent_ruleset_id FROM public.ruleset WHERE name = $1',
+    [parentName]
+  );
+  if (parent.rows.length === 0) {
+    throw new Error(
+      `parent_ruleset ${JSON.stringify(parentName)} is not in the database. Import that ruleset first.`
+    );
+  }
+  if (Number(parent.rows[0].id) === Number(rulesetId)) {
+    throw new Error('ruleset cannot parent itself');
+  }
+  if (parent.rows[0].parent_ruleset_id != null) {
+    throw new Error(`parent_ruleset ${JSON.stringify(parentName)} already has a parent`);
+  }
+  const children = await client.query(
+    'SELECT name FROM public.ruleset WHERE parent_ruleset_id = $1',
+    [rulesetId]
+  );
+  if (children.rows.length > 0) {
+    throw new Error('a ruleset with children cannot have a parent');
+  }
+  await client.query(
+    'UPDATE public.ruleset SET parent_ruleset_id = $2, modified = NOW() WHERE id = $1',
+    [rulesetId, parent.rows[0].id]
+  );
+  return parent.rows[0].id;
+}
+
+async function mapParentRows(client, parentRulesetId, table, field, rows) {
+  const found = await client.query(
+    `SELECT id, ${field} AS key FROM public.${table} WHERE ruleset_id = $1`,
+    [parentRulesetId]
+  );
+  const byKey = new Map(found.rows.map((row) => [row.key, row.id]));
+  const map = new Map();
+  for (const row of rows) {
+    const sourceId = asIntOrNull(row.id);
+    const dest = byKey.get(row[field]);
+    if (sourceId != null && dest != null) map.set(sourceId, dest);
+  }
+  return map;
+}
+
+async function loadParentMaps(client, parentRulesetId, childDir, parentName) {
+  const parentDir = findRulesetDir(path.dirname(path.resolve(childDir)), parentName);
+  if (!parentDir) {
+    throw new Error(`No GameSystems folder for parent_ruleset ${JSON.stringify(parentName)}`);
+  }
+  return {
+    class: await mapParentRows(client, parentRulesetId, 'classes', 'name', loadTableJson(parentDir, 'CLASSES').rows),
+    race: await mapParentRows(client, parentRulesetId, 'races', 'name', loadTableJson(parentDir, 'RACES').rows),
+    spell: await mapParentRows(client, parentRulesetId, 'spells', 'name', loadTableJson(parentDir, 'SPELLS').rows),
+    ability: await mapParentRows(
+      client,
+      parentRulesetId,
+      'abilities',
+      'description',
+      loadTableJson(parentDir, 'ABILITIES').rows
+    ),
+  };
 }
 
 /**
@@ -608,20 +700,19 @@ async function importItems(client, { filePath, rows }, rulesetId, categoryMap, t
   return map;
 }
 
-function requireMapped(map, sourceId, label, filePath) {
+function resolveMapped(childMap, parentMap, sourceId, label, filePath) {
   if (sourceId == null) {
     throw new Error(`${filePath}: missing ${label}`);
   }
-  if (!map.has(sourceId)) {
-    throw new Error(`${filePath}: ${label} ${sourceId} has no remapped destination id`);
-  }
-  return map.get(sourceId);
+  if (childMap.has(sourceId)) return childMap.get(sourceId);
+  if (parentMap && parentMap.has(sourceId)) return parentMap.get(sourceId);
+  throw new Error(`${filePath}: ${label} ${sourceId} has no remapped destination id`);
 }
 
-async function importClassAbilities(client, { filePath, rows }, rulesetId, classMap, abilityMap) {
+async function importClassAbilities(client, { filePath, rows }, rulesetId, classMap, abilityMap, parentClassMap, parentAbilityMap) {
   for (const row of rows) {
-    const classId = requireMapped(classMap, asIntOrNull(row.class_id), 'CLASS_ID', filePath);
-    const abilityId = requireMapped(abilityMap, asIntOrNull(row.ability_id), 'ABILITY_ID', filePath);
+    const classId = resolveMapped(classMap, parentClassMap, asIntOrNull(row.class_id), 'CLASS_ID', filePath);
+    const abilityId = resolveMapped(abilityMap, parentAbilityMap, asIntOrNull(row.ability_id), 'ABILITY_ID', filePath);
     const level = asIntOrNull(row.level);
     if (level == null) throw new Error(`${filePath}: missing LEVEL for class ${row.class_id}`);
     await client.query(
@@ -641,9 +732,9 @@ async function importClassAbilities(client, { filePath, rows }, rulesetId, class
   }
 }
 
-async function importClassLeveling(client, { filePath, rows }, rulesetId, classMap) {
+async function importClassLeveling(client, { filePath, rows }, rulesetId, classMap, parentClassMap) {
   for (const row of rows) {
-    const classId = requireMapped(classMap, asIntOrNull(row.class_id), 'CLASS_ID', filePath);
+    const classId = resolveMapped(classMap, parentClassMap, asIntOrNull(row.class_id), 'CLASS_ID', filePath);
     const level = asIntOrNull(row.level);
     if (level == null) throw new Error(`${filePath}: missing LEVEL`);
     const xp = asIntOrNull(row.xp);
@@ -666,9 +757,9 @@ async function importClassLeveling(client, { filePath, rows }, rulesetId, classM
   }
 }
 
-async function importClassSpells(client, { filePath, rows }, rulesetId, classMap) {
+async function importClassSpells(client, { filePath, rows }, rulesetId, classMap, parentClassMap) {
   for (const row of rows) {
-    const classId = requireMapped(classMap, asIntOrNull(row.class_id), 'CLASS_ID', filePath);
+    const classId = resolveMapped(classMap, parentClassMap, asIntOrNull(row.class_id), 'CLASS_ID', filePath);
     const charLevel = asIntOrNull(row.char_level);
     if (charLevel == null) throw new Error(`${filePath}: missing CHAR_LEVEL`);
     await client.query(
@@ -692,10 +783,10 @@ async function importClassSpells(client, { filePath, rows }, rulesetId, classMap
   }
 }
 
-async function importRaceAbilities(client, { filePath, rows }, rulesetId, raceMap, abilityMap) {
+async function importRaceAbilities(client, { filePath, rows }, rulesetId, raceMap, abilityMap, parentRaceMap, parentAbilityMap) {
   for (const row of rows) {
-    const raceId = requireMapped(raceMap, asIntOrNull(row.race_id), 'RACE_ID', filePath);
-    const abilityId = requireMapped(abilityMap, asIntOrNull(row.ability_id), 'ABILITY_ID', filePath);
+    const raceId = resolveMapped(raceMap, parentRaceMap, asIntOrNull(row.race_id), 'RACE_ID', filePath);
+    const abilityId = resolveMapped(abilityMap, parentAbilityMap, asIntOrNull(row.ability_id), 'ABILITY_ID', filePath);
     await client.query(
       `INSERT INTO public.race_abilities
         (race_id, ability_id, int_param, str_param, modified, ruleset_id)
@@ -712,10 +803,10 @@ async function importRaceAbilities(client, { filePath, rows }, rulesetId, raceMa
   }
 }
 
-async function importSpellClass(client, { filePath, rows }, classMap, spellMap) {
+async function importSpellClass(client, { filePath, rows }, classMap, spellMap, parentClassMap, parentSpellMap) {
   for (const row of rows) {
-    const classId = requireMapped(classMap, asIntOrNull(row.class_id), 'CLASS_ID', filePath);
-    const spellId = requireMapped(spellMap, asIntOrNull(row.spell_id), 'SPELL_ID', filePath);
+    const classId = resolveMapped(classMap, parentClassMap, asIntOrNull(row.class_id), 'CLASS_ID', filePath);
+    const spellId = resolveMapped(spellMap, parentSpellMap, asIntOrNull(row.spell_id), 'SPELL_ID', filePath);
     const level = asIntOrNull(row.level);
     if (level == null) throw new Error(`${filePath}: missing LEVEL`);
     await client.query(
@@ -792,7 +883,14 @@ async function main() {
     await client.query('BEGIN');
 
     const rulesetId = await ensureRuleset(client, meta.name, meta.mechanic);
-    console.log(`Ruleset ${JSON.stringify(meta.name)} → id ${rulesetId}`);
+    const parentRulesetId = await assignParent(client, rulesetId, meta.parentRuleset);
+    const parentMaps = parentRulesetId
+      ? await loadParentMaps(client, parentRulesetId, dir, meta.parentRuleset)
+      : { class: null, race: null, spell: null, ability: null };
+    console.log(
+      `Ruleset ${JSON.stringify(meta.name)} → id ${rulesetId}` +
+        (parentRulesetId ? ` parent_ruleset_id=${parentRulesetId}` : '')
+    );
 
     await assertReplaceAllowed(client, rulesetId);
     await deleteRulesetCatalog(client, rulesetId);
@@ -815,11 +913,11 @@ async function main() {
       `Catalog: classes=${classMap.size}, races=${raceMap.size}, spells=${spellMap.size}, abilities=${abilityMap.size}, items=${itemMap.size}`
     );
 
-    await importClassAbilities(client, classAbilities, rulesetId, classMap, abilityMap);
-    await importClassLeveling(client, classLeveling, rulesetId, classMap);
-    await importClassSpells(client, classSpells, rulesetId, classMap);
-    await importRaceAbilities(client, raceAbilities, rulesetId, raceMap, abilityMap);
-    await importSpellClass(client, spellClass, classMap, spellMap);
+    await importClassAbilities(client, classAbilities, rulesetId, classMap, abilityMap, parentMaps.class, parentMaps.ability);
+    await importClassLeveling(client, classLeveling, rulesetId, classMap, parentMaps.class);
+    await importClassSpells(client, classSpells, rulesetId, classMap, parentMaps.class);
+    await importRaceAbilities(client, raceAbilities, rulesetId, raceMap, abilityMap, parentMaps.race, parentMaps.ability);
+    await importSpellClass(client, spellClass, classMap, spellMap, parentMaps.class, parentMaps.spell);
     console.log(
       `Junctions: class_abilities=${classAbilities.rows.length}, class_leveling=${classLeveling.rows.length}, class_spells=${classSpells.rows.length}, race_abilities=${raceAbilities.rows.length}, spell_class=${spellClass.rows.length}`
     );

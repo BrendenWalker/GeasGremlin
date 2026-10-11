@@ -22,13 +22,6 @@
 			"STAT_MODIFIER" : null
 		},
 		{
-			"ID" : 4,
-			"DESCRIPTION" : "When fighting invisible opponent detected by naturally observant.  %d penalty to attack.",
-			"MODIFIED" : "2023-05-26 20:02:42",
-			"STAT_ID" : null,
-			"STAT_MODIFIER" : null
-		},
-		{
 			"ID" : 5,
 			"DESCRIPTION" : "%d : Death Ray or Poison",
 			"MODIFIED" : "2021-08-11 21:16:31",

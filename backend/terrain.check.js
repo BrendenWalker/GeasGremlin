@@ -2,9 +2,9 @@ const assert = require('assert');
 const { TERRAINS, locationTerrain } = require('./terrain');
 
 assert.equal(TERRAINS.length, 8);
-assert.equal(TERRAINS.find((row) => row.name === 'Road').movement_pct, 0);
+assert.equal(TERRAINS.find((row) => row.name === 'Road').movement_pct, 33);
 assert.equal(TERRAINS.find((row) => row.name === 'Forest').movement_pct, -33);
-assert.equal(TERRAINS.find((row) => row.name === 'Jungle').movement_pct, -50);
+assert.equal(TERRAINS.find((row) => row.name === 'Jungle').movement_pct, -67);
 
 assert.equal(locationTerrain('outside', 'Forest', -33).movement_pct, -33);
 assert.deepEqual(locationTerrain('outside', ' Forest ', 10), { terrain: 'Forest', movement_pct: 10 });

@@ -6,6 +6,10 @@ import {
   deleteEncounterTable,
   deleteLocation,
   getAdventuring,
+  getPrep,
+  prepDamage,
+  prepRepair,
+  stockRoom,
   updateEncounterTable,
   updateLocation,
 } from '../api/api';
@@ -59,10 +63,22 @@ export default function ConfigurationPage({ campaignName }) {
   const [tableNameValue, setTableNameValue] = useState('');
   const [tableDie, setTableDie] = useState(6);
   const [tableRows, setTableRows] = useState([{ ...BLANK_ROW }]);
+  const [prep, setPrep] = useState(null);
+  const [stockText, setStockText] = useState('');
+  const [trapName, setTrapName] = useState('');
+  const [trapNote, setTrapNote] = useState('');
+  const [vehicleName, setVehicleName] = useState('');
+  const [taken, setTaken] = useState(0);
+  const [damageAmount, setDamageAmount] = useState('');
+  const [crew, setCrew] = useState('1');
+  const [vehicleText, setVehicleText] = useState('');
 
   const load = useCallback(() => {
-    return getAdventuring(campaignId)
-      .then((r) => setBoard(r.data))
+    return Promise.all([getAdventuring(campaignId), getPrep(campaignId)])
+      .then(([boardRes, prepRes]) => {
+        setBoard(boardRes.data);
+        setPrep(prepRes.data);
+      })
       .catch((err) => setError(errText(err)));
   }, [campaignId]);
 
@@ -259,6 +275,47 @@ export default function ConfigurationPage({ campaignName }) {
     });
   };
 
+  const chosenVehicle = (prep?.vehicles || []).find((row) => row.name === vehicleName) || null;
+
+  const applyVehicleDamage = () => {
+    if (!chosenVehicle) return;
+    const amount = wholeInt(damageAmount);
+    if (amount == null || amount < 0) {
+      setError('Damage must be a non-negative integer.');
+      return;
+    }
+    run(() => prepDamage(campaignId, {
+      listed: chosenVehicle.hp,
+      hardness: chosenVehicle.hardness,
+      taken,
+      amount,
+      water: chosenVehicle.water,
+    })).then((res) => {
+      if (!res) return;
+      setTaken(res.data.taken);
+      setVehicleText(`${chosenVehicle.name}: ${res.data.excess} past hardness. Damage taken ${res.data.taken}. Remaining ${res.data.remaining}. ${res.data.condition}.`);
+    });
+  };
+
+  const repairVehicle = () => {
+    if (!chosenVehicle) return;
+    const count = wholeInt(crew);
+    if (count == null || count < 1 || count > 200) {
+      setError('Crew must be from 1 to 200.');
+      return;
+    }
+    run(() => prepRepair(campaignId, {
+      listed: chosenVehicle.hp,
+      taken,
+      crew: count,
+      water: chosenVehicle.water,
+    })).then((res) => {
+      if (!res) return;
+      setTaken(res.data.taken);
+      setVehicleText(`${chosenVehicle.name}: repaired ${res.data.restored} (rolled ${res.data.gained}). Damage taken ${res.data.taken}. Remaining ${res.data.remaining}, field repair stops at ${res.data.cap}. ${res.data.condition}.`);
+    });
+  };
+
   const tables = board?.tables || [];
   const customTables = tables.filter((table) => table.custom);
   const stockTables = tables.filter((table) => !table.custom);
@@ -435,6 +492,100 @@ export default function ConfigurationPage({ campaignName }) {
             </li>
           ))}
         </ul>
+
+        <h2>Prep</h2>
+        <p className="muted">These help write an adventure. They do not open an encounter or move the clock.</p>
+        <h3 style={{ marginBottom: 6 }}>Dungeon stocking</h3>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          disabled={busy}
+          onClick={() => {
+            run(() => stockRoom(campaignId)).then((res) => {
+              if (res) setStockText(`d% ${res.data.roll}: ${res.data.contents}`);
+            });
+          }}
+        >
+          Stock a room
+        </button>
+        {stockText && <p>{stockText}</p>}
+        <h3 style={{ marginBottom: 6 }}>Traps</h3>
+        <p className="muted">A pick fills the note. It does not roll the trap.</p>
+        <select
+          aria-label="Trap"
+          value={trapName}
+          onChange={(e) => {
+            const name = e.target.value;
+            const trap = (prep?.traps || []).find((row) => row.name === name);
+            setTrapName(name);
+            setTrapNote(trap ? trap.note : '');
+          }}
+          style={FIELD}
+        >
+          <option value="">Choose a trap</option>
+          {(prep?.traps || []).map((trap) => (
+            <option key={trap.name} value={trap.name}>{trap.name}</option>
+          ))}
+        </select>
+        <textarea
+          aria-label="Trap note"
+          value={trapNote}
+          maxLength={500}
+          onChange={(e) => setTrapNote(e.target.value)}
+          style={{ ...FIELD, display: 'block', width: '100%', minHeight: 72, marginTop: 8 }}
+        />
+        <h3 style={{ marginBottom: 6 }}>Vehicles</h3>
+        <p className="muted">{`Attacks hit AC ${prep?.vehicle_ac ?? 11}. Hardness comes off the damage. Field repair is 1d4 per crew member and stops at 90% of the listed hit points.`}</p>
+        <select
+          aria-label="Vehicle"
+          value={vehicleName}
+          onChange={(e) => {
+            const name = e.target.value;
+            const row = (prep?.vehicles || []).find((item) => item.name === name);
+            setVehicleName(name);
+            setTaken(0);
+            setCrew(String(row?.crew || 1));
+            setVehicleText('');
+          }}
+          style={FIELD}
+        >
+          <option value="">Choose a vehicle</option>
+          {(prep?.vehicles || []).map((row) => (
+            <option key={row.name} value={row.name}>{row.name}</option>
+          ))}
+        </select>
+        {chosenVehicle && (
+          <p>
+            {`${chosenVehicle.movement}${chosenVehicle.miles ? `, ${chosenVehicle.miles} miles` : ''}. Hardness ${chosenVehicle.hardness}, HP ${chosenVehicle.hp}, ${chosenVehicle.cost} gp. Damage taken ${taken}.`}
+          </p>
+        )}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <input
+            type="number"
+            min={0}
+            aria-label="Vehicle damage"
+            placeholder="Damage"
+            value={damageAmount}
+            onChange={(e) => setDamageAmount(e.target.value)}
+            style={{ ...FIELD, width: 90 }}
+          />
+          <button type="button" className="btn btn-secondary" disabled={busy || !chosenVehicle} onClick={applyVehicleDamage}>
+            Apply damage
+          </button>
+          <input
+            type="number"
+            min={1}
+            max={200}
+            aria-label="Repair crew"
+            value={crew}
+            onChange={(e) => setCrew(e.target.value)}
+            style={{ ...FIELD, width: 70 }}
+          />
+          <button type="button" className="btn btn-secondary" disabled={busy || !chosenVehicle} onClick={repairVehicle}>
+            Field repair
+          </button>
+        </div>
+        {vehicleText && <p>{vehicleText}</p>}
       </div>
     </div>
   );

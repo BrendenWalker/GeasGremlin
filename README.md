@@ -44,20 +44,20 @@ If your database was migrated from the original system with **uppercase** table/
 
 ### Optional: load a game-system catalog from JSON
 
-Canonical ruleset reference data lives under [`GameSystems/`](GameSystems/) (one folder per system). Each folder has a required `gamesystem.json` (`name`, optional `description`) plus Firebird-style table dumps (`CLASSES.json`, `SPELLS.json`, …).
+Canonical ruleset reference data lives under [`GameSystems/`](GameSystems/) (one folder per system). Each folder has a required `gamesystem.json` (`name`, optional `parent_ruleset`, optional `description`) plus Firebird-style table dumps (`CLASSES.json`, `SPELLS.json`, …). `parent_ruleset` is one overlay hop: import the parent ruleset first. Basic Fantasy Enhanced parents Basic Fantasy Core and stores only the rows that differ.
 
 After `schema.sql` is applied, import with the same `DB_*` settings as in repo-root `.env`:
 
 ```bash
 cd backend
-npm run import-ruleset -- --dir ../GameSystems/BasicFantasy_Enhanced
 npm run import-ruleset -- --dir ../GameSystems/BasicFantasy_Core
+npm run import-ruleset -- --dir ../GameSystems/BasicFantasy_Enhanced
 ```
 
 Dry-run (full import in a transaction, then rollback):
 
 ```bash
-npm run import-ruleset -- --dir ../GameSystems/BasicFantasy_Enhanced --dry-run
+npm run import-ruleset -- --dir ../GameSystems/BasicFantasy_Core --dry-run
 ```
 
 The importer **replaces** that ruleset’s catalog (delete then insert). Shared category/type rows are matched by name and kept globally. JSON `ID` values only remap FKs during the import; destination PKs are newly allocated. Re-import fails if any characters still belong to the target ruleset. Parameterized SQL keeps apostrophes intact. It ignores `MONSTERS.json`, `TREASURE_TYPES.json`, and the encounter-table files.

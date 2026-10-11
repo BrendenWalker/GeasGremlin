@@ -3,11 +3,18 @@
  * base and quasi are class rows { ruleset_id, is_quasi } or null.
  * Returns an error string, or null when the pair is allowed.
  */
-function assignmentError(rulesetId, base, quasi) {
-  if (quasi && Number(quasi.ruleset_id) !== Number(rulesetId)) {
+function inCatalog(row, rulesetId, parentRulesetId) {
+  if (!row) return true;
+  const id = Number(row.ruleset_id);
+  if (id === Number(rulesetId)) return true;
+  return parentRulesetId != null && id === Number(parentRulesetId);
+}
+
+function assignmentError(rulesetId, base, quasi, parentRulesetId) {
+  if (quasi && !inCatalog(quasi, rulesetId, parentRulesetId)) {
     return 'Quasi-class is not in this ruleset';
   }
-  if (base && Number(base.ruleset_id) !== Number(rulesetId)) {
+  if (base && !inCatalog(base, rulesetId, parentRulesetId)) {
     return 'Base class is not in this ruleset';
   }
   if (quasi && !quasi.is_quasi) {
@@ -22,4 +29,4 @@ function assignmentError(rulesetId, base, quasi) {
   return null;
 }
 
-module.exports = { assignmentError };
+module.exports = { assignmentError, inCatalog };

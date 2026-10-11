@@ -1,0 +1,2100 @@
+{
+  "TREASURE_TYPES": [
+    {
+      "ID": 1,
+      "CODE": "A",
+      "DEFINITION": {
+        "cp": {
+          "percent": 50,
+          "dice": "5d6",
+          "multiplier": 100
+        },
+        "sp": {
+          "percent": 60,
+          "dice": "5d6",
+          "multiplier": 100
+        },
+        "ep": {
+          "percent": 40,
+          "dice": "5d4",
+          "multiplier": 100
+        },
+        "gp": {
+          "percent": 70,
+          "dice": "10d6",
+          "multiplier": 100
+        },
+        "pp": {
+          "percent": 50,
+          "dice": "1d10",
+          "multiplier": 100
+        },
+        "gems": {
+          "percent": 50,
+          "dice": "6d6"
+        },
+        "jewelry": {
+          "percent": 50,
+          "dice": "6d6"
+        },
+        "magic": "30% any 3"
+      }
+    },
+    {
+      "ID": 2,
+      "CODE": "B",
+      "DEFINITION": {
+        "cp": {
+          "percent": 75,
+          "dice": "5d10",
+          "multiplier": 100
+        },
+        "sp": {
+          "percent": 50,
+          "dice": "5d6",
+          "multiplier": 100
+        },
+        "ep": {
+          "percent": 50,
+          "dice": "5d4",
+          "multiplier": 100
+        },
+        "gp": {
+          "percent": 50,
+          "dice": "3d6",
+          "multiplier": 100
+        },
+        "gems": {
+          "percent": 25,
+          "dice": "1d6"
+        },
+        "jewelry": {
+          "percent": 25,
+          "dice": "1d6"
+        },
+        "magic": "10% 1 weapon or armor"
+      }
+    },
+    {
+      "ID": 3,
+      "CODE": "C",
+      "DEFINITION": {
+        "cp": {
+          "percent": 60,
+          "dice": "6d6",
+          "multiplier": 100
+        },
+        "sp": {
+          "percent": 60,
+          "dice": "5d4",
+          "multiplier": 100
+        },
+        "ep": {
+          "percent": 30,
+          "dice": "2d6",
+          "multiplier": 100
+        },
+        "gems": {
+          "percent": 25,
+          "dice": "1d4"
+        },
+        "jewelry": {
+          "percent": 25,
+          "dice": "1d4"
+        },
+        "magic": "15% any 1d2"
+      }
+    },
+    {
+      "ID": 4,
+      "CODE": "D",
+      "DEFINITION": {
+        "cp": {
+          "percent": 30,
+          "dice": "4d6",
+          "multiplier": 100
+        },
+        "sp": {
+          "percent": 45,
+          "dice": "6d6",
+          "multiplier": 100
+        },
+        "gp": {
+          "percent": 90,
+          "dice": "5d8",
+          "multiplier": 100
+        },
+        "gems": {
+          "percent": 30,
+          "dice": "1d8"
+        },
+        "jewelry": {
+          "percent": 30,
+          "dice": "1d8"
+        },
+        "magic": "20% any 1d2 + 1 potion"
+      }
+    },
+    {
+      "ID": 5,
+      "CODE": "E",
+      "DEFINITION": {
+        "cp": {
+          "percent": 30,
+          "dice": "2d8",
+          "multiplier": 100
+        },
+        "sp": {
+          "percent": 60,
+          "dice": "6d10",
+          "multiplier": 100
+        },
+        "ep": {
+          "percent": 50,
+          "dice": "3d8",
+          "multiplier": 100
+        },
+        "gp": {
+          "percent": 50,
+          "dice": "4d10",
+          "multiplier": 100
+        },
+        "gems": {
+          "percent": 10,
+          "dice": "1d10"
+        },
+        "jewelry": {
+          "percent": 10,
+          "dice": "1d10"
+        },
+        "magic": "30% any 1d4 + 1 scroll"
+      }
+    },
+    {
+      "ID": 6,
+      "CODE": "F",
+      "DEFINITION": {
+        "sp": {
+          "percent": 40,
+          "dice": "3d8",
+          "multiplier": 100
+        },
+        "ep": {
+          "percent": 50,
+          "dice": "4d8",
+          "multiplier": 100
+        },
+        "gp": {
+          "percent": 85,
+          "dice": "6d10",
+          "multiplier": 100
+        },
+        "pp": {
+          "percent": 70,
+          "dice": "2d8",
+          "multiplier": 100
+        },
+        "gems": {
+          "percent": 20,
+          "dice": "2d12"
+        },
+        "jewelry": {
+          "percent": 10,
+          "dice": "1d12"
+        },
+        "magic": "35% any 1d4 except weapons + 1 potion + 1 scroll"
+      }
+    },
+    {
+      "ID": 7,
+      "CODE": "G",
+      "DEFINITION": {
+        "gp": {
+          "percent": 90,
+          "dice": "4d6",
+          "multiplier": 1000
+        },
+        "pp": {
+          "percent": 75,
+          "dice": "5d8",
+          "multiplier": 100
+        },
+        "gems": {
+          "percent": 25,
+          "dice": "3d6"
+        },
+        "jewelry": {
+          "percent": 25,
+          "dice": "1d10"
+        },
+        "magic": "50% any 1d4 + 1 scroll"
+      }
+    },
+    {
+      "ID": 8,
+      "CODE": "H",
+      "DEFINITION": {
+        "magic": "any 1d4 + 1 potion + 1 scroll",
+        "note": "Type H treasures are specifically dragon treasure; the chance of each type of monetary treasure ranges from 35% at the second age category to 85% at the seventh, while the odds of gems, jewelry, and magic items are 5% per hit die of the monster. Hatchlings do not usually have any treasure.",
+        "tables": {
+          "cp": {
+            "dice": "8d10",
+            "multiplier": 100
+          },
+          "sp": {
+            "dice": "6d10x10",
+            "multiplier": 100
+          },
+          "ep": {
+            "dice": "3d10x10",
+            "multiplier": 100
+          },
+          "gp": {
+            "dice": "5d8x10",
+            "multiplier": 100
+          },
+          "pp": {
+            "dice": "9d8",
+            "multiplier": 100
+          },
+          "gems": {
+            "dice": "1d100"
+          },
+          "jewelry": {
+            "dice": "10d4"
+          }
+        }
+      }
+    },
+    {
+      "ID": 9,
+      "CODE": "I",
+      "DEFINITION": {
+        "pp": {
+          "percent": 80,
+          "dice": "3d10",
+          "multiplier": 100
+        },
+        "gems": {
+          "percent": 50,
+          "dice": "2d6"
+        },
+        "jewelry": {
+          "percent": 50,
+          "dice": "2d6"
+        },
+        "magic": "15% any 1"
+      }
+    },
+    {
+      "ID": 10,
+      "CODE": "J",
+      "DEFINITION": {
+        "cp": {
+          "percent": 45,
+          "dice": "3d8",
+          "multiplier": 100
+        },
+        "sp": {
+          "percent": 45,
+          "dice": "1d8",
+          "multiplier": 100
+        }
+      }
+    },
+    {
+      "ID": 11,
+      "CODE": "K",
+      "DEFINITION": {
+        "sp": {
+          "percent": 90,
+          "dice": "2d10",
+          "multiplier": 100
+        },
+        "ep": {
+          "percent": 35,
+          "dice": "1d8",
+          "multiplier": 100
+        }
+      }
+    },
+    {
+      "ID": 12,
+      "CODE": "L",
+      "DEFINITION": {
+        "gems": {
+          "percent": 50,
+          "dice": "1d4"
+        }
+      }
+    },
+    {
+      "ID": 13,
+      "CODE": "M",
+      "DEFINITION": {
+        "gp": {
+          "percent": 90,
+          "dice": "4d10",
+          "multiplier": 100
+        },
+        "pp": {
+          "percent": 90,
+          "dice": "2d8",
+          "multiplier": 1000
+        },
+        "gems": {
+          "percent": 55,
+          "dice": "5d4"
+        },
+        "jewelry": {
+          "percent": 45,
+          "dice": "2d6"
+        }
+      }
+    },
+    {
+      "ID": 14,
+      "CODE": "N",
+      "DEFINITION": {
+        "magic": "40% 2d4 potions"
+      }
+    },
+    {
+      "ID": 15,
+      "CODE": "O",
+      "DEFINITION": {
+        "magic": "50% 1d4 scrolls"
+      }
+    },
+    {
+      "ID": 16,
+      "CODE": "P",
+      "DEFINITION": {
+        "cp": {
+          "percent": 100,
+          "dice": "3d8"
+        }
+      }
+    },
+    {
+      "ID": 17,
+      "CODE": "Q",
+      "DEFINITION": {
+        "sp": {
+          "percent": 100,
+          "dice": "3d6"
+        }
+      }
+    },
+    {
+      "ID": 18,
+      "CODE": "R",
+      "DEFINITION": {
+        "ep": {
+          "percent": 100,
+          "dice": "2d6"
+        }
+      }
+    },
+    {
+      "ID": 19,
+      "CODE": "S",
+      "DEFINITION": {
+        "gp": {
+          "percent": 100,
+          "dice": "2d4"
+        }
+      }
+    },
+    {
+      "ID": 20,
+      "CODE": "T",
+      "DEFINITION": {
+        "pp": {
+          "percent": 100,
+          "dice": "1d6"
+        }
+      }
+    },
+    {
+      "ID": 21,
+      "CODE": "U",
+      "DEFINITION": {
+        "cp": {
+          "percent": 50,
+          "dice": "1d20"
+        },
+        "sp": {
+          "percent": 50,
+          "dice": "1d20"
+        },
+        "gp": {
+          "percent": 25,
+          "dice": "1d20"
+        },
+        "gems": {
+          "percent": 5,
+          "dice": "1d4"
+        },
+        "jewelry": {
+          "percent": 5,
+          "dice": "1d4"
+        },
+        "magic": "2% Any 1"
+      }
+    },
+    {
+      "ID": 22,
+      "CODE": "V",
+      "DEFINITION": {
+        "sp": {
+          "percent": 25,
+          "dice": "1d20"
+        },
+        "ep": {
+          "percent": 25,
+          "dice": "1d20"
+        },
+        "gp": {
+          "percent": 50,
+          "dice": "1d20"
+        },
+        "pp": {
+          "percent": 25,
+          "dice": "1d20"
+        },
+        "gems": {
+          "percent": 10,
+          "dice": "1d4"
+        },
+        "jewelry": {
+          "percent": 10,
+          "dice": "1d4"
+        },
+        "magic": "5% Any 1"
+      }
+    },
+    {
+      "ID": 23,
+      "CODE": "1",
+      "DEFINITION": {
+        "cp": {
+          "percent": 75,
+          "dice": "1d8",
+          "multiplier": 100
+        },
+        "sp": {
+          "percent": 50,
+          "dice": "1d6",
+          "multiplier": 100
+        },
+        "ep": {
+          "percent": 25,
+          "dice": "1d4",
+          "multiplier": 100
+        },
+        "gp": {
+          "percent": 7,
+          "dice": "1d4",
+          "multiplier": 100
+        },
+        "pp": {
+          "percent": 1,
+          "dice": "1d4",
+          "multiplier": 100
+        },
+        "gems": {
+          "percent": 7,
+          "dice": "1d4"
+        },
+        "jewelry": {
+          "percent": 3,
+          "dice": "1d4"
+        },
+        "magic": "2% Any 1",
+        "note": "Unguarded treasures should be rare; see the Game Master section, below, for advice on placement of unguarded treasure."
+      }
+    },
+    {
+      "ID": 24,
+      "CODE": "2",
+      "DEFINITION": {
+        "cp": {
+          "percent": 50,
+          "dice": "1d10",
+          "multiplier": 100
+        },
+        "sp": {
+          "percent": 50,
+          "dice": "1d8",
+          "multiplier": 100
+        },
+        "ep": {
+          "percent": 25,
+          "dice": "1d6",
+          "multiplier": 100
+        },
+        "gp": {
+          "percent": 20,
+          "dice": "1d6",
+          "multiplier": 100
+        },
+        "pp": {
+          "percent": 2,
+          "dice": "1d4",
+          "multiplier": 100
+        },
+        "gems": {
+          "percent": 10,
+          "dice": "1d6"
+        },
+        "jewelry": {
+          "percent": 7,
+          "dice": "1d4"
+        },
+        "magic": "5% Any 1",
+        "note": "Unguarded treasures should be rare; see the Game Master section, below, for advice on placement of unguarded treasure."
+      }
+    },
+    {
+      "ID": 25,
+      "CODE": "3",
+      "DEFINITION": {
+        "cp": {
+          "percent": 30,
+          "dice": "2d6",
+          "multiplier": 100
+        },
+        "sp": {
+          "percent": 50,
+          "dice": "1d10",
+          "multiplier": 100
+        },
+        "ep": {
+          "percent": 25,
+          "dice": "1d8",
+          "multiplier": 100
+        },
+        "gp": {
+          "percent": 50,
+          "dice": "1d6",
+          "multiplier": 100
+        },
+        "pp": {
+          "percent": 4,
+          "dice": "1d4",
+          "multiplier": 100
+        },
+        "gems": {
+          "percent": 15,
+          "dice": "1d6"
+        },
+        "jewelry": {
+          "percent": 7,
+          "dice": "1d6"
+        },
+        "magic": "8% Any 1",
+        "note": "Unguarded treasures should be rare; see the Game Master section, below, for advice on placement of unguarded treasure."
+      }
+    },
+    {
+      "ID": 26,
+      "CODE": "4-5",
+      "DEFINITION": {
+        "cp": {
+          "percent": 20,
+          "dice": "3d6",
+          "multiplier": 100
+        },
+        "sp": {
+          "percent": 50,
+          "dice": "2d6",
+          "multiplier": 100
+        },
+        "ep": {
+          "percent": 25,
+          "dice": "1d10",
+          "multiplier": 100
+        },
+        "gp": {
+          "percent": 50,
+          "dice": "2d6",
+          "multiplier": 100
+        },
+        "pp": {
+          "percent": 8,
+          "dice": "1d4",
+          "multiplier": 100
+        },
+        "gems": {
+          "percent": 20,
+          "dice": "1d8"
+        },
+        "jewelry": {
+          "percent": 10,
+          "dice": "1d6"
+        },
+        "magic": "12% Any 1",
+        "note": "Unguarded treasures should be rare; see the Game Master section, below, for advice on placement of unguarded treasure."
+      }
+    },
+    {
+      "ID": 27,
+      "CODE": "6-7",
+      "DEFINITION": {
+        "cp": {
+          "percent": 15,
+          "dice": "4d6",
+          "multiplier": 100
+        },
+        "sp": {
+          "percent": 50,
+          "dice": "3d6",
+          "multiplier": 100
+        },
+        "ep": {
+          "percent": 25,
+          "dice": "1d12",
+          "multiplier": 100
+        },
+        "gp": {
+          "percent": 70,
+          "dice": "2d8",
+          "multiplier": 100
+        },
+        "pp": {
+          "percent": 15,
+          "dice": "1d4",
+          "multiplier": 100
+        },
+        "gems": {
+          "percent": 30,
+          "dice": "1d8"
+        },
+        "jewelry": {
+          "percent": 15,
+          "dice": "1d6"
+        },
+        "magic": "16% Any 1",
+        "note": "Unguarded treasures should be rare; see the Game Master section, below, for advice on placement of unguarded treasure."
+      }
+    },
+    {
+      "ID": 28,
+      "CODE": "8+",
+      "DEFINITION": {
+        "cp": {
+          "percent": 10,
+          "dice": "5d6",
+          "multiplier": 100
+        },
+        "sp": {
+          "percent": 50,
+          "dice": "5d6",
+          "multiplier": 100
+        },
+        "ep": {
+          "percent": 25,
+          "dice": "2d8",
+          "multiplier": 100
+        },
+        "gp": {
+          "percent": 75,
+          "dice": "4d6",
+          "multiplier": 100
+        },
+        "pp": {
+          "percent": 30,
+          "dice": "1d4",
+          "multiplier": 100
+        },
+        "gems": {
+          "percent": 40,
+          "dice": "1d8"
+        },
+        "jewelry": {
+          "percent": 30,
+          "dice": "1d8"
+        },
+        "magic": "20% Any 1",
+        "note": "Unguarded treasures should be rare; see the Game Master section, below, for advice on placement of unguarded treasure."
+      }
+    },
+    {
+      "ID": 29,
+      "CODE": "GEMS",
+      "DEFINITION": {
+        "note": "If the number of gems is small, roll for each gem. If the number is large (10 or more, at the GM's option), roll type and base value, then the number-found die.",
+        "tables": {
+          "value": [
+            {
+              "lo": 1,
+              "hi": 20,
+              "label": "Ornamental",
+              "gp": 10,
+              "number": "1d10"
+            },
+            {
+              "lo": 21,
+              "hi": 45,
+              "label": "Semiprecious",
+              "gp": 50,
+              "number": "1d8"
+            },
+            {
+              "lo": 46,
+              "hi": 75,
+              "label": "Fancy",
+              "gp": 100,
+              "number": "1d6"
+            },
+            {
+              "lo": 76,
+              "hi": 95,
+              "label": "Precious",
+              "gp": 500,
+              "number": "1d4"
+            },
+            {
+              "lo": 96,
+              "hi": 100,
+              "label": "Gem",
+              "gp": 1000,
+              "number": "1d2"
+            },
+            {
+              "label": "Jewel",
+              "gp": 5000,
+              "number": "1"
+            }
+          ],
+          "adjustment": {
+            "die": "2d6",
+            "note": "Optional. A roll of 12 on a Gem can become a Jewel. Jewel has no d% row for that reason.",
+            "rows": [
+              {
+                "face": "2",
+                "label": "Next Lower Value Row"
+              },
+              {
+                "face": "3",
+                "label": "1/2"
+              },
+              {
+                "face": "4",
+                "label": "3/4"
+              },
+              {
+                "face": "5-9",
+                "label": "Normal Value"
+              },
+              {
+                "face": "10",
+                "label": "1.5 Times"
+              },
+              {
+                "face": "11",
+                "label": "2 Times"
+              },
+              {
+                "face": "12",
+                "label": "Next Higher Value Row"
+              }
+            ]
+          },
+          "gem_type": [
+            {
+              "lo": 1,
+              "hi": 5,
+              "label": "Alexandrite"
+            },
+            {
+              "lo": 6,
+              "hi": 12,
+              "label": "Amethyst"
+            },
+            {
+              "lo": 13,
+              "hi": 20,
+              "label": "Aventurine"
+            },
+            {
+              "lo": 21,
+              "hi": 30,
+              "label": "Chlorastrolite"
+            },
+            {
+              "lo": 31,
+              "hi": 40,
+              "label": "Diamond"
+            },
+            {
+              "lo": 41,
+              "hi": 43,
+              "label": "Emerald"
+            },
+            {
+              "lo": 44,
+              "hi": 48,
+              "label": "Fire Opal"
+            },
+            {
+              "lo": 49,
+              "hi": 57,
+              "label": "Fluorospar"
+            },
+            {
+              "lo": 58,
+              "hi": 63,
+              "label": "Garnet"
+            },
+            {
+              "lo": 64,
+              "hi": 68,
+              "label": "Heliotrope"
+            },
+            {
+              "lo": 69,
+              "hi": 78,
+              "label": "Malachite"
+            },
+            {
+              "lo": 79,
+              "hi": 88,
+              "label": "Rhodonite"
+            },
+            {
+              "lo": 89,
+              "hi": 91,
+              "label": "Ruby"
+            },
+            {
+              "lo": 92,
+              "hi": 95,
+              "label": "Sapphire"
+            },
+            {
+              "lo": 96,
+              "hi": 100,
+              "label": "Topaz"
+            }
+          ],
+          "jewelry": {
+            "value": "2d8x100",
+            "rows": [
+              {
+                "lo": 1,
+                "hi": 6,
+                "label": "Anklet"
+              },
+              {
+                "lo": 7,
+                "hi": 12,
+                "label": "Belt"
+              },
+              {
+                "lo": 13,
+                "hi": 14,
+                "label": "Bowl"
+              },
+              {
+                "lo": 15,
+                "hi": 21,
+                "label": "Bracelet"
+              },
+              {
+                "lo": 22,
+                "hi": 27,
+                "label": "Brooch"
+              },
+              {
+                "lo": 28,
+                "hi": 32,
+                "label": "Buckle"
+              },
+              {
+                "lo": 33,
+                "hi": 37,
+                "label": "Chain"
+              },
+              {
+                "lo": 38,
+                "hi": 40,
+                "label": "Choker"
+              },
+              {
+                "lo": 41,
+                "hi": 42,
+                "label": "Circlet"
+              },
+              {
+                "lo": 43,
+                "hi": 47,
+                "label": "Clasp"
+              },
+              {
+                "lo": 48,
+                "hi": 51,
+                "label": "Comb"
+              },
+              {
+                "lo": 52,
+                "hi": 52,
+                "label": "Crown"
+              },
+              {
+                "lo": 53,
+                "hi": 55,
+                "label": "Cup"
+              },
+              {
+                "lo": 56,
+                "hi": 62,
+                "label": "Earring"
+              },
+              {
+                "lo": 63,
+                "hi": 65,
+                "label": "Flagon"
+              },
+              {
+                "lo": 66,
+                "hi": 68,
+                "label": "Goblet"
+              },
+              {
+                "lo": 69,
+                "hi": 73,
+                "label": "Knife"
+              },
+              {
+                "lo": 74,
+                "hi": 77,
+                "label": "Letter Opener"
+              },
+              {
+                "lo": 78,
+                "hi": 80,
+                "label": "Locket"
+              },
+              {
+                "lo": 81,
+                "hi": 82,
+                "label": "Medal"
+              },
+              {
+                "lo": 83,
+                "hi": 89,
+                "label": "Necklace"
+              },
+              {
+                "lo": 90,
+                "hi": 90,
+                "label": "Plate"
+              },
+              {
+                "lo": 91,
+                "hi": 95,
+                "label": "Pin"
+              },
+              {
+                "lo": 96,
+                "hi": 96,
+                "label": "Scepter"
+              },
+              {
+                "lo": 97,
+                "hi": 99,
+                "label": "Statuette"
+              },
+              {
+                "lo": 100,
+                "hi": 100,
+                "label": "Tiara"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "ID": 30,
+      "CODE": "MAGIC",
+      "DEFINITION": {
+        "tables": {
+          "sort": {
+            "die": "1d100",
+            "note": "Determine the sort of item found by rolling the column that matches the treasure phrase.",
+            "rows": [
+              {
+                "label": "Weapon",
+                "any": "01-25",
+                "weapon_or_armor": "01-70"
+              },
+              {
+                "label": "Armor",
+                "any": "26-35",
+                "weapon_or_armor": "71-00",
+                "any_except_weapons": "01-12"
+              },
+              {
+                "label": "Potion",
+                "any": "36-55",
+                "any_except_weapons": "13-40"
+              },
+              {
+                "label": "Scroll",
+                "any": "56-85",
+                "any_except_weapons": "41-79"
+              },
+              {
+                "label": "Wand, Staff, or Rod",
+                "any": "86-90",
+                "any_except_weapons": "80-86"
+              },
+              {
+                "label": "Miscellaneous Items",
+                "any": "91-97",
+                "any_except_weapons": "87-96"
+              },
+              {
+                "label": "Rare Items",
+                "any": "98-00",
+                "any_except_weapons": "97-00"
+              }
+            ]
+          },
+          "weapon_type": [
+            {
+              "lo": 1,
+              "hi": 2,
+              "label": "Great Axe"
+            },
+            {
+              "lo": 3,
+              "hi": 9,
+              "label": "Battle Axe"
+            },
+            {
+              "lo": 10,
+              "hi": 11,
+              "label": "Hand Axe"
+            },
+            {
+              "lo": 12,
+              "hi": 19,
+              "label": "Shortbow"
+            },
+            {
+              "lo": 20,
+              "hi": 27,
+              "label": "Shortbow Arrow"
+            },
+            {
+              "lo": 28,
+              "hi": 31,
+              "label": "Longbow"
+            },
+            {
+              "lo": 32,
+              "hi": 35,
+              "label": "Longbow Arrow"
+            },
+            {
+              "lo": 36,
+              "hi": 43,
+              "label": "Light Quarrel"
+            },
+            {
+              "lo": 44,
+              "hi": 47,
+              "label": "Heavy Quarrel"
+            },
+            {
+              "lo": 48,
+              "hi": 59,
+              "label": "Dagger"
+            },
+            {
+              "lo": 60,
+              "hi": 65,
+              "label": "Shortsword"
+            },
+            {
+              "lo": 66,
+              "hi": 79,
+              "label": "Longsword"
+            },
+            {
+              "lo": 80,
+              "hi": 81,
+              "label": "Scimitar"
+            },
+            {
+              "lo": 82,
+              "hi": 83,
+              "label": "Two-Handed Sword"
+            },
+            {
+              "lo": 84,
+              "hi": 86,
+              "label": "Warhammer"
+            },
+            {
+              "lo": 87,
+              "hi": 94,
+              "label": "Mace"
+            },
+            {
+              "lo": 95,
+              "hi": 95,
+              "label": "Maul"
+            },
+            {
+              "lo": 96,
+              "hi": 96,
+              "label": "Pole Arm"
+            },
+            {
+              "lo": 97,
+              "hi": 97,
+              "label": "Sling Bullet"
+            },
+            {
+              "lo": 98,
+              "hi": 100,
+              "label": "Spear"
+            }
+          ],
+          "weapon_bonus": {
+            "note": "Follow the Special Enemy or Special Ability table when the bonus says so. Generally ignore further Special Ability rolls. If a cursed weapon is rolled along with a special ability, ignore the special ability. Missile has no row for +4, +5, or roll again.",
+            "rows": [
+              {
+                "melee": "01-40",
+                "missile": "01-46",
+                "label": "+1"
+              },
+              {
+                "melee": "41-50",
+                "missile": "47-58",
+                "label": "+2"
+              },
+              {
+                "melee": "51-55",
+                "missile": "59-64",
+                "label": "+3"
+              },
+              {
+                "melee": "56-57",
+                "label": "+4"
+              },
+              {
+                "melee": "58",
+                "label": "+5"
+              },
+              {
+                "melee": "59-75",
+                "missile": "65-82",
+                "label": "+1, +2 vs. Special Enemy"
+              },
+              {
+                "melee": "76-85",
+                "missile": "83-94",
+                "label": "+1, +3 vs. Special Enemy"
+              },
+              {
+                "melee": "86-95",
+                "label": "Roll Again + Special Ability"
+              },
+              {
+                "melee": "96-98",
+                "missile": "95-98",
+                "label": "Cursed, -1"
+              },
+              {
+                "melee": "99-00",
+                "missile": "99-00",
+                "label": "Cursed, -2"
+              }
+            ]
+          },
+          "special_enemy": {
+            "die": "1d6",
+            "rows": [
+              {
+                "lo": 1,
+                "hi": 1,
+                "label": "Dragons"
+              },
+              {
+                "lo": 2,
+                "hi": 2,
+                "label": "Enchanted"
+              },
+              {
+                "lo": 3,
+                "hi": 3,
+                "label": "Lycanthropes"
+              },
+              {
+                "lo": 4,
+                "hi": 4,
+                "label": "Regenerators"
+              },
+              {
+                "lo": 5,
+                "hi": 5,
+                "label": "Spell Users"
+              },
+              {
+                "lo": 6,
+                "hi": 6,
+                "label": "Undead"
+              }
+            ]
+          },
+          "special_ability": {
+            "die": "1d20",
+            "rows": [
+              {
+                "lo": 1,
+                "hi": 9,
+                "label": "Casts Light on Command"
+              },
+              {
+                "lo": 10,
+                "hi": 11,
+                "label": "Charm Person"
+              },
+              {
+                "lo": 12,
+                "hi": 12,
+                "label": "Drains Energy"
+              },
+              {
+                "lo": 13,
+                "hi": 16,
+                "label": "Flames on Command"
+              },
+              {
+                "lo": 17,
+                "hi": 19,
+                "label": "Locate Objects"
+              },
+              {
+                "lo": 20,
+                "hi": 20,
+                "label": "Wishes"
+              }
+            ]
+          },
+          "armor_type": [
+            {
+              "lo": 1,
+              "hi": 9,
+              "label": "Leather Armor"
+            },
+            {
+              "lo": 10,
+              "hi": 28,
+              "label": "Chain Mail"
+            },
+            {
+              "lo": 29,
+              "hi": 43,
+              "label": "Plate Mail"
+            },
+            {
+              "lo": 44,
+              "hi": 100,
+              "label": "Shield"
+            }
+          ],
+          "armor_bonus": {
+            "note": "If Cursed armor is rolled, roll again and reverse the bonus (for example, -1 instead of +1). Cursed, AC 11 has AC 11 but appears to be +1 when tested.",
+            "rows": [
+              {
+                "lo": 1,
+                "hi": 50,
+                "label": "+1"
+              },
+              {
+                "lo": 51,
+                "hi": 80,
+                "label": "+2"
+              },
+              {
+                "lo": 81,
+                "hi": 90,
+                "label": "+3"
+              },
+              {
+                "lo": 91,
+                "hi": 95,
+                "label": "Cursed"
+              },
+              {
+                "lo": 96,
+                "hi": 100,
+                "label": "Cursed, AC 11"
+              }
+            ]
+          },
+          "potion": [
+            {
+              "lo": 1,
+              "hi": 3,
+              "label": "Clairaudience"
+            },
+            {
+              "lo": 4,
+              "hi": 6,
+              "label": "Clairvoyance"
+            },
+            {
+              "lo": 7,
+              "hi": 8,
+              "label": "Cold Resistance"
+            },
+            {
+              "lo": 9,
+              "hi": 11,
+              "label": "Control Animal"
+            },
+            {
+              "lo": 12,
+              "hi": 13,
+              "label": "Control Dragon"
+            },
+            {
+              "lo": 14,
+              "hi": 16,
+              "label": "Control Giant"
+            },
+            {
+              "lo": 17,
+              "hi": 19,
+              "label": "Control Human"
+            },
+            {
+              "lo": 20,
+              "hi": 22,
+              "label": "Control Plant"
+            },
+            {
+              "lo": 23,
+              "hi": 25,
+              "label": "Control Undead"
+            },
+            {
+              "lo": 26,
+              "hi": 32,
+              "label": "Delusion"
+            },
+            {
+              "lo": 33,
+              "hi": 35,
+              "label": "Diminution"
+            },
+            {
+              "lo": 36,
+              "hi": 39,
+              "label": "Fire Resistance"
+            },
+            {
+              "lo": 40,
+              "hi": 43,
+              "label": "Flying"
+            },
+            {
+              "lo": 44,
+              "hi": 47,
+              "label": "Gaseous Form"
+            },
+            {
+              "lo": 48,
+              "hi": 51,
+              "label": "Giant Strength"
+            },
+            {
+              "lo": 52,
+              "hi": 55,
+              "label": "Growth"
+            },
+            {
+              "lo": 56,
+              "hi": 59,
+              "label": "Healing"
+            },
+            {
+              "lo": 60,
+              "hi": 63,
+              "label": "Heroism"
+            },
+            {
+              "lo": 64,
+              "hi": 68,
+              "label": "Invisibility"
+            },
+            {
+              "lo": 69,
+              "hi": 72,
+              "label": "Invulnerability"
+            },
+            {
+              "lo": 73,
+              "hi": 76,
+              "label": "Levitation"
+            },
+            {
+              "lo": 77,
+              "hi": 80,
+              "label": "Longevity"
+            },
+            {
+              "lo": 81,
+              "hi": 84,
+              "label": "Mind Reading"
+            },
+            {
+              "lo": 85,
+              "hi": 86,
+              "label": "Poison"
+            },
+            {
+              "lo": 87,
+              "hi": 89,
+              "label": "Polymorph Self"
+            },
+            {
+              "lo": 90,
+              "hi": 97,
+              "label": "Speed"
+            },
+            {
+              "lo": 98,
+              "hi": 100,
+              "label": "Treasure Finding"
+            }
+          ],
+          "scroll": [
+            {
+              "lo": 1,
+              "hi": 3,
+              "label": "Cleric Spell Scroll (1 Spell)"
+            },
+            {
+              "lo": 4,
+              "hi": 6,
+              "label": "Cleric Spell Scroll (2 Spells)"
+            },
+            {
+              "lo": 7,
+              "hi": 8,
+              "label": "Cleric Spell Scroll (3 Spells)"
+            },
+            {
+              "lo": 9,
+              "hi": 9,
+              "label": "Cleric Spell Scroll (4 Spells)"
+            },
+            {
+              "lo": 10,
+              "hi": 15,
+              "label": "Magic-User Spell Scroll (1 Spell)"
+            },
+            {
+              "lo": 16,
+              "hi": 20,
+              "label": "Magic-User Spell Scroll (2 Spells)"
+            },
+            {
+              "lo": 21,
+              "hi": 25,
+              "label": "Magic-User Spell Scroll (3 Spells)"
+            },
+            {
+              "lo": 26,
+              "hi": 29,
+              "label": "Magic-User Spell Scroll (4 Spells)"
+            },
+            {
+              "lo": 30,
+              "hi": 32,
+              "label": "Magic-User Spell Scroll (5 Spells)"
+            },
+            {
+              "lo": 33,
+              "hi": 34,
+              "label": "Magic-User Spell Scroll (6 Spells)"
+            },
+            {
+              "lo": 35,
+              "hi": 35,
+              "label": "Magic-User Spell Scroll (7 Spells)"
+            },
+            {
+              "lo": 36,
+              "hi": 40,
+              "label": "Cursed Scroll"
+            },
+            {
+              "lo": 41,
+              "hi": 46,
+              "label": "Protection from Elementals"
+            },
+            {
+              "lo": 47,
+              "hi": 56,
+              "label": "Protection from Lycanthropes"
+            },
+            {
+              "lo": 57,
+              "hi": 61,
+              "label": "Protection from Magic"
+            },
+            {
+              "lo": 62,
+              "hi": 75,
+              "label": "Protection from Undead"
+            },
+            {
+              "lo": 76,
+              "hi": 85,
+              "label": "Map to Treasure Type A"
+            },
+            {
+              "lo": 86,
+              "hi": 89,
+              "label": "Map to Treasure Type E"
+            },
+            {
+              "lo": 90,
+              "hi": 92,
+              "label": "Map to Treasure Type G"
+            },
+            {
+              "lo": 93,
+              "hi": 100,
+              "label": "Map to 1d4 Magic Items"
+            }
+          ],
+          "wand": [
+            {
+              "lo": 1,
+              "hi": 8,
+              "label": "Rod of Cancellation"
+            },
+            {
+              "lo": 9,
+              "hi": 13,
+              "label": "Snake Staff"
+            },
+            {
+              "lo": 14,
+              "hi": 17,
+              "label": "Staff of Commanding"
+            },
+            {
+              "lo": 18,
+              "hi": 28,
+              "label": "Staff of Healing"
+            },
+            {
+              "lo": 29,
+              "hi": 30,
+              "label": "Staff of Power"
+            },
+            {
+              "lo": 31,
+              "hi": 34,
+              "label": "Staff of Striking"
+            },
+            {
+              "lo": 35,
+              "hi": 35,
+              "label": "Staff of Wizardry"
+            },
+            {
+              "lo": 36,
+              "hi": 40,
+              "label": "Wand of Cold"
+            },
+            {
+              "lo": 41,
+              "hi": 45,
+              "label": "Wand of Enemy Detection"
+            },
+            {
+              "lo": 46,
+              "hi": 50,
+              "label": "Wand of Fear"
+            },
+            {
+              "lo": 51,
+              "hi": 55,
+              "label": "Wand of Fireballs"
+            },
+            {
+              "lo": 56,
+              "hi": 60,
+              "label": "Wand of Illusion"
+            },
+            {
+              "lo": 61,
+              "hi": 65,
+              "label": "Wand of Lightning Bolts"
+            },
+            {
+              "lo": 66,
+              "hi": 73,
+              "label": "Wand of Magic Detection"
+            },
+            {
+              "lo": 74,
+              "hi": 79,
+              "label": "Wand of Paralysis"
+            },
+            {
+              "lo": 80,
+              "hi": 84,
+              "label": "Wand of Polymorph"
+            },
+            {
+              "lo": 85,
+              "hi": 92,
+              "label": "Wand of Secret Door Detection"
+            },
+            {
+              "lo": 93,
+              "hi": 100,
+              "label": "Wand of Trap Detection"
+            }
+          ],
+          "miscellaneous": {
+            "note": "Roll the pick table, then the chosen effect subtable, then the Form column named on that effect.",
+            "pick": [
+              {
+                "lo": 1,
+                "hi": 57,
+                "label": "Effect Subtable 1"
+              },
+              {
+                "lo": 58,
+                "hi": 100,
+                "label": "Effect Subtable 2"
+              }
+            ],
+            "effect": [
+              [
+                {
+                  "lo": 1,
+                  "hi": 1,
+                  "label": "Blasting",
+                  "form": "G"
+                },
+                {
+                  "lo": 2,
+                  "hi": 5,
+                  "label": "Blending",
+                  "form": "F"
+                },
+                {
+                  "lo": 6,
+                  "hi": 13,
+                  "label": "Cold Resistance",
+                  "form": "F"
+                },
+                {
+                  "lo": 14,
+                  "hi": 17,
+                  "label": "Comprehension",
+                  "form": "E"
+                },
+                {
+                  "lo": 18,
+                  "hi": 22,
+                  "label": "Control Animal",
+                  "form": "C"
+                },
+                {
+                  "lo": 23,
+                  "hi": 29,
+                  "label": "Control Human",
+                  "form": "C"
+                },
+                {
+                  "lo": 30,
+                  "hi": 35,
+                  "label": "Control Plant",
+                  "form": "C"
+                },
+                {
+                  "lo": 36,
+                  "hi": 37,
+                  "label": "Courage",
+                  "form": "G"
+                },
+                {
+                  "lo": 38,
+                  "hi": 40,
+                  "label": "Deception",
+                  "form": "F"
+                },
+                {
+                  "lo": 41,
+                  "hi": 52,
+                  "label": "Delusion",
+                  "form": "A"
+                },
+                {
+                  "lo": 53,
+                  "hi": 55,
+                  "label": "Djinni Summoning",
+                  "form": "C"
+                },
+                {
+                  "lo": 56,
+                  "hi": 56,
+                  "label": "Doom",
+                  "form": "G"
+                },
+                {
+                  "lo": 57,
+                  "hi": 67,
+                  "label": "Fire Resistance",
+                  "form": "F"
+                },
+                {
+                  "lo": 68,
+                  "hi": 80,
+                  "label": "Invisibility",
+                  "form": "F"
+                },
+                {
+                  "lo": 81,
+                  "hi": 85,
+                  "label": "Levitation",
+                  "form": "B"
+                },
+                {
+                  "lo": 86,
+                  "hi": 95,
+                  "label": "Mind Reading",
+                  "form": "C"
+                },
+                {
+                  "lo": 96,
+                  "hi": 97,
+                  "label": "Panic",
+                  "form": "G"
+                },
+                {
+                  "lo": 98,
+                  "hi": 100,
+                  "label": "Penetrating Vision",
+                  "form": "D"
+                }
+              ],
+              [
+                {
+                  "lo": 1,
+                  "hi": 7,
+                  "label": "Protection +1",
+                  "form": "F"
+                },
+                {
+                  "lo": 8,
+                  "hi": 10,
+                  "label": "Protection +2",
+                  "form": "F"
+                },
+                {
+                  "lo": 11,
+                  "hi": 11,
+                  "label": "Protection +3",
+                  "form": "F"
+                },
+                {
+                  "lo": 12,
+                  "hi": 14,
+                  "label": "Protection from Energy Drain",
+                  "form": "F"
+                },
+                {
+                  "lo": 15,
+                  "hi": 20,
+                  "label": "Protection from Scrying",
+                  "form": "F"
+                },
+                {
+                  "lo": 21,
+                  "hi": 23,
+                  "label": "Regeneration",
+                  "form": "C"
+                },
+                {
+                  "lo": 24,
+                  "hi": 29,
+                  "label": "Scrying",
+                  "form": "H"
+                },
+                {
+                  "lo": 30,
+                  "hi": 32,
+                  "label": "Scrying, Superior",
+                  "form": "H"
+                },
+                {
+                  "lo": 33,
+                  "hi": 39,
+                  "label": "Speed",
+                  "form": "B"
+                },
+                {
+                  "lo": 40,
+                  "hi": 42,
+                  "label": "Spell Storing",
+                  "form": "C"
+                },
+                {
+                  "lo": 43,
+                  "hi": 50,
+                  "label": "Spell Turning",
+                  "form": "F"
+                },
+                {
+                  "lo": 51,
+                  "hi": 69,
+                  "label": "Stealth",
+                  "form": "B"
+                },
+                {
+                  "lo": 70,
+                  "hi": 72,
+                  "label": "Telekinesis",
+                  "form": "C"
+                },
+                {
+                  "lo": 73,
+                  "hi": 74,
+                  "label": "Telepathy",
+                  "form": "C"
+                },
+                {
+                  "lo": 75,
+                  "hi": 76,
+                  "label": "Teleportation",
+                  "form": "C"
+                },
+                {
+                  "lo": 77,
+                  "hi": 78,
+                  "label": "True Seeing",
+                  "form": "D"
+                },
+                {
+                  "lo": 79,
+                  "hi": 88,
+                  "label": "Water Walking",
+                  "form": "B"
+                },
+                {
+                  "lo": 89,
+                  "hi": 99,
+                  "label": "Weakness",
+                  "form": "C"
+                },
+                {
+                  "lo": 100,
+                  "hi": 100,
+                  "label": "Wishes",
+                  "form": "C"
+                }
+              ]
+            ],
+            "form": [
+              {
+                "label": "Bell (or Chime)",
+                "A": "01-02",
+                "G": "01-17"
+              },
+              {
+                "label": "Belt or Girdle",
+                "A": "03-05",
+                "F": "01-07"
+              },
+              {
+                "label": "Boots",
+                "A": "06-13",
+                "B": "01-25"
+              },
+              {
+                "label": "Bowl",
+                "A": "14-15",
+                "H": "01-17"
+              },
+              {
+                "label": "Cloak",
+                "A": "16-28",
+                "F": "08-38"
+              },
+              {
+                "label": "Crystal Ball or Orb",
+                "A": "29-31",
+                "H": "18-67"
+              },
+              {
+                "label": "Drums",
+                "A": "32-33",
+                "G": "18-50"
+              },
+              {
+                "label": "Helm",
+                "A": "34-38",
+                "E": "01-40"
+              },
+              {
+                "label": "Horn",
+                "A": "39-43",
+                "G": "51-00"
+              },
+              {
+                "label": "Lens",
+                "A": "44-46",
+                "D": "01-17"
+              },
+              {
+                "label": "Mirror",
+                "A": "47-49",
+                "D": "18-21",
+                "H": "68-00"
+              },
+              {
+                "label": "Pendant",
+                "A": "50-67",
+                "B": "26-50",
+                "C": "01-40",
+                "D": "22-50",
+                "E": "41-80",
+                "F": "39-50"
+              },
+              {
+                "label": "Ring",
+                "A": "68-00",
+                "B": "51-00",
+                "C": "41-00",
+                "D": "51-00",
+                "E": "81-00",
+                "F": "51-00"
+              }
+            ]
+          },
+          "rare": [
+            {
+              "lo": 1,
+              "hi": 5,
+              "label": "Bag of Devouring"
+            },
+            {
+              "lo": 6,
+              "hi": 20,
+              "label": "Bag of Holding"
+            },
+            {
+              "lo": 21,
+              "hi": 32,
+              "label": "Boots of Traveling and Leaping"
+            },
+            {
+              "lo": 33,
+              "hi": 47,
+              "label": "Broom of Flying"
+            },
+            {
+              "lo": 48,
+              "hi": 57,
+              "label": "Device of Summoning Elementals"
+            },
+            {
+              "lo": 58,
+              "hi": 59,
+              "label": "Efreeti Bottle"
+            },
+            {
+              "lo": 60,
+              "hi": 64,
+              "label": "Flying Carpet"
+            },
+            {
+              "lo": 65,
+              "hi": 81,
+              "label": "Gauntlets of Ogre Power"
+            },
+            {
+              "lo": 82,
+              "hi": 86,
+              "label": "Girdle of Giant Strength"
+            },
+            {
+              "lo": 87,
+              "hi": 88,
+              "label": "Mirror of Imprisonment"
+            },
+            {
+              "lo": 89,
+              "hi": 100,
+              "label": "Rope of Climbing"
+            }
+          ],
+          "elemental_device": {
+            "die": "1d8",
+            "note": "Review the information for Elementals on page 88 before randomly selecting any of these items, as you may not wish to allow all types of elementals in your campaign.",
+            "rows": [
+              {
+                "lo": 1,
+                "hi": 1,
+                "label": "Bowl of Summoning Water Elementals"
+              },
+              {
+                "lo": 2,
+                "hi": 2,
+                "label": "Brazier of Summoning Fire Elementals"
+              },
+              {
+                "lo": 3,
+                "hi": 3,
+                "label": "Censer of Summoning Air Elementals"
+              },
+              {
+                "lo": 4,
+                "hi": 4,
+                "label": "Crucible of Summoning Metal Elementals"
+              },
+              {
+                "lo": 5,
+                "hi": 5,
+                "label": "Mallet of Summoning Wood Elementals"
+              },
+              {
+                "lo": 6,
+                "hi": 6,
+                "label": "Marble Plate of Summoning Cold Elementals"
+              },
+              {
+                "lo": 7,
+                "hi": 7,
+                "label": "Rod of Summoning Lightning Elementals"
+              },
+              {
+                "lo": 8,
+                "hi": 8,
+                "label": "Stone of Summoning Earth Elementals"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

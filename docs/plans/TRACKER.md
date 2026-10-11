@@ -6,7 +6,7 @@ Status words: `todo`, `doing`, `done`, `cut`.
 
 When you pick something up, set it to `doing` and add a one-line note under it. When you stop, leave the note describing what is true in the tree, not what you intended.
 
-The first pass is in the tree. Next is the r142 catalog.
+The first pass, the r142 catalog, and later procedures are in the tree. Nothing is queued.
 
 ## Now
 
@@ -21,15 +21,16 @@ First pass. Design: [01-play-loop.md](01-play-loop.md).
 - [x] `done` Slice 4. Accept a roll onto the open encounter. Enemy row can carry monster, quantity, and treasure type.
   - `campaign_enemy` stores an optional quantity note and treasure-type code. A typed name still works with those fields empty. Accept copies the last wander hit (name, monster, quantity, and the monster's treasure type) into the encounter and opens it. The clock does not move. A miss cannot be accepted, and the same hit cannot be accepted twice.
 - [x] `done` Configuration tab. Location and encounter-table editing moves off Adventuring. Outside locations store terrain and a signed movement percent.
-  - GM nav has Configuration after Adventuring. That page creates, edits, and deletes locations and campaign encounter tables. Stock tables stay read-only. Adventuring only selects a location. Outside, `terrain` and `movement_pct` are both empty or both set (Clear/Road 0, Forest/Hills/Desert -33, Jungle/Swamp/Mountains -50, any integer from -100 to 200). Inside leaves both empty. The percent is stored and shown. It does not change travel.
+  - GM nav has Configuration after Adventuring. That page creates, edits, and deletes locations and campaign encounter tables. Stock tables stay read-only. Adventuring only selects a location. Outside, `terrain` and `movement_pct` are both empty or both set (Clear 0, Road +33, Forest/Hills/Desert -33, Jungle/Swamp/Mountains -67, any integer from -100 to 200). Inside leaves both empty. The percent is stored. Overland miles use it.
 - [x] `done` Slice 5. Treasure roll is an editable draft. Apply only through the existing party give commands.
   - Rolling a treasure type returns a draft of percent-and-dice columns. A missing type is an error. The draft can be edited. Apply sends it through the party `give_xp` and `give_item` commands. The roll itself writes nothing.
+- [x] `done` r142 catalog. [02-r142-catalog.md](02-r142-catalog.md). Update Core, then the same correction on Enhanced where that row is still the shared rule.
+  - Core monsters, treasure types, and stock encounter tables are loaded. Class progression, saves, thief skills, and spell text match r142 where a row was checked. Cleric and Magic-User 7th-level slots are cleared. Level 0 and level 7 spell filings stay. Item prices, character money, and transfers are copper pieces (100 per gp). Core race and class descriptions match r142. Enhanced inherits Core rows it does not replace.
 
 ## Next
 
-- [ ] `doing` r142 catalog. [02-r142-catalog.md](02-r142-catalog.md). Update Core, then the same correction on Enhanced where that row is still the shared rule.
-  - Core `MONSTERS.json` is loaded: 263 rows from r142 pages 67–166, including hit-die, defense, and attack notes and a second morale figure. Hellhound is one row per hit die from 3 to 7. Treasure types, encounter tables, and the class, spell, and item diffs are not started. Enhanced was not changed.
-- [ ] `todo` Later procedures. [03-later-procedures.md](03-later-procedures.md). The list held back from the first pass.
+- [x] `done` Later procedures. [03-later-procedures.md](03-later-procedures.md). The list held back from the first pass.
+  - Prep tools are on Configuration: a room stock roll, a trap note, and vehicle damage with field repair to 90%. None of them are stored, and none open an encounter. Players do not see tables or GM rolls. The player-facing encounter table stays cut.
 
 ## Cut on purpose
 

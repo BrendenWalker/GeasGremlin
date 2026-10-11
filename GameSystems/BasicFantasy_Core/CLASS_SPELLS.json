@@ -153,7 +153,7 @@
 		"LEVEL4" : 3,
 		"LEVEL5" : 2,
 		"LEVEL6" : 2,
-		"LEVEL7" : 1,
+		"LEVEL7" : null,
 		"MODIFIED" : "2021-08-16 19:37:37"
 	},
 	{
@@ -165,7 +165,7 @@
 		"LEVEL4" : 3,
 		"LEVEL5" : 3,
 		"LEVEL6" : 2,
-		"LEVEL7" : 1,
+		"LEVEL7" : null,
 		"MODIFIED" : "2021-08-16 19:37:37"
 	},
 	{
@@ -177,7 +177,7 @@
 		"LEVEL4" : 3,
 		"LEVEL5" : 3,
 		"LEVEL6" : 2,
-		"LEVEL7" : 1,
+		"LEVEL7" : null,
 		"MODIFIED" : "2021-08-16 19:37:37"
 	},
 	{
@@ -189,7 +189,7 @@
 		"LEVEL4" : 3,
 		"LEVEL5" : 3,
 		"LEVEL6" : 2,
-		"LEVEL7" : 2,
+		"LEVEL7" : null,
 		"MODIFIED" : "2021-08-16 19:37:37"
 	},
 	{
@@ -201,7 +201,7 @@
 		"LEVEL4" : 4,
 		"LEVEL5" : 3,
 		"LEVEL6" : 3,
-		"LEVEL7" : 2,
+		"LEVEL7" : null,
 		"MODIFIED" : "2021-08-16 19:37:37"
 	},
 	{
@@ -213,7 +213,7 @@
 		"LEVEL4" : 4,
 		"LEVEL5" : 3,
 		"LEVEL6" : 3,
-		"LEVEL7" : 2,
+		"LEVEL7" : null,
 		"MODIFIED" : "2021-08-16 19:37:37"
 	},
 	{
@@ -225,7 +225,7 @@
 		"LEVEL4" : 4,
 		"LEVEL5" : 3,
 		"LEVEL6" : 3,
-		"LEVEL7" : 3,
+		"LEVEL7" : null,
 		"MODIFIED" : "2021-08-16 19:37:37"
 	},
 	{
@@ -381,7 +381,7 @@
 		"LEVEL4" : 3,
 		"LEVEL5" : 2,
 		"LEVEL6" : 2,
-		"LEVEL7" : 1,
+		"LEVEL7" : null,
 		"MODIFIED" : "2021-08-16 19:37:37"
 	},
 	{
@@ -393,7 +393,7 @@
 		"LEVEL4" : 3,
 		"LEVEL5" : 3,
 		"LEVEL6" : 2,
-		"LEVEL7" : 1,
+		"LEVEL7" : null,
 		"MODIFIED" : "2021-08-16 19:37:37"
 	},
 	{
@@ -405,7 +405,7 @@
 		"LEVEL4" : 3,
 		"LEVEL5" : 3,
 		"LEVEL6" : 2,
-		"LEVEL7" : 1,
+		"LEVEL7" : null,
 		"MODIFIED" : "2021-08-16 19:37:37"
 	},
 	{
@@ -417,7 +417,7 @@
 		"LEVEL4" : 3,
 		"LEVEL5" : 3,
 		"LEVEL6" : 2,
-		"LEVEL7" : 2,
+		"LEVEL7" : null,
 		"MODIFIED" : "2021-08-16 19:37:37"
 	},
 	{
@@ -429,7 +429,7 @@
 		"LEVEL4" : 4,
 		"LEVEL5" : 3,
 		"LEVEL6" : 3,
-		"LEVEL7" : 2,
+		"LEVEL7" : null,
 		"MODIFIED" : "2021-08-16 19:37:37"
 	},
 	{
@@ -441,7 +441,7 @@
 		"LEVEL4" : 4,
 		"LEVEL5" : 3,
 		"LEVEL6" : 3,
-		"LEVEL7" : 2,
+		"LEVEL7" : null,
 		"MODIFIED" : "2021-08-16 19:37:37"
 	},
 	{
@@ -453,7 +453,7 @@
 		"LEVEL4" : 4,
 		"LEVEL5" : 3,
 		"LEVEL6" : 3,
-		"LEVEL7" : 2,
+		"LEVEL7" : null,
 		"MODIFIED" : "2021-08-16 19:37:37"
 	},
 	{
@@ -465,7 +465,7 @@
 		"LEVEL4" : 4,
 		"LEVEL5" : 4,
 		"LEVEL6" : 3,
-		"LEVEL7" : 3,
+		"LEVEL7" : null,
 		"MODIFIED" : "2021-08-16 19:37:37"
 	}
 ]}

@@ -1,0 +1,89 @@
+{
+  "ENCOUNTER_TABLES": [
+    {
+      "ID": 1,
+      "NAME": "Dungeon Level 1",
+      "DIE": 12
+    },
+    {
+      "ID": 2,
+      "NAME": "Dungeon Level 2",
+      "DIE": 12
+    },
+    {
+      "ID": 3,
+      "NAME": "Dungeon Level 3",
+      "DIE": 12
+    },
+    {
+      "ID": 4,
+      "NAME": "Dungeon Level 4-5",
+      "DIE": 12
+    },
+    {
+      "ID": 5,
+      "NAME": "Dungeon Level 6-7",
+      "DIE": 12
+    },
+    {
+      "ID": 6,
+      "NAME": "Dungeon Level 8+",
+      "DIE": 12
+    },
+    {
+      "ID": 7,
+      "NAME": "Desert or Barren",
+      "DIE": 16
+    },
+    {
+      "ID": 8,
+      "NAME": "Grassland",
+      "DIE": 16
+    },
+    {
+      "ID": 9,
+      "NAME": "Inhabited Territories",
+      "DIE": 16
+    },
+    {
+      "ID": 10,
+      "NAME": "Jungle",
+      "DIE": 16
+    },
+    {
+      "ID": 11,
+      "NAME": "Mountains or Hills",
+      "DIE": 16
+    },
+    {
+      "ID": 12,
+      "NAME": "Ocean",
+      "DIE": 16
+    },
+    {
+      "ID": 13,
+      "NAME": "River or Riverside",
+      "DIE": 16
+    },
+    {
+      "ID": 14,
+      "NAME": "Swamp",
+      "DIE": 16
+    },
+    {
+      "ID": 15,
+      "NAME": "Woods or Forest",
+      "DIE": 16
+    },
+    {
+      "ID": 16,
+      "NAME": "City, Town, or Village (Day)",
+      "DIE": 12
+    },
+    {
+      "ID": 17,
+      "NAME": "City, Town, or Village (Night)",
+      "DIE": 12
+    }
+  ]
+}

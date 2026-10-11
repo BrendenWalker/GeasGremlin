@@ -519,7 +519,7 @@
 	{
 		"CLASS_ID" : 1,
 		"SPELL_ID" : 77,
-		"LEVEL" : 1,
+		"LEVEL" : 3,
 		"MODIFIED" : "2021-08-08 17:56:52.987"
 	},
 	{
@@ -1073,5 +1073,30 @@
 		"SPELL_ID" : 290,
 		"LEVEL" : 0,
 		"MODIFIED" : "2021-08-23 23:52:28"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 77,
+		"LEVEL" : 4,
+		"MODIFIED" : "2026-10-10 00:00:00"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 294,
+		"LEVEL" : 1,
+		"MODIFIED" : "2026-10-10 00:00:00"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 295,
+		"LEVEL" : 4,
+		"MODIFIED" : "2026-10-10 00:00:00"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 296,
+		"LEVEL" : 1,
+		"MODIFIED" : "2026-10-10 00:00:00"
 	}
-]}
+]
+}

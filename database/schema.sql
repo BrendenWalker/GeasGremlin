@@ -39,12 +39,54 @@ CREATE TABLE IF NOT EXISTS public.ruleset (
 	id serial4 NOT NULL,
 	"name" varchar(40) NOT NULL,
 	mechanic varchar(40) NOT NULL DEFAULT 'bfrpg',
+	parent_ruleset_id int4 NULL,
 	modified timestamp DEFAULT CURRENT_TIMESTAMP NULL,
 	CONSTRAINT ruleset_name_key UNIQUE (name),
 	CONSTRAINT ruleset_pkey PRIMARY KEY (id)
 );
 CREATE INDEX IF NOT EXISTS ruleset_ruleset_modified ON public.ruleset USING btree (modified);
 ALTER TABLE public.ruleset ADD COLUMN IF NOT EXISTS mechanic varchar(40) NOT NULL DEFAULT 'bfrpg';
+ALTER TABLE public.ruleset ADD COLUMN IF NOT EXISTS parent_ruleset_id int4 NULL;
+ALTER TABLE public.ruleset DROP CONSTRAINT IF EXISTS ruleset_parent_ruleset_id_fkey;
+ALTER TABLE public.ruleset
+	ADD CONSTRAINT ruleset_parent_ruleset_id_fkey
+	FOREIGN KEY (parent_ruleset_id) REFERENCES public.ruleset(id) ON DELETE RESTRICT;
+ALTER TABLE public.ruleset DROP CONSTRAINT IF EXISTS ruleset_parent_not_self;
+ALTER TABLE public.ruleset
+	ADD CONSTRAINT ruleset_parent_not_self
+	CHECK (parent_ruleset_id IS NULL OR parent_ruleset_id <> id);
+CREATE INDEX IF NOT EXISTS idx_ruleset_parent ON public.ruleset (parent_ruleset_id);
+
+-- One hop only: the parent has no parent, and a ruleset that already has children cannot gain one.
+CREATE OR REPLACE FUNCTION public.ruleset_parent_guard()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+	IF NEW.parent_ruleset_id IS NULL THEN
+		RETURN NEW;
+	END IF;
+	IF EXISTS (
+		SELECT 1 FROM public.ruleset
+		WHERE id = NEW.parent_ruleset_id
+		  AND parent_ruleset_id IS NOT NULL
+	) THEN
+		RAISE EXCEPTION 'parent ruleset already has a parent';
+	END IF;
+	IF NEW.id IS NOT NULL AND EXISTS (
+		SELECT 1 FROM public.ruleset WHERE parent_ruleset_id = NEW.id
+	) THEN
+		RAISE EXCEPTION 'a ruleset with children cannot have a parent';
+	END IF;
+	RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS ruleset_parent_guard ON public.ruleset;
+CREATE TRIGGER ruleset_parent_guard
+	BEFORE INSERT OR UPDATE OF parent_ruleset_id ON public.ruleset
+	FOR EACH ROW
+	EXECUTE PROCEDURE public.ruleset_parent_guard();
 
 -- public.campaign definition
 
@@ -257,7 +299,7 @@ CREATE TABLE IF NOT EXISTS public."characters" (
 	"level" int4 NULL,
 	xp int4 NULL,
 	skillpoints int4 NULL,
-	"money" int4 NULL,
+	"money" int4 NULL, -- copper pieces. 100 = 1 gp, 10 = 1 sp.
 	modified timestamp DEFAULT now() NOT NULL,
 	equipped_melee_primary_id int4 NULL,
 	equipped_melee_secondary_id int4 NULL,
@@ -306,7 +348,16 @@ CREATE TABLE IF NOT EXISTS public.campaign_character (
 	campaign_id int4 NOT NULL,
 	character_id int4 NOT NULL,
 	modified timestamp DEFAULT CURRENT_TIMESTAMP NULL,
+	food_missed int4 NOT NULL DEFAULT 0,
+	heal_food boolean NOT NULL DEFAULT false,
+	heal_water boolean NOT NULL DEFAULT false,
+	march_days int4 NOT NULL DEFAULT 0,
+	march_failed boolean NOT NULL DEFAULT false,
+	hire_penalty int4 NOT NULL DEFAULT 0,
 	CONSTRAINT campaign_character_pkey PRIMARY KEY (campaign_id, character_id),
+	CONSTRAINT campaign_character_food_missed_check CHECK (food_missed >= 0),
+	CONSTRAINT campaign_character_march_days_check CHECK (march_days >= 0),
+	CONSTRAINT campaign_character_hire_penalty_check CHECK (hire_penalty BETWEEN -1 AND 0),
 	CONSTRAINT campaign_character_campaign_id_fkey FOREIGN KEY (campaign_id) REFERENCES public.campaign(id) ON DELETE CASCADE,
 	CONSTRAINT campaign_character_character_id_fkey FOREIGN KEY (character_id) REFERENCES public."characters"(id) ON DELETE CASCADE
 );
@@ -389,7 +440,7 @@ CREATE TABLE IF NOT EXISTS public.items (
 	category int4 NULL,
 	"type" int4 NULL,
 	"name" varchar(80) NOT NULL,
-	price int4 NULL,
+	price int4 NULL, -- copper pieces. 100 = 1 gp, 10 = 1 sp.
 	"size" varchar(20) NULL,
 	weight int4 NULL,
 	attackbonus int4 NULL,
@@ -606,7 +657,7 @@ CREATE TABLE IF NOT EXISTS public.character_transfer (
 	id serial4 NOT NULL,
 	from_character_id int4 NOT NULL,
 	to_character_id int4 NOT NULL,
-	gold_cp int4 DEFAULT 0 NOT NULL,
+	gold_cp int4 DEFAULT 0 NOT NULL, -- copper pieces. 100 = 1 gp, 10 = 1 sp.
 	payload jsonb NULL,
 	status varchar(16) DEFAULT 'pending' NOT NULL,
 	created_at timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
@@ -713,7 +764,8 @@ BEGIN
 	END IF;
 END $$;
 
--- code is the book letter. definition is the percent-and-dice columns, stored as given.
+-- code is the book letter or a lookup name. definition is the percent-and-dice columns, stored as given.
+-- magic, note, and tables on that object are stored and not rolled.
 CREATE TABLE IF NOT EXISTS public.treasure_type (
 	id serial4 NOT NULL,
 	code varchar(8) NOT NULL,
@@ -867,6 +919,7 @@ CREATE TABLE IF NOT EXISTS public.campaign_enemy (
 	monster_id int4 NULL,
 	quantity varchar(80) NULL,
 	treasure_type varchar(40) NULL,
+	hp int4 NULL,
 	CONSTRAINT campaign_enemy_pkey PRIMARY KEY (id),
 	CONSTRAINT campaign_enemy_campaign_fkey FOREIGN KEY (campaign_id) REFERENCES public.campaign(id) ON DELETE CASCADE,
 	CONSTRAINT campaign_enemy_monster_fkey FOREIGN KEY (monster_id) REFERENCES public.monster(id) ON DELETE RESTRICT
@@ -886,7 +939,83 @@ END $$;
 CREATE INDEX IF NOT EXISTS idx_campaign_enemy_monster ON public.campaign_enemy (monster_id) WHERE monster_id IS NOT NULL;
 ALTER TABLE public.campaign_enemy ADD COLUMN IF NOT EXISTS quantity varchar(80) NULL;
 ALTER TABLE public.campaign_enemy ADD COLUMN IF NOT EXISTS treasure_type varchar(40) NULL;
+ALTER TABLE public.campaign_enemy ADD COLUMN IF NOT EXISTS hp int4 NULL;
+DO $$
+BEGIN
+	IF NOT EXISTS (
+		SELECT 1 FROM pg_constraint WHERE conname = 'campaign_enemy_hp_check'
+	) THEN
+		ALTER TABLE public.campaign_enemy
+			ADD CONSTRAINT campaign_enemy_hp_check CHECK (hp IS NULL OR hp >= 0);
+	END IF;
+END $$;
+
+-- Food and water for this campaign. Healing stays off while either flag is set.
+ALTER TABLE public.campaign_character ADD COLUMN IF NOT EXISTS food_missed int4 NOT NULL DEFAULT 0;
+ALTER TABLE public.campaign_character ADD COLUMN IF NOT EXISTS heal_food boolean NOT NULL DEFAULT false;
+ALTER TABLE public.campaign_character ADD COLUMN IF NOT EXISTS heal_water boolean NOT NULL DEFAULT false;
+ALTER TABLE public.campaign_character ADD COLUMN IF NOT EXISTS march_days int4 NOT NULL DEFAULT 0;
+ALTER TABLE public.campaign_character ADD COLUMN IF NOT EXISTS march_failed boolean NOT NULL DEFAULT false;
+ALTER TABLE public.campaign_character ADD COLUMN IF NOT EXISTS hire_penalty int4 NOT NULL DEFAULT 0;
+DO $$
+BEGIN
+	IF NOT EXISTS (
+		SELECT 1 FROM pg_constraint WHERE conname = 'campaign_character_food_missed_check'
+	) THEN
+		ALTER TABLE public.campaign_character
+			ADD CONSTRAINT campaign_character_food_missed_check CHECK (food_missed >= 0);
+	END IF;
+	IF NOT EXISTS (
+		SELECT 1 FROM pg_constraint WHERE conname = 'campaign_character_march_days_check'
+	) THEN
+		ALTER TABLE public.campaign_character
+			ADD CONSTRAINT campaign_character_march_days_check CHECK (march_days >= 0);
+	END IF;
+	IF NOT EXISTS (
+		SELECT 1 FROM pg_constraint WHERE conname = 'campaign_character_hire_penalty_check'
+	) THEN
+		ALTER TABLE public.campaign_character
+			ADD CONSTRAINT campaign_character_hire_penalty_check CHECK (hire_penalty BETWEEN -1 AND 0);
+	END IF;
+END $$;
+
+-- A hired NPC for this campaign. A retainer has loyalty. A mercenary has morale. A specialist has neither.
+CREATE TABLE IF NOT EXISTS public.campaign_hireling (
+	id serial4 NOT NULL,
+	campaign_id int4 NOT NULL,
+	employer_id int4 NOT NULL,
+	kind varchar(12) NOT NULL,
+	name varchar(80) NOT NULL,
+	detail varchar(120) NULL,
+	level int4 NULL,
+	loyalty int4 NULL,
+	morale int4 NULL,
+	cost_gp int4 NULL,
+	quantity int4 NOT NULL DEFAULT 1,
+	CONSTRAINT campaign_hireling_pkey PRIMARY KEY (id),
+	CONSTRAINT campaign_hireling_campaign_fkey FOREIGN KEY (campaign_id) REFERENCES public.campaign(id) ON DELETE CASCADE,
+	CONSTRAINT campaign_hireling_employer_fkey FOREIGN KEY (employer_id) REFERENCES public."characters"(id) ON DELETE CASCADE,
+	CONSTRAINT campaign_hireling_kind_check CHECK (kind IN ('retainer', 'specialist', 'mercenary')),
+	CONSTRAINT campaign_hireling_quantity_check CHECK (quantity >= 1),
+	CONSTRAINT campaign_hireling_shape_check CHECK (
+		(kind = 'retainer' AND level >= 1 AND loyalty BETWEEN 2 AND 12 AND morale IS NULL)
+		OR (kind = 'specialist' AND loyalty IS NULL AND morale IS NULL AND cost_gp >= 0)
+		OR (kind = 'mercenary' AND loyalty IS NULL AND morale BETWEEN 2 AND 12 AND cost_gp >= 0 AND level >= 1)
+	)
+);
+CREATE INDEX IF NOT EXISTS idx_campaign_hireling_campaign ON public.campaign_hireling USING btree (campaign_id);
 ALTER TABLE public.campaign_wander ADD COLUMN IF NOT EXISTS accepted boolean NOT NULL DEFAULT false;
+
+-- A failed turning roll. until_seconds is the clock when the cleric may try again.
+CREATE TABLE IF NOT EXISTS public.campaign_turn_block (
+	campaign_id int4 NOT NULL,
+	character_id int4 NOT NULL,
+	until_seconds int4 NOT NULL,
+	CONSTRAINT campaign_turn_block_pkey PRIMARY KEY (campaign_id, character_id),
+	CONSTRAINT campaign_turn_block_until_check CHECK (until_seconds >= 0),
+	CONSTRAINT campaign_turn_block_campaign_fkey FOREIGN KEY (campaign_id) REFERENCES public.campaign(id) ON DELETE CASCADE,
+	CONSTRAINT campaign_turn_block_character_fkey FOREIGN KEY (character_id) REFERENCES public."characters"(id) ON DELETE CASCADE
+);
 
 -- Last time the character's owner had that sheet open in this campaign.
 CREATE TABLE IF NOT EXISTS public.campaign_presence (

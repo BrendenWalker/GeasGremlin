@@ -4,13 +4,14 @@
  *
  * Assumes schema.sql is already applied and DB_* points at that database.
  * Ignores: PENDING_CHANGES.json, gamesystem.json description, all modified fields.
- * Compares gamesystem.json name and mechanic (missing mechanic counts as bfrpg).
+ * Compares gamesystem.json name, mechanic, and parent_ruleset (missing mechanic counts as bfrpg).
  */
 
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const { findRulesetDir } = require('../overlay');
 
 const repoRoot = path.join(__dirname, '..', '..');
 const repoEnv = path.join(repoRoot, '.env');
@@ -110,7 +111,10 @@ function loadGamesystemMeta(dir) {
   const mechanic = meta.mechanic == null || String(meta.mechanic).trim() === ''
     ? 'bfrpg'
     : String(meta.mechanic).trim();
-  return { name: meta.name.trim(), mechanic };
+  const parent = meta.parent_ruleset == null || String(meta.parent_ruleset).trim() === ''
+    ? null
+    : String(meta.parent_ruleset).trim();
+  return { name: meta.name.trim(), mechanic, parent };
 }
 
 function normalizeValue(v) {
@@ -227,13 +231,22 @@ function main() {
     process.exit(1);
   }
 
-  const rulesetName = loadGamesystemMeta(dir).name;
+  const rulesetMeta = loadGamesystemMeta(dir);
+  const rulesetName = rulesetMeta.name;
   const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rpghub-ruleset-export-'));
 
   console.log(`Round-trip: ${dir}`);
   console.log(`Ruleset name: ${JSON.stringify(rulesetName)}`);
   console.log(`Export dir: ${outDir}`);
 
+  if (rulesetMeta.parent) {
+    const parentDir = findRulesetDir(path.dirname(dir), rulesetMeta.parent);
+    if (!parentDir) {
+      throw new Error(`No GameSystems folder for parent_ruleset ${JSON.stringify(rulesetMeta.parent)}`);
+    }
+    console.log(`Importing parent first: ${parentDir}`);
+    runNodeScript('import-ruleset.js', ['--dir', parentDir]);
+  }
   runNodeScript('import-ruleset.js', ['--dir', dir]);
   runNodeScript('export-ruleset.js', [
     '--ruleset-name',
@@ -251,6 +264,11 @@ function main() {
   if (srcMeta.mechanic !== expMeta.mechanic) {
     errors.push(
       `gamesystem.json mechanic: source=${JSON.stringify(srcMeta.mechanic)} export=${JSON.stringify(expMeta.mechanic)}`
+    );
+  }
+  if (srcMeta.parent !== expMeta.parent) {
+    errors.push(
+      `gamesystem.json parent_ruleset: source=${JSON.stringify(srcMeta.parent)} export=${JSON.stringify(expMeta.parent)}`
     );
   }
 

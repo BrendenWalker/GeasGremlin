@@ -179,7 +179,10 @@ async function main() {
     fs.mkdirSync(outputDir, { recursive: true });
 
     const mechanicRow = await pool.query(
-      'SELECT mechanic FROM public.ruleset WHERE id = $1',
+      `SELECT r.mechanic, p.name AS parent_ruleset
+       FROM public.ruleset r
+       LEFT JOIN public.ruleset p ON p.id = r.parent_ruleset_id
+       WHERE r.id = $1`,
       [rulesetId]
     );
     const mechanic = mechanicRow.rows[0]?.mechanic || 'bfrpg';
@@ -188,6 +191,9 @@ async function main() {
       mechanic,
       description: `Exported from database ruleset_id=${rulesetId} (${resolved.sourceLabel}).`,
     };
+    if (mechanicRow.rows[0]?.parent_ruleset) {
+      gamesystem.parent_ruleset = mechanicRow.rows[0].parent_ruleset;
+    }
     fs.writeFileSync(
       path.join(outputDir, 'gamesystem.json'),
       JSON.stringify(gamesystem, null, 2) + '\n',
