@@ -132,7 +132,7 @@ Created during play or setup; not bulk “book import” in the same sense as cl
 
 **Characters and sheets**
 
-- `characters` — **player/GM-owned** rows; **`ruleset_id`** selects which catalog IDs are valid in context. `money` is copper pieces.
+- `characters` — **player/GM-owned** rows; **`ruleset_id`** selects which catalog IDs are valid in context. `money` is copper pieces. Optional identity text is `gender`, `age`, `hair`, `eyes`, `height`, `weight`, and `languages`. Movement is not stored.
 - `character_classes` — one row per (character, class), with per-class `class_level` and `sort_order` (primary = lowest `sort_order`, then `class_id`); replaces a single `class` column on `characters`. A quasi-class is not a row here. It is `characters.quasiclass`, and the primary row is the base class the player chose.
 - `character_abilities`, `character_effects`, `character_items`, `character_spells`, `character_spells_cast` — instance state; scoped by `character_id` (and thus indirectly by ruleset through the character). `character_abilities` is the granted ability on a character. Level-up does not copy class abilities onto it yet, and character score columns are not derived from those rows.
 

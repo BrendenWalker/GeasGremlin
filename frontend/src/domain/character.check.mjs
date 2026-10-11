@@ -16,6 +16,7 @@ import {
   rangedAttackBonus,
   sheetCombat,
   overlaidExperience,
+  savingThrowTargets,
   statBounds,
   resolveMechanic,
   attributesMatch,
@@ -171,5 +172,30 @@ assert.deepEqual(
   }
 );
 assert.equal(acceptTransfer(sender, receiver, { gold_cp: 500, payload: { items: [] } }).error, 'Not enough money');
+
+const clericSaves = [
+  { stat_name: 'Death Ray or Poison', level: 1, int_param: 11 },
+  { stat_name: 'Death Ray or Poison', level: 4, int_param: 9 },
+  { stat_name: 'Magic Wands', level: 1, int_param: 12 },
+  { stat_name: 'Paralysis or Petrify', level: 1, int_param: 14 },
+  { stat_name: 'Dragon Breath', level: 1, int_param: 16 },
+  { stat_name: 'Spells', level: 1, int_param: 15 },
+];
+const dwarfSaves = [
+  { stat_name: 'Death Ray or Poison', int_param: -4 },
+  { stat_name: 'Magic Wands', int_param: -4 },
+  { stat_name: 'Paralysis or Petrify', int_param: -4 },
+  { stat_name: 'Dragon Breath', int_param: -3 },
+  { stat_name: 'Spells', int_param: -4 },
+];
+assert.deepEqual(savingThrowTargets(clericSaves, dwarfSaves, 1), {
+  'Death Ray or Poison': 7,
+  'Magic Wands': 8,
+  'Paralysis or Petrify': 10,
+  'Dragon Breath': 13,
+  Spells: 11,
+});
+assert.equal(savingThrowTargets(clericSaves, [], 3)['Death Ray or Poison'], 11);
+assert.equal(savingThrowTargets(clericSaves, [], 4)['Death Ray or Poison'], 9);
 
 console.log('character domain ok');

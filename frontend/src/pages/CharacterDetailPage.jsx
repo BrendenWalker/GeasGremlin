@@ -22,11 +22,9 @@ import {
 } from '../api/api';
 import { useAuth } from '../components/AuthContext';
 import { useRuleset } from '../components/RulesetContext';
-import { acceptTransfer, castsRemaining, commandWrite, finishLevelUp, formatModifier, openMechanic, primaryClass } from '../domain/character.mjs';
+import { acceptTransfer, castsRemaining, commandWrite, finishLevelUp, formatModifier, openMechanic, primaryClass, savingThrowTargets } from '../domain/character.mjs';
 import { formatItemPrice } from '../domain/itemPrice.mjs';
 
-const TAB_IDS_GM = ['info', 'combat', 'spellbook', 'inventory'];
-const TAB_IDS_PLAYER = ['info', 'combat', 'spellbook', 'inventory', 'adventuring'];
 const INPUT_STYLE = {
   width: '100%',
   padding: '0.5rem',
@@ -35,6 +33,50 @@ const INPUT_STYLE = {
   background: '#1a1614',
   color: '#e8e0d5',
 };
+
+const DESC_FIELDS = [
+  { key: 'gender', label: 'Sex', type: 'text' },
+  { key: 'age', label: 'Age', type: 'number' },
+  { key: 'height', label: 'Height', type: 'text' },
+  { key: 'weight', label: 'Weight', type: 'text' },
+  { key: 'hair', label: 'Hair', type: 'text' },
+  { key: 'eyes', label: 'Eyes', type: 'text' },
+  { key: 'languages', label: 'Languages', type: 'text' },
+];
+
+const SAVE_ROWS = [
+  { stat: 'Death Ray or Poison', label: 'Death Ray or Poison' },
+  { stat: 'Magic Wands', label: 'Magic Wands' },
+  { stat: 'Paralysis or Petrify', label: 'Paralysis or Turn to Stone' },
+  { stat: 'Dragon Breath', label: 'Dragon Breath' },
+  { stat: 'Spells', label: 'Rods, Staves, and Spells' },
+];
+
+function sheetForm(char) {
+  return {
+    name: char.name,
+    level: char.level,
+    xp: char.xp,
+    hp: char.hp,
+    str: char.str,
+    int: char.int,
+    wis: char.wis,
+    dex: char.dex,
+    con: char.con,
+    chr: char.chr,
+    race: char.race,
+    class: char.class,
+    notes: char.notes,
+    money: char.money,
+    gender: char.gender,
+    age: char.age,
+    hair: char.hair,
+    eyes: char.eyes,
+    height: char.height,
+    weight: char.weight,
+    languages: char.languages,
+  };
+}
 
 function moneyToCoins(cp) {
   const c = cp || 0;
@@ -82,8 +124,6 @@ export default function CharacterDetailPage({ playerMode = false }) {
   const [allItems, setAllItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const TAB_IDS = playerMode ? TAB_IDS_PLAYER : TAB_IDS_GM;
-  const [activeTab, setActiveTab] = useState('info');
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
@@ -211,30 +251,7 @@ export default function CharacterDetailPage({ playerMode = false }) {
         if (cancelled || !loaded) return;
         const [char, r, c, sp, it] = loaded;
         setCharacter(char);
-        setForm({
-          name: char.name,
-          level: char.level,
-          xp: char.xp,
-          hp: char.hp,
-          str: char.str,
-          int: char.int,
-          wis: char.wis,
-          dex: char.dex,
-          con: char.con,
-          chr: char.chr,
-          race: char.race,
-          class: char.class,
-          notes: char.notes,
-          money: char.money,
-          gender: char.gender,
-          age: char.age,
-          hair: char.hair,
-          eyes: char.eyes,
-          height: char.height,
-          weight: char.weight,
-          move: char.move,
-          languages: char.languages,
-        });
+        setForm(sheetForm(char));
         setRaces(r);
         setClasses(c);
         setAllSpells(sp);
@@ -425,195 +442,237 @@ export default function CharacterDetailPage({ playerMode = false }) {
     spellsByLevel[lvl].push(s);
   });
   const knownSpellIds = new Set((character.spells || []).filter((s) => s.known).map((s) => s.spell_id));
+  const saveStats = new Set(SAVE_ROWS.map((row) => row.stat));
+  const otherAbilities = (character.abilities || []).filter((ability) => !saveStats.has(ability.stat_name));
+  const sheetClass = primaryClass(character, classes);
+  const sheetRace = races.find((race) => String(race.id) === String(character.race));
+  const saveTargets = savingThrowTargets(sheetClass.row?.abilities, sheetRace?.abilities, sheetClass.level);
 
   return (
     <div>
+      <form onSubmit={handleSave}>
       <div className="card" style={{ marginBottom: '1rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
           <Link to={playerMode && campaignId ? `/play/${campaignId}` : (character.campaign_ids?.length ? `/campaigns/${character.campaign_ids[0]}/characters` : '/campaigns')} style={{ color: '#8a7f72', textDecoration: 'none' }}>← Back</Link>
-          <h2 style={{ margin: 0 }}>{character.name}</h2>
-          {character.race_name && <span style={{ color: '#b8b0a0' }}>{character.race_name}</span>}
-          {character.class_name && <span style={{ color: '#b8b0a0' }}>{character.class_name}</span>}
-          <span style={{ color: '#8a7f72' }}>Level {character.level ?? 1} · XP {character.xp ?? 0}</span>
-          {nextLevelXp != null && (
-            <span style={{ color: '#8a7f72' }}>· Next level at {nextLevelXp} XP</span>
+          {editing ? (
+            <input
+              value={form.name ?? ''}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+              aria-label="Name"
+              style={{ ...INPUT_STYLE, maxWidth: 240, fontSize: '1.1rem' }}
+            />
+          ) : (
+            <h2 style={{ margin: 0 }}>{character.name}</h2>
           )}
-        </div>
-        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-          {TAB_IDS.map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              className={activeTab === tab ? 'btn btn-primary' : 'btn btn-secondary'}
-              style={{ textTransform: 'capitalize' }}
-              onClick={() => setActiveTab(tab)}
-            >
-              {tab}
-            </button>
-          ))}
+          <span style={{ color: '#b8b0a0' }}>{character.user}</span>
+          {editing ? (
+            <select aria-label="Race" value={form.race ?? ''} onChange={(e) => setForm((f) => ({ ...f, race: e.target.value ? parseInt(e.target.value, 10) : null }))} style={{ ...INPUT_STYLE, maxWidth: 160 }}>
+              <option value="">Race</option>
+              {races.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+            </select>
+          ) : (
+            character.race_name && <span style={{ color: '#b8b0a0' }}>{character.race_name}</span>
+          )}
+          {editing ? (
+            <select aria-label="Class" value={form.class ?? ''} onChange={(e) => setForm((f) => ({ ...f, class: e.target.value ? parseInt(e.target.value, 10) : null }))} style={{ ...INPUT_STYLE, maxWidth: 160 }}>
+              <option value="">Class</option>
+              {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          ) : (
+            character.class_name && <span style={{ color: '#b8b0a0' }}>{character.class_name}</span>
+          )}
+          {editing ? (
+            <>
+              <label style={{ color: '#8a7f72' }}>
+                Level
+                <input
+                  type="number"
+                  min={0}
+                  value={form.level ?? ''}
+                  onChange={(e) => setForm((f) => ({ ...f, level: parseInt(e.target.value, 10) || null }))}
+                  style={{ ...INPUT_STYLE, width: 72, marginLeft: 6 }}
+                />
+              </label>
+              <label style={{ color: '#8a7f72' }}>
+                XP
+                <input
+                  type="number"
+                  min={0}
+                  value={form.xp ?? ''}
+                  onChange={(e) => setForm((f) => ({ ...f, xp: parseInt(e.target.value, 10) || null }))}
+                  style={{ ...INPUT_STYLE, width: 96, marginLeft: 6 }}
+                />
+              </label>
+            </>
+          ) : (
+            <span style={{ color: '#8a7f72' }}>
+              Level {character.level ?? 1} · XP {character.xp ?? 0}
+              {nextLevelXp != null && ` · Next level at ${nextLevelXp} XP`}
+            </span>
+          )}
+          <span style={{ marginLeft: 'auto' }}>
+            {editing ? (
+              <>
+                <button key="save" type="button" className="btn btn-primary" disabled={saving} onClick={handleSave}>Save</button>
+                <button key="cancel" type="button" className="btn btn-secondary" style={{ marginLeft: '0.5rem' }} onClick={() => { setForm(sheetForm(character)); setEditing(false); }}>Cancel</button>
+              </>
+            ) : (
+              <button key="edit" type="button" className="btn btn-secondary" onClick={(e) => { e.preventDefault(); setEditing(true); }}>Edit</button>
+            )}
+          </span>
         </div>
       </div>
 
       {error && <p style={{ color: '#c95858', marginBottom: '0.5rem' }}>{error}</p>}
 
-      {activeTab === 'info' && (
-        <div className="card">
-          {editing ? (
-            <>
-              <h2>Edit character</h2>
-              <form onSubmit={handleSave}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
-                  {['name', 'level', 'xp', 'hp'].map((key) => (
-                    <div key={key}>
-                      <label style={{ display: 'block', marginBottom: 2 }}>{key.toUpperCase()}</label>
-                      <input
-                        value={form[key] ?? ''}
-                        onChange={(e) => setForm((f) => ({ ...f, [key]: key === 'name' ? e.target.value : (parseInt(e.target.value, 10) || null) }))}
-                        type={key === 'name' ? 'text' : 'number'}
-                        min={key !== 'name' ? 0 : undefined}
-                        style={INPUT_STYLE}
-                      />
-                    </div>
-                  ))}
-                  <div>
-                    <label style={{ display: 'block', marginBottom: 2 }}>Money (copper)</label>
-                    <input
-                      type="number"
-                      min={0}
-                      value={form.money ?? ''}
-                      onChange={(e) => setForm((f) => ({ ...f, money: parseInt(e.target.value, 10) || null }))}
-                      style={INPUT_STYLE}
-                    />
-                  </div>
-                  {['gender', 'age', 'hair', 'eyes', 'height', 'weight', 'move', 'languages'].map((key) => (
-                    <div key={key}>
-                      <label style={{ display: 'block', marginBottom: 2 }}>{key.replace(/_/g, ' ')}</label>
-                      <input
-                        value={form[key] ?? ''}
-                        onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
-                        type={key === 'age' ? 'number' : 'text'}
-                        style={INPUT_STYLE}
-                      />
-                    </div>
-                  ))}
-                  <div>
-                    <label style={{ display: 'block', marginBottom: 2 }}>Race</label>
-                    <select value={form.race ?? ''} onChange={(e) => setForm((f) => ({ ...f, race: e.target.value ? parseInt(e.target.value, 10) : null }))} style={INPUT_STYLE}>
-                      <option value="">—</option>
-                      {races.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: 2 }}>Class</label>
-                    <select value={form.class ?? ''} onChange={(e) => setForm((f) => ({ ...f, class: e.target.value ? parseInt(e.target.value, 10) : null }))} style={INPUT_STYLE}>
-                      <option value="">—</option>
-                      {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <div style={{ marginBottom: '0.75rem' }}>
-                  <label style={{ display: 'block', marginBottom: 2 }}>{mechanic.attributes.map((attr) => attr.name).join(' ')}</label>
-                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    {mechanic.attributes.map((attr) => (
-                      <input
-                        key={attr.column}
-                        type="number"
-                        placeholder={attr.name}
-                        value={form[attr.column] ?? ''}
-                        onChange={(e) => setForm((f) => ({ ...f, [attr.column]: parseInt(e.target.value, 10) || null }))}
-                        style={{ width: 48, padding: '0.5rem', borderRadius: 4, border: '1px solid #3d3530', background: '#1a1614', color: '#e8e0d5' }}
-                      />
-                    ))}
-                  </div>
-                </div>
-                <div style={{ marginBottom: '0.75rem' }}>
-                  <label style={{ display: 'block', marginBottom: 2 }}>Notes</label>
-                  <textarea value={form.notes || ''} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} rows={3} style={{ ...INPUT_STYLE, width: '100%' }} />
-                </div>
-                <button type="submit" className="btn btn-primary" disabled={saving}>Save</button>
-                <button type="button" className="btn btn-secondary" style={{ marginLeft: '0.5rem' }} onClick={() => setEditing(false)}>Cancel</button>
-              </form>
-            </>
-          ) : (
-            <>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                <h2>Info</h2>
-                <button type="button" className="btn btn-secondary" onClick={() => setEditing(true)}>Edit</button>
-              </div>
-              <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
-                {statBlock.map(({ label, val, mod }) => (
-                  <div key={label} style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '0.75rem', color: '#8a7f72' }}>{label}</div>
-                    <div style={{ fontSize: '1.25rem', color: '#c9a227' }}>{val ?? '—'}</div>
-                    <div style={{ fontSize: '0.75rem', color: '#8a7f72' }}>{mod}</div>
-                  </div>
-                ))}
-              </div>
-              <div style={{ marginTop: '1rem', display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
-                <span>HP {character.hp ?? '—'}</span>
-                <span>AC {mechanic.formatArmorClass(mechanic.armorClass(character))}</span>
-                <span>Money {coinsDisplay(character.money)}</span>
-              </div>
-              {(character.gender || character.age || character.hair || character.eyes || character.height || character.weight) && (
-                <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #3d3530' }}>
-                  <strong>Demographics</strong>
-                  <p style={{ color: '#b8b0a0', marginTop: 4 }}>
-                    {[character.gender, character.age ? `Age ${character.age}` : null, character.hair, character.eyes, character.height, character.weight].filter(Boolean).join(' · ')}
-                  </p>
-                </div>
+      <div className="card">
+        <h2>Description</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.75rem' }}>
+          {DESC_FIELDS.map((field) => (
+            <div key={field.key}>
+              <div style={{ fontSize: '0.75rem', color: '#8a7f72', marginBottom: 2 }}>{field.label}</div>
+              {editing ? (
+                <input
+                  aria-label={field.label}
+                  type={field.type}
+                  min={field.type === 'number' ? 0 : undefined}
+                  value={form[field.key] ?? ''}
+                  onChange={(e) => setForm((f) => ({
+                    ...f,
+                    [field.key]: field.key === 'age'
+                      ? (e.target.value === '' ? null : (parseInt(e.target.value, 10) || null))
+                      : e.target.value,
+                  }))}
+                  style={INPUT_STYLE}
+                />
+              ) : (
+                <div style={{ color: '#e8e0d5' }}>{character[field.key] || '—'}</div>
               )}
-              {(character.move || character.languages) && (
-                <div style={{ marginTop: '0.5rem' }}>
-                  <strong>Move / Languages</strong>
-                  <p style={{ color: '#b8b0a0', marginTop: 4 }}>{[character.move, character.languages].filter(Boolean).join(' · ')}</p>
-                </div>
-              )}
-              {character.notes && (
-                <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #3d3530' }}>
-                  <strong>Notes</strong>
-                  <p style={{ whiteSpace: 'pre-wrap', color: '#b8b0a0', marginTop: 4 }}>{character.notes}</p>
-                </div>
-              )}
-              {(character.race_name || character.class_name) && (
-                <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #3d3530' }}>
-                  <strong>Race / Class</strong>
-                  <p style={{ color: '#b8b0a0', marginTop: 4 }}>
-                    {races.find((r) => r.id === character.race)?.description && <span>{races.find((r) => r.id === character.race).description.slice(0, 200)}… </span>}
-                    {classes.find((c) => c.id === character.class)?.description && <span>{classes.find((c) => c.id === character.class).description.slice(0, 200)}…</span>}
-                  </p>
-                </div>
-              )}
-            </>
-          )}
-          {hpAdjust === 'damage' && (
-            <div style={{ marginTop: '1rem', padding: '1rem', background: '#252019', borderRadius: 6 }}>
-              <p>Take damage: subtract HP</p>
-              <input type="number" min={0} id="hp-damage" placeholder="Amount" style={{ ...INPUT_STYLE, width: 80, marginRight: 8 }} />
-              <button type="button" className="btn btn-primary" onClick={() => { const v = parseInt(document.getElementById('hp-damage')?.value, 10); if (!Number.isNaN(v)) handleHpChange(-v); }}>Apply</button>
-              <button type="button" className="btn btn-secondary" style={{ marginLeft: 4 }} onClick={() => setHpAdjust(null)}>Cancel</button>
             </div>
-          )}
-          {hpAdjust === 'heal' && (
-            <div style={{ marginTop: '1rem', padding: '1rem', background: '#252019', borderRadius: 6 }}>
-              <p>Heal: add HP</p>
-              <input type="number" min={0} id="hp-heal" placeholder="Amount" style={{ ...INPUT_STYLE, width: 80, marginRight: 8 }} />
-              <button type="button" className="btn btn-primary" onClick={() => { const v = parseInt(document.getElementById('hp-heal')?.value, 10); if (!Number.isNaN(v)) handleHpChange(v); }}>Apply</button>
-              <button type="button" className="btn btn-secondary" style={{ marginLeft: 4 }} onClick={() => setHpAdjust(null)}>Cancel</button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(12rem, 1.2fr) 11rem minmax(11rem, 1fr) minmax(14rem, 1fr)', gap: '1rem', alignItems: 'stretch', marginBottom: '1rem' }}>
+        <div className="card" style={{ marginBottom: 0, height: '100%' }}>
+          <h2>Attributes</h2>
+          {statBlock.map((stat, index) => (
+            <div
+              key={stat.key}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '4.5rem 4.5rem 3rem',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.4rem 0',
+                borderBottom: index < statBlock.length - 1 ? '1px solid #3d3530' : 'none',
+              }}
+            >
+              <div style={{ color: '#8a7f72' }}>{stat.label}</div>
+              {editing ? (
+                <input
+                  type="number"
+                  aria-label={stat.label}
+                  value={form[stat.key] ?? ''}
+                  onChange={(e) => setForm((f) => ({ ...f, [stat.key]: parseInt(e.target.value, 10) || null }))}
+                  style={{ ...INPUT_STYLE, width: '100%', textAlign: 'right' }}
+                />
+              ) : (
+                <div style={{ fontSize: '1.25rem', color: '#c9a227', textAlign: 'right' }}>{stat.val ?? '—'}</div>
+              )}
+              <div style={{ color: '#8a7f72', textAlign: 'right' }}>
+                {formatModifier(mechanic.abilityModifier(editing ? form[stat.key] : character[stat.key]))}
+              </div>
             </div>
-          )}
-          {!editing && !hpAdjust && (
-            <div style={{ marginTop: '0.5rem' }}>
-              <button type="button" className="btn btn-secondary" style={{ marginRight: 8 }} onClick={() => setHpAdjust('damage')}>Take damage</button>
-              <button type="button" className="btn btn-secondary" onClick={() => setHpAdjust('heal')}>Heal</button>
+          ))}
+          {(combat.melee || combat.ranged || combat.damage) && (
+            <div style={{ marginTop: '0.35rem', borderTop: '1px solid #3d3530' }}>
+              {combat.melee && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', padding: '0.4rem 0' }}>
+                  <div style={{ color: '#8a7f72' }}>Melee</div>
+                  <div style={{ color: '#c9a227', textAlign: 'right' }}>{combat.melee}</div>
+                </div>
+              )}
+              {combat.damage && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', padding: '0.4rem 0' }}>
+                  <div style={{ color: '#8a7f72' }}>Damage</div>
+                  <div style={{ color: '#c9a227', textAlign: 'right' }}>{combat.damage}</div>
+                </div>
+              )}
+              {combat.ranged && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', padding: '0.4rem 0' }}>
+                  <div style={{ color: '#8a7f72' }}>Ranged</div>
+                  <div style={{ color: '#c9a227', textAlign: 'right' }}>{combat.ranged}</div>
+                </div>
+              )}
             </div>
           )}
         </div>
-      )}
-
-      {activeTab === 'combat' && (
-        <div className="card">
-          <h2>Combat</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignSelf: 'start' }}>
+          <div className="card" style={{ marginBottom: 0, textAlign: 'center' }}>
+            <div style={{ fontSize: '0.75rem', color: '#8a7f72' }}>HP</div>
+            {editing ? (
+              <input
+                type="number"
+                min={0}
+                aria-label="HP"
+                value={form.hp ?? ''}
+                onChange={(e) => setForm((f) => ({ ...f, hp: parseInt(e.target.value, 10) || null }))}
+                style={{ ...INPUT_STYLE, width: '100%', marginTop: '0.35rem', textAlign: 'center', fontSize: '1.5rem' }}
+              />
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}>
+                <button type="button" className="btn btn-secondary" aria-label="Take damage" onClick={() => setHpAdjust('damage')} style={{ padding: '0.15rem 0.55rem', fontSize: '1.25rem', lineHeight: 1 }}>−</button>
+                <div style={{ fontSize: '1.75rem', lineHeight: 1.1, color: '#c9a227', margin: '0.35rem 0' }}>{character.hp ?? '—'}</div>
+                <button type="button" className="btn btn-secondary" aria-label="Heal" onClick={() => setHpAdjust('heal')} style={{ padding: '0.15rem 0.55rem', fontSize: '1.25rem', lineHeight: 1 }}>+</button>
+              </div>
+            )}
+            {hpAdjust === 'damage' && (
+              <div style={{ marginTop: '0.5rem' }}>
+                <input type="number" min={0} id="hp-damage" aria-label="Damage amount" placeholder="Amount" style={{ ...INPUT_STYLE, width: '100%', marginBottom: 6 }} />
+                <button type="button" className="btn btn-primary" onClick={() => { const v = parseInt(document.getElementById('hp-damage')?.value, 10); if (!Number.isNaN(v)) handleHpChange(-v); }}>Apply</button>
+                <button type="button" className="btn btn-secondary" style={{ marginLeft: 4 }} onClick={() => setHpAdjust(null)}>Cancel</button>
+              </div>
+            )}
+            {hpAdjust === 'heal' && (
+              <div style={{ marginTop: '0.5rem' }}>
+                <input type="number" min={0} id="hp-heal" aria-label="Heal amount" placeholder="Amount" style={{ ...INPUT_STYLE, width: '100%', marginBottom: 6 }} />
+                <button type="button" className="btn btn-primary" onClick={() => { const v = parseInt(document.getElementById('hp-heal')?.value, 10); if (!Number.isNaN(v)) handleHpChange(v); }}>Apply</button>
+                <button type="button" className="btn btn-secondary" style={{ marginLeft: 4 }} onClick={() => setHpAdjust(null)}>Cancel</button>
+              </div>
+            )}
+          </div>
+          <div className="card" style={{ marginBottom: 0, textAlign: 'center' }}>
+            <div style={{ fontSize: '0.75rem', color: '#8a7f72' }}>AC</div>
+            <div style={{ fontSize: '1.75rem', lineHeight: 1.1, color: '#c9a227', margin: '0.35rem 0' }}>{mechanic.formatArmorClass(mechanic.armorClass(character))}</div>
+          </div>
+          <div className="card" style={{ marginBottom: 0, textAlign: 'center' }}>
+            <div style={{ fontSize: '0.75rem', color: '#8a7f72' }}>AB</div>
+            <div style={{ fontSize: '1.75rem', lineHeight: 1.1, color: '#c9a227', margin: '0.35rem 0' }}>{combat.baseAttackBonus == null ? '—' : formatModifier(combat.baseAttackBonus)}</div>
+          </div>
+        </div>
+        <div className="card" style={{ marginBottom: 0, height: '100%' }}>
+          <h2>Saving throws</h2>
+          {SAVE_ROWS.map((row) => (
+            <div key={row.stat} style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', padding: '0.35rem 0', borderBottom: '1px solid #3d3530' }}>
+              <div style={{ color: '#8a7f72', fontSize: '0.85rem' }}>{row.label}</div>
+              <div style={{ color: '#c9a227', fontSize: '1.25rem' }}>{saveTargets[row.stat] ?? '—'}</div>
+            </div>
+          ))}
+          {otherAbilities.length > 0 && (
+            <ul style={{ listStyle: 'none', marginTop: '0.75rem' }}>
+              {otherAbilities.map((ability) => (
+                <li key={`${ability.character_id}-${ability.ability_id}`} style={{ color: '#b8b0a0' }}>
+                  {ability.ability_description}
+                  {ability.mod != null && ability.mod !== '' ? ` (${ability.mod})` : ''}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div className="card" style={{ marginBottom: 0, height: '100%' }}>
+          <h2>Weapons</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div>
               <label style={{ display: 'block', marginBottom: 4 }}>Melee primary</label>
               <select
@@ -680,33 +739,13 @@ export default function CharacterDetailPage({ playerMode = false }) {
               </select>
             </div>
           </div>
-          <div style={{ marginTop: '1rem' }}>
-            <strong>AC</strong> {mechanic.formatArmorClass(mechanic.armorClass(character))}
-          </div>
-          {(combat.melee || combat.ranged || combat.damage) && (
-            <div style={{ marginTop: '0.75rem', color: '#b8b0a0' }}>
-              {combat.melee && <div><strong style={{ color: '#e8e0d5' }}>Melee</strong> {combat.melee}</div>}
-              {combat.damage && <div><strong style={{ color: '#e8e0d5' }}>Damage</strong> {combat.damage}</div>}
-              {combat.ranged && <div><strong style={{ color: '#e8e0d5' }}>Ranged</strong> {combat.ranged}</div>}
-            </div>
-          )}
-          {character.abilities?.length > 0 && (
-            <div style={{ marginTop: '1rem' }}>
-              <strong>Abilities</strong>
-              <ul style={{ listStyle: 'none', marginTop: 4 }}>
-                {character.abilities.map((a) => (
-                  <li key={`${a.character_id}-${a.ability_id}`} style={{ color: '#b8b0a0' }}>{a.ability_description}</li>
-                ))}
-              </ul>
-            </div>
-          )}
         </div>
-      )}
+      </div>
+      </form>
 
-      {activeTab === 'spellbook' && (
-        <div className="card">
+      <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h2>Spellbook</h2>
+            <h2>Spells</h2>
             <button type="button" className="btn btn-primary" onClick={() => setSpellModal(true)}>Learn spell</button>
           </div>
           {[0, 1, 2, 3, 4, 5, 6, 7].map((lvl) => {
@@ -762,13 +801,29 @@ export default function CharacterDetailPage({ playerMode = false }) {
             </div>
           )}
         </div>
-      )}
 
-      {activeTab === 'inventory' && (
-        <div className="card">
+      <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h2>Inventory</h2>
+            <h2>Equipment</h2>
             <button type="button" className="btn btn-primary" onClick={() => setAddItemModal(true)}>Add item</button>
+          </div>
+          <div style={{ marginBottom: '1rem' }}>
+            <div style={{ fontSize: '0.75rem', color: '#8a7f72' }}>Money</div>
+            {editing ? (
+              <>
+                <input
+                  type="number"
+                  min={0}
+                  aria-label="Money in copper"
+                  value={form.money ?? ''}
+                  onChange={(e) => setForm((f) => ({ ...f, money: parseInt(e.target.value, 10) || null }))}
+                  style={{ ...INPUT_STYLE, width: 120 }}
+                />
+                <div style={{ fontSize: '0.75rem', color: '#8a7f72' }}>copper · {coinsDisplay(form.money)}</div>
+              </>
+            ) : (
+              <div style={{ fontSize: '1.25rem', color: '#c9a227' }}>{coinsDisplay(character.money)}</div>
+            )}
           </div>
           {character.items?.length > 0 && (
             <ul style={{ listStyle: 'none' }}>
@@ -818,25 +873,22 @@ export default function CharacterDetailPage({ playerMode = false }) {
             </div>
           )}
         </div>
-      )}
 
-      {playerMode && activeTab === 'adventuring' && (
-        <div className="card">
-          <h2>Adventuring notes</h2>
-          <textarea
-            value={form.notes || ''}
-            onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-            onBlur={() => {
-              if (form.notes !== character?.notes) {
-                updateCharacter(id, { notes: form.notes }).then((r) => setCharacter((prev) => keepLoadedLists(prev, r.data))).catch(() => {});
-              }
-            }}
-            rows={8}
-            style={{ ...INPUT_STYLE, width: '100%' }}
-            placeholder="Session notes, discoveries…"
-          />
-        </div>
-      )}
+      <div className="card">
+        <h2>Notes</h2>
+        <textarea
+          value={form.notes || ''}
+          onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+          onBlur={() => {
+            if ((form.notes || '') !== (character?.notes || '')) {
+              updateCharacter(id, { notes: form.notes || null }).then((r) => setCharacter((prev) => keepLoadedLists(prev, r.data))).catch(() => {});
+            }
+          }}
+          rows={6}
+          style={{ ...INPUT_STYLE, width: '100%' }}
+          placeholder="Session notes, discoveries…"
+        />
+      </div>
 
       {playerMode && party.length > 0 && (
         <div className="card" style={{ marginTop: '1rem' }}>

@@ -11,6 +11,31 @@ import { clampStat, formatModifier, openMechanic, statBounds } from '../domain/c
 
 const STEPS = ['Class', 'Race', 'Attributes', 'Name, HP & gold'];
 
+function feetInches(inches) {
+  const n = Number(inches);
+  if (!Number.isInteger(n) || n <= 0) return '';
+  const feet = Math.floor(n / 12);
+  const rest = n % 12;
+  return rest ? `${feet}'${rest}"` : `${feet}'`;
+}
+
+function pounds(weight) {
+  const n = Number(weight);
+  if (!Number.isInteger(n) || n <= 0) return '';
+  return `${n} lb`;
+}
+
+function optionalText(value) {
+  const text = String(value ?? '').trim();
+  return text || null;
+}
+
+function optionalAge(value) {
+  if (value === '' || value == null) return null;
+  const n = parseInt(value, 10);
+  return Number.isInteger(n) ? n : null;
+}
+
 export default function NewCharacterWizardPage() {
   const { campaignId } = useParams();
   const navigate = useNavigate();
@@ -30,6 +55,15 @@ export default function NewCharacterWizardPage() {
   const [name, setName] = useState('');
   const [startingGold, setStartingGold] = useState(0);
   const [baseHp, setBaseHp] = useState('');
+  const [description, setDescription] = useState({
+    gender: '',
+    age: '',
+    height: '',
+    weight: '',
+    hair: '',
+    eyes: '',
+    languages: '',
+  });
 
   useEffect(() => {
     if (rulesetError) {
@@ -44,6 +78,15 @@ export default function NewCharacterWizardPage() {
     setSelectedBase(null);
     setSelectedRace(null);
     setBaseHp('');
+    setDescription({
+      gender: '',
+      age: '',
+      height: '',
+      weight: '',
+      hair: '',
+      eyes: '',
+      languages: '',
+    });
     setStep(0);
     getCampaign(campaignId)
       .then((r) => r.data)
@@ -137,6 +180,13 @@ export default function NewCharacterWizardPage() {
       chr: attrs.chr,
       hp: hitPoints,
       money: Math.round(startingGold) * 100 || 0,
+      gender: optionalText(description.gender),
+      age: optionalAge(description.age),
+      height: optionalText(description.height),
+      weight: optionalText(description.weight),
+      hair: optionalText(description.hair),
+      eyes: optionalText(description.eyes),
+      languages: optionalText(description.languages),
     };
     createCharacter(campaignId, payload)
       .then((r) => {
@@ -398,6 +448,39 @@ export default function NewCharacterWizardPage() {
                   color: '#e8e0d5',
                 }}
               />
+            </div>
+            <h3>Description</h3>
+            <p style={{ color: '#8a7f72', marginTop: 0 }}>Optional. Height and weight are whatever you write down.</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.75rem' }}>
+              {[
+                { key: 'gender', label: 'Sex', type: 'text' },
+                { key: 'age', label: 'Age', type: 'number' },
+                { key: 'height', label: 'Height', type: 'text', placeholder: feetInches(race?.avgheight) },
+                { key: 'weight', label: 'Weight', type: 'text', placeholder: pounds(race?.avgweight) },
+                { key: 'hair', label: 'Hair', type: 'text' },
+                { key: 'eyes', label: 'Eyes', type: 'text' },
+                { key: 'languages', label: 'Languages', type: 'text' },
+              ].map((field) => (
+                <div key={field.key}>
+                  <label style={{ display: 'block', marginBottom: 2 }} htmlFor={`desc-${field.key}`}>{field.label}</label>
+                  <input
+                    id={`desc-${field.key}`}
+                    type={field.type}
+                    min={field.type === 'number' ? 0 : undefined}
+                    placeholder={field.placeholder || ''}
+                    value={description[field.key]}
+                    onChange={(e) => setDescription((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                    style={{
+                      width: '100%',
+                      padding: '0.5rem',
+                      borderRadius: 4,
+                      border: '1px solid #3d3530',
+                      background: '#1a1614',
+                      color: '#e8e0d5',
+                    }}
+                  />
+                </div>
+              ))}
             </div>
           </>
         )}

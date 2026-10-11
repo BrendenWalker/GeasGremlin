@@ -286,6 +286,7 @@ CREATE TABLE IF NOT EXISTS public."characters" (
 	eyes varchar(80) NULL,
 	height varchar(80) NULL,
 	weight varchar(80) NULL,
+	languages varchar(240) NULL,
 	race int4 NULL,
 	str int4 NULL,
 	"int" int4 NULL,
@@ -315,6 +316,8 @@ CREATE INDEX IF NOT EXISTS characters_characters_modified ON public.characters U
 
 -- Armor class is derived from equipped armor, shield, and Dexterity. Drop the stored column on existing databases.
 ALTER TABLE public.characters DROP COLUMN IF EXISTS ac;
+-- Chosen tongues. Movement stays derived and is not a column.
+ALTER TABLE public.characters ADD COLUMN IF NOT EXISTS languages varchar(240) NULL;
 -- quasiclass is the overlay. The base class is a character_classes row.
 ALTER TABLE public.characters DROP CONSTRAINT IF EXISTS characters_quasiclass_fkey;
 ALTER TABLE public.characters

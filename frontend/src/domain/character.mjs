@@ -143,6 +143,49 @@ export function baseAttackBonus(leveling, level) {
   return Number.isInteger(ab) ? ab : null;
 }
 
+const SAVE_STATS = [
+  'Death Ray or Poison',
+  'Magic Wands',
+  'Paralysis or Petrify',
+  'Dragon Breath',
+  'Spells',
+];
+
+function wholeNumber(value) {
+  if (value == null || value === '') return null;
+  const n = Number(value);
+  return Number.isInteger(n) ? n : null;
+}
+
+/** Roll-over targets for the five saves. Class row at or below this level, plus race adjustments. */
+export function savingThrowTargets(classAbilities, raceAbilities, level) {
+  const lvl = wholeNumber(level) ?? 1;
+  const targets = {};
+  for (const stat of SAVE_STATS) {
+    let best = null;
+    for (const ability of classAbilities || []) {
+      if (ability?.stat_name !== stat) continue;
+      const rowLevel = wholeNumber(ability.level);
+      const target = wholeNumber(ability.int_param);
+      if (rowLevel == null || target == null || rowLevel > lvl) continue;
+      if (best == null || rowLevel >= best.level) best = { level: rowLevel, target };
+    }
+    if (best == null) {
+      targets[stat] = null;
+      continue;
+    }
+    let target = best.target;
+    for (const ability of raceAbilities || []) {
+      if (ability?.stat_name !== stat) continue;
+      const adj = wholeNumber(ability.int_param);
+      if (adj == null) continue;
+      target += adj;
+    }
+    targets[stat] = target;
+  }
+  return targets;
+}
+
 export function primaryClass(character, classRows) {
   const links = Array.isArray(character?.character_classes) ? [...character.character_classes] : [];
   links.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || Number(a.class_id) - Number(b.class_id));

@@ -709,7 +709,7 @@ app.post('/api/campaigns/:campaignId/characters', async (req, res) => {
   try {
     const campaignId = req.params.campaignId;
     const {
-      name, gender, age, hair, eyes, height, weight, race, class: classId,
+      name, gender, age, hair, eyes, height, weight, languages, race, class: classId,
       str, int: intVal, wis, dex, con, chr, hp, notes, quasiclass, level, xp, skillpoints, money,
       ruleset_id: rulesetRaw,
     } = req.body;
@@ -740,11 +740,11 @@ app.post('/api/campaigns/:campaignId/characters', async (req, res) => {
       const idResult = await client.query('SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM characters');
       const nextId = idResult.rows[0].next_id;
       const result = await client.query(
-        `INSERT INTO characters (id, name, "user", gender, age, hair, eyes, height, weight, race,
+        `INSERT INTO characters (id, name, "user", gender, age, hair, eyes, height, weight, languages, race,
          str, "int", wis, dex, con, chr, hp, notes, quasiclass, level, xp, skillpoints, money, ruleset_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
          RETURNING *`,
-        [nextId, name || 'Unnamed', req.user.username, gender || null, age ?? null, hair || null, eyes || null, height || null, weight || null,
+        [nextId, name || 'Unnamed', req.user.username, gender || null, age ?? null, hair || null, eyes || null, height || null, weight || null, languages || null,
           race ?? null, str ?? null, intVal ?? null, wis ?? null, dex ?? null, con ?? null, chr ?? null,
           hp ?? null, notes || null, quasiclass ?? null, level ?? 1, xp ?? 0, skillpoints ?? null, money ?? null,
           rulesetId]
@@ -824,7 +824,7 @@ app.put('/api/characters/:id', async (req, res) => {
     const row = current.rows[0];
     const body = req.body;
     const allowed = [
-      'name', 'user', 'gender', 'age', 'hair', 'eyes', 'height', 'weight', 'race',
+      'name', 'user', 'gender', 'age', 'hair', 'eyes', 'height', 'weight', 'languages', 'race',
       'str', 'int', 'wis', 'dex', 'con', 'chr', 'hp', 'notes', 'quasiclass', 'level', 'xp', 'skillpoints', 'money',
       'equipped_melee_primary_id', 'equipped_melee_secondary_id', 'equipped_ranged_id', 'equipped_armor_id', 'equipped_shield_id'
     ];
@@ -859,13 +859,15 @@ app.put('/api/characters/:id', async (req, res) => {
     await pool.query(
       `UPDATE characters SET
        name = $1, "user" = $2, gender = $3, age = $4, hair = $5, eyes = $6, height = $7, weight = $8,
-       race = $9, str = $10, "int" = $11, wis = $12, dex = $13, con = $14, chr = $15,
-       hp = $16, notes = $17, quasiclass = $18, level = $19, xp = $20, skillpoints = $21, money = $22,
-       equipped_melee_primary_id = $23, equipped_melee_secondary_id = $24, equipped_ranged_id = $25,
-       equipped_armor_id = $26, equipped_shield_id = $27,
+       languages = $9,
+       race = $10, str = $11, "int" = $12, wis = $13, dex = $14, con = $15, chr = $16,
+       hp = $17, notes = $18, quasiclass = $19, level = $20, xp = $21, skillpoints = $22, money = $23,
+       equipped_melee_primary_id = $24, equipped_melee_secondary_id = $25, equipped_ranged_id = $26,
+       equipped_armor_id = $27, equipped_shield_id = $28,
        modified = CURRENT_TIMESTAMP
-       WHERE id = $28`,
+       WHERE id = $29`,
       [merged.name, merged.user, merged.gender, merged.age, merged.hair, merged.eyes, merged.height, merged.weight,
+        merged.languages,
         merged.race, merged.str, merged.int, merged.wis, merged.dex, merged.con, merged.chr,
         merged.hp, merged.notes, merged.quasiclass, merged.level, merged.xp, merged.skillpoints, merged.money,
         merged.equipped_melee_primary_id, merged.equipped_melee_secondary_id, merged.equipped_ranged_id,
