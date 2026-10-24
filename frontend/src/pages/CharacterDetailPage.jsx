@@ -19,6 +19,9 @@ import {
   getCharacterTransfers,
   updateTransfer,
   postPresence,
+  getCharacterShops,
+  buyFromShop,
+  sellToShop,
 } from '../api/api';
 import { useAuth } from '../components/AuthContext';
 import { useRuleset } from '../components/RulesetContext';
@@ -99,6 +102,138 @@ function coinsDisplay(cp) {
   return parts.length ? parts.join(', ') : '0 CP';
 }
 
+function percentLabel(value) {
+  const n = Number(value);
+  if (!Number.isInteger(n)) return '';
+  return `${n > 0 ? '+' : ''}${n}%`;
+}
+
+function wholeQty(value) {
+  const text = String(value ?? '').trim();
+  if (!/^\d+$/.test(text)) return null;
+  const n = Number(text);
+  return n >= 1 ? n : null;
+}
+
+function ShopVisit({ board, busy, onBuy, onSell }) {
+  const [shopId, setShopId] = useState(null);
+  const [categoryId, setCategoryId] = useState(null);
+  const [quantity, setQuantity] = useState('1');
+  if (!board) return null;
+  const shops = board.shops || [];
+  const shop = shops.find((row) => String(row.id) === String(shopId)) || null;
+  const activeCategory = shop?.categories?.find((cat) => String(cat.id) === String(categoryId))
+    || shop?.categories?.[0]
+    || null;
+  const items = (shop?.items || []).filter((item) => (
+    !activeCategory || String(item.category_id) === String(activeCategory.id)
+  ));
+  const qty = wholeQty(quantity);
+  const openShop = (id) => {
+    const next = shops.find((row) => String(row.id) === String(id));
+    setShopId(id);
+    setCategoryId(next?.categories?.[0]?.id ?? null);
+  };
+
+  return (
+    <div className="card">
+      <h2 style={{ marginTop: 0 }}>Shops</h2>
+      {board.location_name ? <p className="muted">At {board.location_name}.</p> : null}
+      {shops.length === 0 && <p className="muted">No shops here.</p>}
+      {shops.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+          {shops.map((row) => (
+            <button
+              key={row.id}
+              type="button"
+              className={`btn ${String(row.id) === String(shopId) ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => openShop(row.id)}
+            >
+              {row.name}
+            </button>
+          ))}
+        </div>
+      )}
+      {shop && (
+        <>
+          <p className="muted">
+            Buy {percentLabel(shop.buy_cost_delta)} · Sell {percentLabel(shop.sell_cost_delta)}
+          </p>
+          <label style={{ display: 'block', marginBottom: 8 }}>
+            Quantity
+            <input
+              type="number"
+              min={1}
+              value={quantity}
+              aria-label="Shop quantity"
+              onChange={(e) => setQuantity(e.target.value)}
+              style={{ ...INPUT_STYLE, width: 80, marginLeft: 6 }}
+            />
+          </label>
+          {(shop.categories || []).length > 1 && (
+            <div className="catalog-tabs" role="tablist" aria-label="Shop categories">
+              {shop.categories.map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={String(cat.id) === String(activeCategory?.id)}
+                  className={`catalog-tab${String(cat.id) === String(activeCategory?.id) ? ' active' : ''}`}
+                  onClick={() => setCategoryId(cat.id)}
+                >
+                  {cat.name}
+                </button>
+              ))}
+            </div>
+          )}
+          {items.length === 0 && <p className="muted">Nothing for sale.</p>}
+          {items.length > 0 && (
+            <ul style={{ listStyle: 'none', maxHeight: 280, overflow: 'auto', padding: 0 }}>
+              {items.map((item) => (
+                <li key={item.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '0.25rem 0', alignItems: 'center' }}>
+                  <span>{item.name} <span className="muted">({formatItemPrice(item.buy_price)})</span></span>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ padding: '0.2rem 0.5rem' }}
+                    disabled={busy || qty == null}
+                    onClick={() => onBuy(shop.id, item.id, qty)}
+                  >
+                    Buy
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <h3>Sell</h3>
+          {(shop.sellable || []).length === 0 && <p className="muted">Nothing here this shop will buy.</p>}
+          {(shop.sellable || []).length > 0 && (
+            <ul style={{ listStyle: 'none', padding: 0 }}>
+              {shop.sellable.map((item) => (
+                <li key={item.character_item_id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '0.25rem 0', alignItems: 'center' }}>
+                  <span>
+                    {item.name} × {item.quantity}
+                    <span className="muted"> ({formatItemPrice(item.sell_price)})</span>
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ padding: '0.2rem 0.5rem' }}
+                    disabled={busy || qty == null}
+                    onClick={() => onSell(shop.id, item.character_item_id, qty)}
+                  >
+                    Sell
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 // ponytail: PUT /characters returns the row only. Keep lists from GET until that response includes them.
 function keepLoadedLists(prev, row) {
   return {
@@ -143,6 +278,8 @@ export default function CharacterDetailPage({ playerMode = false }) {
   const applyingRef = useRef(false);
   const levelUpRef = useRef(null);
   const [levelUp, setLevelUp] = useState(null);
+  const [shopBoard, setShopBoard] = useState(null);
+  const [shopBusy, setShopBusy] = useState(false);
   classesRef.current = classes;
   levelUpRef.current = levelUp;
 
@@ -151,6 +288,32 @@ export default function CharacterDetailPage({ playerMode = false }) {
       .then((r) => setCharacter(r.data))
       .catch((err) => setError(err.response?.data?.error || err.message));
   }, [id]);
+
+  const shopKey = playerMode && campaignId
+    ? `${character?.money ?? ''}:${(character?.items || []).map((item) => `${item.id}:${item.quantity}:${item.bonus ?? 0}:${item.value ?? 0}`).join(',')}:${character?.equipped_melee_primary_id ?? ''}:${character?.equipped_melee_secondary_id ?? ''}:${character?.equipped_ranged_id ?? ''}:${character?.equipped_armor_id ?? ''}:${character?.equipped_shield_id ?? ''}`
+    : '';
+
+  useEffect(() => {
+    if (!playerMode || !campaignId || !id) return undefined;
+    let stopped = false;
+    getCharacterShops(campaignId, id)
+      .then((r) => { if (!stopped) setShopBoard(r.data); })
+      .catch((err) => { if (!stopped) setError(err.response?.data?.error || err.message); });
+    return () => { stopped = true; };
+  }, [playerMode, campaignId, id, shopKey]);
+
+  const runShop = (action) => {
+    setShopBusy(true);
+    setError(null);
+    return action()
+      .then(() => getCharacter(id))
+      .then((r) => {
+        setCharacter(r.data);
+        setForm((f) => ({ ...f, money: r.data.money }));
+      })
+      .catch((err) => setError(err.response?.data?.error || err.message))
+      .finally(() => setShopBusy(false));
+  };
 
   useEffect(() => {
     if (!playerMode || !character?.campaign_ids?.length) return;
@@ -849,6 +1012,15 @@ export default function CharacterDetailPage({ playerMode = false }) {
             </div>
           )}
         </div>
+      )}
+
+      {playerMode && campaignId && (
+        <ShopVisit
+          board={shopBoard}
+          busy={shopBusy}
+          onBuy={(openId, itemId, quantity) => runShop(() => buyFromShop(campaignId, id, openId, { item_id: itemId, quantity }))}
+          onSell={(openId, characterItemId, quantity) => runShop(() => sellToShop(campaignId, id, openId, { character_item_id: characterItemId, quantity }))}
+        />
       )}
 
       <div className="card">

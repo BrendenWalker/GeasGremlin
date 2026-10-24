@@ -6,11 +6,17 @@ Status words: `todo`, `doing`, `done`, `cut`.
 
 When you pick something up, set it to `doing` and add a one-line note under it. When you stop, leave the note describing what is true in the tree, not what you intended.
 
-The first pass, the r142 catalog, and later procedures are in the tree. Nothing is queued.
+The first pass, the r142 catalog, and later procedures are in the tree.
 
 ## Now
 
 First pass. Design: [01-play-loop.md](01-play-loop.md).
+
+- [x] `done` Monster notes. The prose under each r142 heading is on the monster.
+  - `monster.notes` holds that prose, including a shared essay where the book groups the row. The GM encounter shows it closed, on a catalog enemy. Enhanced was not copied.
+
+- [x] `done` Location shops. A location can sell item categories at a buy and sell percent.
+  - `campaign_location_shops` and `campaign_location_shop_item_categories` store a named shop, independent buy and sell percents from -100 to 1000, and the categories it sells. The GM edits that on Configuration after the location exists. A character on the play sheet buys and sells those categories at the board's selected location. Prices stay copper. Equipped rows and rows with a bonus or value other than 0 are refused. The clock does not move.
 
 - [x] `done` Slice 0. Monster, treasure-type, and encounter-table tables. Catalog-only import that does not wipe classes.
   - `monster`, `treasure_type`, `encounter_table`, and `encounter_table_row` are in the schema. `import-catalog` replaces those rows for an existing ruleset and does not delete classes, spells, or items. It aborts when a campaign enemy, a campaign location, or a custom encounter row still points at a monster being replaced. No stock numbers. `campaign_enemy.monster_id` exists so that abort can see a catalog pointer.
@@ -30,7 +36,7 @@ First pass. Design: [01-play-loop.md](01-play-loop.md).
 ## Next
 
 - [x] `done` Later procedures. [03-later-procedures.md](03-later-procedures.md). The list held back from the first pass.
-  - Prep tools are on Configuration: a room stock roll, a trap note, and vehicle damage with field repair to 90%. None of them are stored, and none open an encounter. Players do not see tables or GM rolls. The player-facing encounter table stays cut.
+  - Room stock and trap notes stay on Configuration. Vehicle damage and field repair to 90% are on Adventuring, after Travel. None of them are stored, and none open an encounter. Players do not see tables or GM rolls. The player-facing encounter table stays cut.
 
 ## Cut on purpose
 

@@ -115,6 +115,9 @@ assert.match(problemsFor((catalog) => {
 assert.match(problemsFor((catalog) => {
   catalog.tables = { rows: [{ id: 1, name: 'Woods', die: 1 }] };
 }), /die must be an integer/);
+assert.match(problemsFor((catalog) => {
+  catalog.monsters = { rows: catalog.monsters.rows.map((row) => ({ ...row, notes: 'x'.repeat(30001) })) };
+}), /notes/);
 
 console.log('catalogImport shape ok');
 

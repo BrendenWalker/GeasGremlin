@@ -123,6 +123,7 @@ function monsterProblems(row) {
     armorProblem(row.armor_class, row.defense_note),
     optionalText(row.defense_note, 'defense note', 500),
     optionalText(row.attack_note, 'attack note', 500),
+    optionalText(row.notes, 'notes', 30000),
     moraleProblem(row.morale),
     moraleProblem(row.morale_engaged),
     optionalText(row.treasure_type, 'treasure type', 40),

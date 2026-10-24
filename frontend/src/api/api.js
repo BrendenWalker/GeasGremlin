@@ -87,6 +87,12 @@ export const createLocation = (campaignId, body) => api.post(`/campaigns/${campa
 export const updateLocation = (campaignId, locationId, body) => api.patch(`/campaigns/${campaignId}/adventuring/locations/${locationId}`, body);
 export const selectLocation = (campaignId, locationId) => api.post(`/campaigns/${campaignId}/adventuring/locations/${locationId}/select`);
 export const deleteLocation = (campaignId, locationId) => api.delete(`/campaigns/${campaignId}/adventuring/locations/${locationId}`);
+export const createShop = (campaignId, locationId, body) => api.post(`/campaigns/${campaignId}/adventuring/locations/${locationId}/shops`, body);
+export const updateShop = (campaignId, locationId, shopId, body) => api.patch(`/campaigns/${campaignId}/adventuring/locations/${locationId}/shops/${shopId}`, body);
+export const deleteShop = (campaignId, locationId, shopId) => api.delete(`/campaigns/${campaignId}/adventuring/locations/${locationId}/shops/${shopId}`);
+export const getCharacterShops = (campaignId, characterId) => api.get(`/campaigns/${campaignId}/characters/${characterId}/shops`);
+export const buyFromShop = (campaignId, characterId, shopId, body) => api.post(`/campaigns/${campaignId}/characters/${characterId}/shops/${shopId}/buy`, body);
+export const sellToShop = (campaignId, characterId, shopId, body) => api.post(`/campaigns/${campaignId}/characters/${characterId}/shops/${shopId}/sell`, body);
 export const giveParty = (campaignId, body) => api.post(`/campaigns/${campaignId}/adventuring/party`, body);
 export const startEncounter = (campaignId) => api.post(`/campaigns/${campaignId}/adventuring/encounter`);
 export const endEncounter = (campaignId) => api.delete(`/campaigns/${campaignId}/adventuring/encounter`);

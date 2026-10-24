@@ -721,7 +721,8 @@ CREATE INDEX IF NOT EXISTS idx_campaign_mark_campaign ON public.campaign_mark US
 -- Play catalog. Stock rows set ruleset_id. A custom encounter table sets campaign_id instead. Never both.
 -- No stock numbers ship here. import-catalog.js loads these files. import-ruleset.js does not.
 
--- hitdie_note, defense_note, and attack_note are the book's extra words.
+-- hitdie_note, defense_note, and attack_note are the book's extra words on the stat block.
+-- notes is the prose under the monster's heading. Saving throws and XP stay out of the columns.
 -- armor_class may be empty when the book gives only a sentence (defense_note holds it).
 -- morale_engaged is the second printed morale figure. The prose says when it applies.
 CREATE TABLE IF NOT EXISTS public.monster (
@@ -737,6 +738,7 @@ CREATE TABLE IF NOT EXISTS public.monster (
 	treasure_type varchar(40) NULL,
 	movement varchar(80) NOT NULL,
 	number_appearing varchar(80) NOT NULL,
+	notes text NULL,
 	modified timestamp DEFAULT now() NOT NULL,
 	ruleset_id int4 NOT NULL,
 	CONSTRAINT monster_pkey PRIMARY KEY (id),
@@ -747,6 +749,7 @@ CREATE TABLE IF NOT EXISTS public.monster (
 	CONSTRAINT monster_ruleset_id_fkey FOREIGN KEY (ruleset_id) REFERENCES public.ruleset(id) ON DELETE RESTRICT
 );
 CREATE INDEX IF NOT EXISTS idx_monster_ruleset ON public.monster USING btree (ruleset_id);
+ALTER TABLE public.monster ADD COLUMN IF NOT EXISTS notes text NULL;
 ALTER TABLE public.monster ADD COLUMN IF NOT EXISTS hitdie_note text NULL;
 ALTER TABLE public.monster ADD COLUMN IF NOT EXISTS defense_note text NULL;
 ALTER TABLE public.monster ADD COLUMN IF NOT EXISTS attack_note text NULL;
@@ -868,6 +871,30 @@ BEGIN
 			);
 	END IF;
 END $$;
+
+-- A shop at a location. It sells every priced catalog item in its categories.
+-- buy_cost_delta and sell_cost_delta are percents added to the listed copper price. 0 is list.
+CREATE TABLE IF NOT EXISTS public.campaign_location_shops (
+	id serial4 NOT NULL,
+	location_id int4 NOT NULL,
+	"name" varchar(80) NOT NULL,
+	buy_cost_delta int4 NOT NULL DEFAULT 0,
+	sell_cost_delta int4 NOT NULL DEFAULT 0,
+	CONSTRAINT campaign_location_shops_pkey PRIMARY KEY (id),
+	CONSTRAINT campaign_location_shops_location_name_key UNIQUE (location_id, name),
+	CONSTRAINT campaign_location_shops_buy_check CHECK (buy_cost_delta BETWEEN -100 AND 1000),
+	CONSTRAINT campaign_location_shops_sell_check CHECK (sell_cost_delta BETWEEN -100 AND 1000),
+	CONSTRAINT campaign_location_shops_location_fkey FOREIGN KEY (location_id) REFERENCES public.campaign_location(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_campaign_location_shops_location ON public.campaign_location_shops USING btree (location_id);
+
+CREATE TABLE IF NOT EXISTS public.campaign_location_shop_item_categories (
+	shop_id int4 NOT NULL,
+	item_category_id int4 NOT NULL,
+	CONSTRAINT campaign_location_shop_item_categories_pkey PRIMARY KEY (shop_id, item_category_id),
+	CONSTRAINT campaign_location_shop_item_categories_shop_fkey FOREIGN KEY (shop_id) REFERENCES public.campaign_location_shops(id) ON DELETE CASCADE,
+	CONSTRAINT campaign_location_shop_item_categories_category_fkey FOREIGN KEY (item_category_id) REFERENCES public.item_categories(id) ON DELETE RESTRICT
+);
 
 -- One stored roll per check the clock crossed. A miss has no table roll. This does not open an encounter.
 CREATE TABLE IF NOT EXISTS public.campaign_wander (

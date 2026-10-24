@@ -12,6 +12,7 @@ const cors = require('cors');
 const { createDbPool, testConnection } = require('./db-config');
 const { assignmentError, inCatalog } = require('./classAssignment');
 const { INSIDE_INTERVAL, OUTSIDE_INTERVAL, checksDue, checkHit, matchingRow, acceptRoll } = require('./wander');
+const { MIN_DELTA, MAX_DELTA, adjustedCopper } = require('./shopPrice');
 const { rollTreasure } = require('./treasure');
 const {
   abilityModifier,
@@ -1234,6 +1235,11 @@ function visibleInRuleset(table, alias, sameKey) {
   ))`;
 }
 
+const ITEM_CATALOG_KEY = `child_row.category IS NOT DISTINCT FROM i.category
+  AND child_row.type IS NOT DISTINCT FROM i.type
+  AND child_row.name = i.name
+  AND child_row.size IS NOT DISTINCT FROM i.size`;
+
 /** Stock encounter tables follow the campaign ruleset, then its parent. Child name wins. */
 function visibleStockTable(alias) {
   return `(${alias}.ruleset_id = c.ruleset_id OR (
@@ -1578,14 +1584,7 @@ app.get('/api/items', async (req, res) => {
        FROM items i
        LEFT JOIN item_categories ic ON i.category = ic.id
        LEFT JOIN item_types it ON i.type = it.id
-       WHERE ($1::int IS NULL OR ${visibleInRuleset(
-         'items',
-         'i',
-         `child_row.category IS NOT DISTINCT FROM i.category
-          AND child_row.type IS NOT DISTINCT FROM i.type
-          AND child_row.name = i.name
-          AND child_row.size IS NOT DISTINCT FROM i.size`
-       )})
+       WHERE ($1::int IS NULL OR ${visibleInRuleset('items', 'i', ITEM_CATALOG_KEY)})
        ORDER BY i.name`,
       [filter.id]
     );
@@ -1704,10 +1703,12 @@ async function insertStoredItem(client, characterId, item) {
   const inserted = await client.query(
     `INSERT INTO character_items (id, character_id, item_id, quantity, bonus, value)
      SELECT $1, $2, $3, $4, $5, $6
-     WHERE EXISTS (SELECT 1 FROM characters WHERE id = $2)`,
+     WHERE EXISTS (SELECT 1 FROM characters WHERE id = $2)
+     RETURNING id, character_id, item_id, quantity, bonus, value`,
     [idResult.rows[0].next_id, characterId, itemId, quantity, bonus, value]
   );
   if (inserted.rowCount === 0) throw storedError('Character not found', 404);
+  return inserted.rows[0];
 }
 
 async function moveStoredItem(client, fromCharacterId, toCharacterId, characterItemId, quantity) {
@@ -2137,7 +2138,7 @@ async function loadAdventuring(campaignId) {
   const [enemies, characters, marks, locations, tables, wanders, turnBlocks, bodies, hirelings] = await Promise.all([
     pool.query(
       `SELECT e.id, e.name, e.monster_id, e.quantity, e.treasure_type, e.hp,
-              m.hit_dice, m.morale, m.morale_engaged, m.armor_class, m.defense_note, m.attack_note
+              m.hit_dice, m.morale, m.morale_engaged, m.armor_class, m.defense_note, m.attack_note, m.notes
        FROM campaign_enemy e
        LEFT JOIN monster m ON m.id = e.monster_id
        WHERE e.campaign_id = $1
@@ -2276,6 +2277,36 @@ async function loadAdventuring(campaignId) {
       quantity: row.quantity,
     });
   }
+  const locationIds = locations.rows.map((row) => row.id);
+  const shopRows = locationIds.length === 0
+    ? { rows: [] }
+    : await pool.query(
+      `SELECT s.id, s.location_id, s.name, s.buy_cost_delta, s.sell_cost_delta,
+              COALESCE(
+                array_agg(sc.item_category_id ORDER BY sc.item_category_id)
+                  FILTER (WHERE sc.item_category_id IS NOT NULL),
+                '{}'
+              ) AS category_ids
+       FROM campaign_location_shops s
+       LEFT JOIN campaign_location_shop_item_categories sc ON sc.shop_id = s.id
+       WHERE s.location_id = ANY($1::int[])
+       GROUP BY s.id
+       ORDER BY s.name, s.id`,
+      [locationIds]
+    );
+  const shopsByLocation = new Map();
+  for (const row of shopRows.rows) {
+    const shop = {
+      id: row.id,
+      name: row.name,
+      buy_cost_delta: Number(row.buy_cost_delta),
+      sell_cost_delta: Number(row.sell_cost_delta),
+      category_ids: (row.category_ids || []).map((id) => Number(id)),
+    };
+    const placeId = Number(row.location_id);
+    if (!shopsByLocation.has(placeId)) shopsByLocation.set(placeId, []);
+    shopsByLocation.get(placeId).push(shop);
+  }
   return {
     game_seconds: camp.rows[0].game_seconds,
     in_encounter: camp.rows[0].in_encounter,
@@ -2295,7 +2326,10 @@ async function loadAdventuring(campaignId) {
     specialists: SPECIALISTS,
     mercenaries: MERCENARIES,
     marks: marks.rows,
-    locations: locations.rows,
+    locations: locations.rows.map((row) => ({
+      ...row,
+      shops: shopsByLocation.get(Number(row.id)) || [],
+    })),
     tables: tables.rows.map((row) => ({
       id: row.id,
       name: row.name,
@@ -2966,6 +3000,491 @@ app.patch('/api/campaigns/:campaignId/adventuring/locations/:locationId', async 
     if (error.code === '23514') return res.status(400).json({ error: 'That terrain is not allowed on this location' });
     console.error('Error updating location:', error);
     res.status(500).json({ error: error.message || 'Failed to update location' });
+  } finally {
+    client.release();
+  }
+});
+
+const COPPER_MAX = 2147483647;
+
+function readShopFields(body) {
+  const name = String(body?.name || '').trim();
+  if (!name || name.length > 80) throw storedError('name must be 1 to 80 characters', 400);
+  const buy = integerField(body?.buy_cost_delta, 'buy_cost_delta');
+  const sell = integerField(body?.sell_cost_delta, 'sell_cost_delta');
+  if (buy == null || sell == null) throw storedError('buy_cost_delta and sell_cost_delta are required', 400);
+  if (buy < MIN_DELTA || buy > MAX_DELTA || sell < MIN_DELTA || sell > MAX_DELTA) {
+    throw storedError(`price percent must be from ${MIN_DELTA} to ${MAX_DELTA}`, 400);
+  }
+  if (!Array.isArray(body?.category_ids) || body.category_ids.length === 0) {
+    throw storedError('A shop needs at least one category', 400);
+  }
+  const categoryIds = [];
+  for (const raw of body.category_ids) {
+    const id = positiveInt(raw, 'category_id');
+    if (!categoryIds.includes(id)) categoryIds.push(id);
+  }
+  return { name, buy, sell, categoryIds };
+}
+
+function shopPayload(row, categoryIds) {
+  return {
+    id: row.id,
+    location_id: row.location_id,
+    name: row.name,
+    buy_cost_delta: Number(row.buy_cost_delta),
+    sell_cost_delta: Number(row.sell_cost_delta),
+    category_ids: categoryIds,
+  };
+}
+
+function copperLine(unit, quantity) {
+  if (!Number.isInteger(unit) || unit < 0 || !Number.isInteger(quantity) || quantity < 1) return null;
+  const total = unit * quantity;
+  if (!Number.isSafeInteger(total) || total > COPPER_MAX) return null;
+  return total;
+}
+
+function equippedItemIds(row) {
+  return [
+    row.equipped_melee_primary_id,
+    row.equipped_melee_secondary_id,
+    row.equipped_ranged_id,
+    row.equipped_armor_id,
+    row.equipped_shield_id,
+  ].filter((id) => id != null).map((id) => Number(id));
+}
+
+async function replaceShopCategories(client, shopId, categoryIds) {
+  const found = await client.query(
+    'SELECT id FROM item_categories WHERE id = ANY($1::int[])',
+    [categoryIds]
+  );
+  if (found.rows.length !== categoryIds.length) throw storedError('Unknown category', 400);
+  await client.query(
+    'DELETE FROM campaign_location_shop_item_categories WHERE shop_id = $1',
+    [shopId]
+  );
+  for (const categoryId of categoryIds) {
+    await client.query(
+      `INSERT INTO campaign_location_shop_item_categories (shop_id, item_category_id)
+       VALUES ($1, $2)`,
+      [shopId, categoryId]
+    );
+  }
+}
+
+function shopWriteError(res, error, fallback) {
+  if (adventuringMissing(res, error)) return;
+  if (error.status) return res.status(error.status).json({ error: error.message });
+  if (error.code === '23505') return res.status(400).json({ error: 'A shop with that name already exists' });
+  if (error.code === '23514') {
+    return res.status(400).json({ error: `price percent must be from ${MIN_DELTA} to ${MAX_DELTA}` });
+  }
+  console.error(fallback, error);
+  return res.status(500).json({ error: error.message || fallback });
+}
+
+app.post('/api/campaigns/:campaignId/adventuring/locations/:locationId/shops', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const fields = readShopFields(req.body);
+    await client.query('BEGIN');
+    const loc = await client.query(
+      'SELECT id FROM campaign_location WHERE id = $1 AND campaign_id = $2',
+      [req.params.locationId, req.params.campaignId]
+    );
+    if (loc.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Location not found' });
+    }
+    const inserted = await client.query(
+      `INSERT INTO campaign_location_shops (location_id, name, buy_cost_delta, sell_cost_delta)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, location_id, name, buy_cost_delta, sell_cost_delta`,
+      [req.params.locationId, fields.name, fields.buy, fields.sell]
+    );
+    await replaceShopCategories(client, inserted.rows[0].id, fields.categoryIds);
+    await client.query('COMMIT');
+    res.status(201).json(shopPayload(inserted.rows[0], fields.categoryIds));
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch (_) { /* connection already failed */ }
+    if (res.headersSent) return;
+    shopWriteError(res, error, 'Failed to create shop');
+  } finally {
+    client.release();
+  }
+});
+
+app.patch('/api/campaigns/:campaignId/adventuring/locations/:locationId/shops/:shopId', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const fields = readShopFields(req.body);
+    await client.query('BEGIN');
+    const updated = await client.query(
+      `UPDATE campaign_location_shops s
+       SET name = $1, buy_cost_delta = $2, sell_cost_delta = $3
+       FROM campaign_location l
+       WHERE s.id = $4 AND s.location_id = l.id AND l.id = $5 AND l.campaign_id = $6
+       RETURNING s.id, s.location_id, s.name, s.buy_cost_delta, s.sell_cost_delta`,
+      [fields.name, fields.buy, fields.sell, req.params.shopId, req.params.locationId, req.params.campaignId]
+    );
+    if (updated.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Shop not found' });
+    }
+    await replaceShopCategories(client, updated.rows[0].id, fields.categoryIds);
+    await client.query('COMMIT');
+    res.json(shopPayload(updated.rows[0], fields.categoryIds));
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch (_) { /* connection already failed */ }
+    if (res.headersSent) return;
+    shopWriteError(res, error, 'Failed to update shop');
+  } finally {
+    client.release();
+  }
+});
+
+app.delete('/api/campaigns/:campaignId/adventuring/locations/:locationId/shops/:shopId', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const deleted = await pool.query(
+      `DELETE FROM campaign_location_shops s
+       USING campaign_location l
+       WHERE s.id = $1 AND s.location_id = l.id AND l.id = $2 AND l.campaign_id = $3
+       RETURNING s.id`,
+      [req.params.shopId, req.params.locationId, req.params.campaignId]
+    );
+    if (deleted.rows.length === 0) return res.status(404).json({ error: 'Shop not found' });
+    res.json({ id: deleted.rows[0].id });
+  } catch (error) {
+    if (adventuringMissing(res, error)) return;
+    console.error('Error deleting shop:', error);
+    res.status(500).json({ error: error.message || 'Failed to delete shop' });
+  }
+});
+
+async function requireShopCharacter(req, res) {
+  const gate = await characterGate(req, res, req.params.characterId, true);
+  if (!gate) return null;
+  const member = await pool.query(
+    'SELECT 1 FROM campaign_character WHERE campaign_id = $1 AND character_id = $2',
+    [req.params.campaignId, req.params.characterId]
+  );
+  if (member.rows.length === 0) {
+    res.status(404).json({ error: 'Character not found' });
+    return null;
+  }
+  return gate;
+}
+
+async function catalogItem(client, rulesetId, itemId) {
+  const result = await client.query(
+    `SELECT i.id, i.name, i.category, i.price
+     FROM items i
+     WHERE i.id = $2 AND i.price IS NOT NULL AND ${visibleInRuleset('items', 'i', ITEM_CATALOG_KEY)}`,
+    [rulesetId, itemId]
+  );
+  return result.rows[0] || null;
+}
+
+async function shopOnBoard(client, campaignId, shopId) {
+  await client.query(
+    'SELECT location_id FROM campaign_board WHERE campaign_id = $1 FOR UPDATE',
+    [campaignId]
+  );
+  const found = await client.query(
+    `SELECT s.id, s.buy_cost_delta, s.sell_cost_delta, c.ruleset_id
+     FROM campaign_location_shops s
+     JOIN campaign_location l ON l.id = s.location_id AND l.campaign_id = $2
+     JOIN campaign c ON c.id = l.campaign_id
+     JOIN campaign_board b ON b.campaign_id = c.id AND b.location_id = l.id
+     WHERE s.id = $1`,
+    [shopId, campaignId]
+  );
+  if (found.rows.length === 0) throw storedError('Shop not found', 404);
+  const categories = await client.query(
+    'SELECT item_category_id FROM campaign_location_shop_item_categories WHERE shop_id = $1',
+    [shopId]
+  );
+  return {
+    buy: Number(found.rows[0].buy_cost_delta),
+    sell: Number(found.rows[0].sell_cost_delta),
+    rulesetId: found.rows[0].ruleset_id,
+    categoryIds: categories.rows.map((row) => Number(row.item_category_id)),
+  };
+}
+
+async function lockCharacter(client, characterId) {
+  const locked = await client.query(
+    `SELECT id, COALESCE(money, 0) AS money,
+            equipped_melee_primary_id, equipped_melee_secondary_id,
+            equipped_ranged_id, equipped_armor_id, equipped_shield_id
+     FROM characters WHERE id = $1 FOR UPDATE`,
+    [characterId]
+  );
+  if (locked.rows.length === 0) throw storedError('Character not found', 404);
+  return locked.rows[0];
+}
+
+async function listCharacterShops(campaignId, characterId) {
+  const placed = await pool.query(
+    `SELECT b.location_id, l.name AS location_name, c.ruleset_id, COALESCE(ch.money, 0) AS money
+     FROM characters ch
+     JOIN campaign c ON c.id = $1
+     LEFT JOIN campaign_board b ON b.campaign_id = c.id
+     LEFT JOIN campaign_location l ON l.id = b.location_id AND l.campaign_id = c.id
+     WHERE ch.id = $2`,
+    [campaignId, characterId]
+  );
+  if (placed.rows.length === 0) throw storedError('Character not found', 404);
+  const here = placed.rows[0];
+  const money = Number(here.money);
+  if (here.location_id == null) {
+    return { location_id: null, location_name: null, money, shops: [] };
+  }
+  const shopRows = await pool.query(
+    `SELECT s.id, s.name, s.buy_cost_delta, s.sell_cost_delta,
+            ic.id AS category_id, ic.name AS category_name
+     FROM campaign_location_shops s
+     LEFT JOIN campaign_location_shop_item_categories sc ON sc.shop_id = s.id
+     LEFT JOIN item_categories ic ON ic.id = sc.item_category_id
+     WHERE s.location_id = $1
+     ORDER BY s.name, s.id, ic.name`,
+    [here.location_id]
+  );
+  const shops = [];
+  const byId = new Map();
+  const categorySet = new Set();
+  for (const row of shopRows.rows) {
+    let shop = byId.get(row.id);
+    if (!shop) {
+      shop = {
+        id: row.id,
+        name: row.name,
+        buy_cost_delta: Number(row.buy_cost_delta),
+        sell_cost_delta: Number(row.sell_cost_delta),
+        categories: [],
+        items: [],
+        sellable: [],
+      };
+      byId.set(row.id, shop);
+      shops.push(shop);
+    }
+    if (row.category_id != null) {
+      shop.categories.push({ id: Number(row.category_id), name: row.category_name });
+      categorySet.add(Number(row.category_id));
+    }
+  }
+  const categoryIds = [...categorySet];
+  const catalog = categoryIds.length === 0
+    ? { rows: [] }
+    : await pool.query(
+      `SELECT i.id, i.name, i.category AS category_id, i.price
+       FROM items i
+       WHERE i.price IS NOT NULL
+         AND i.category = ANY($2::int[])
+         AND ${visibleInRuleset('items', 'i', ITEM_CATALOG_KEY)}
+       ORDER BY i.name, i.id`,
+      [here.ruleset_id, categoryIds]
+    );
+  const held = categoryIds.length === 0
+    ? { rows: [] }
+    : await pool.query(
+      `SELECT ci.id, ci.item_id, ci.quantity, ci.bonus, ci.value, ci.name AS custom_name,
+              i.name AS item_name, i.price, i.category AS category_id
+       FROM character_items ci
+       JOIN items i ON i.id = ci.item_id
+       WHERE ci.character_id = $2
+         AND i.price IS NOT NULL
+         AND i.category = ANY($3::int[])
+         AND ${visibleInRuleset('items', 'i', ITEM_CATALOG_KEY)}`,
+      [here.ruleset_id, characterId, categoryIds]
+    );
+  const wornRow = await pool.query(
+    `SELECT equipped_melee_primary_id, equipped_melee_secondary_id,
+            equipped_ranged_id, equipped_armor_id, equipped_shield_id
+     FROM characters WHERE id = $1`,
+    [characterId]
+  );
+  const worn = new Set(equippedItemIds(wornRow.rows[0] || {}));
+  for (const shop of shops) {
+    const cats = new Set(shop.categories.map((cat) => cat.id));
+    shop.items = catalog.rows
+      .filter((item) => cats.has(Number(item.category_id)))
+      .map((item) => ({
+        id: item.id,
+        name: item.name,
+        category_id: Number(item.category_id),
+        price: Number(item.price),
+        buy_price: adjustedCopper(Number(item.price), shop.buy_cost_delta),
+      }))
+      .filter((item) => item.buy_price != null);
+    shop.sellable = held.rows
+      .filter((row) => cats.has(Number(row.category_id)) && !worn.has(Number(row.id)))
+      .filter((row) => (Number(row.bonus) || 0) === 0 && (Number(row.value) || 0) === 0)
+      .map((row) => ({
+        character_item_id: row.id,
+        item_id: row.item_id,
+        name: row.custom_name || row.item_name,
+        quantity: Number(row.quantity) || 0,
+        sell_price: adjustedCopper(Number(row.price), shop.sell_cost_delta),
+      }))
+      .filter((row) => row.sell_price != null && row.quantity > 0);
+  }
+  return {
+    location_id: here.location_id,
+    location_name: here.location_name,
+    money,
+    shops,
+  };
+}
+
+app.get('/api/campaigns/:campaignId/characters/:characterId/shops', async (req, res) => {
+  try {
+    const gate = await requireShopCharacter(req, res);
+    if (!gate) return;
+    res.json(await listCharacterShops(req.params.campaignId, req.params.characterId));
+  } catch (error) {
+    if (res.headersSent) return;
+    if (adventuringMissing(res, error)) return;
+    sendStoredError(res, error, 'Failed to list shops');
+  }
+});
+
+app.post('/api/campaigns/:campaignId/characters/:characterId/shops/:shopId/buy', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const gate = await requireShopCharacter(req, res);
+    if (!gate) return;
+    const quantity = positiveInt(req.body?.quantity, 'quantity');
+    const itemId = positiveInt(req.body?.item_id, 'item_id');
+    await client.query('BEGIN');
+    const character = await lockCharacter(client, req.params.characterId);
+    const shop = await shopOnBoard(client, req.params.campaignId, req.params.shopId);
+    const item = await catalogItem(client, shop.rulesetId, itemId);
+    if (!item || !shop.categoryIds.includes(Number(item.category))) {
+      throw storedError('This shop does not sell that', 400);
+    }
+    const unit = adjustedCopper(Number(item.price), shop.buy);
+    const total = copperLine(unit, quantity);
+    if (unit == null || total == null) throw storedError('That costs too much', 400);
+    const money = Number(character.money);
+    if (money < total) throw storedError('Not enough money', 400);
+    const nextMoney = money - total;
+    await client.query(
+      'UPDATE characters SET money = $1, modified = CURRENT_TIMESTAMP WHERE id = $2',
+      [nextMoney, character.id]
+    );
+    const stack = await client.query(
+      `SELECT id, quantity FROM character_items
+       WHERE character_id = $1 AND item_id = $2
+         AND COALESCE(bonus, 0) = 0 AND COALESCE(value, 0) = 0
+         AND name IS NULL AND description IS NULL
+       ORDER BY id
+       LIMIT 1
+       FOR UPDATE`,
+      [character.id, item.id]
+    );
+    let stored;
+    if (stack.rows.length > 0) {
+      const nextQty = (Number(stack.rows[0].quantity) || 0) + quantity;
+      if (nextQty > COPPER_MAX) throw storedError('That quantity is too large', 400);
+      const updated = await client.query(
+        `UPDATE character_items SET quantity = $1, modified = CURRENT_TIMESTAMP
+         WHERE id = $2 AND character_id = $3
+         RETURNING id, quantity`,
+        [nextQty, stack.rows[0].id, character.id]
+      );
+      stored = updated.rows[0];
+    } else {
+      stored = await insertStoredItem(client, character.id, { item_id: item.id, quantity });
+    }
+    await client.query('COMMIT');
+    res.json({
+      money: nextMoney,
+      item_id: item.id,
+      character_item_id: stored.id,
+      quantity: Number(stored.quantity),
+    });
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch (_) { /* connection already failed */ }
+    if (res.headersSent) return;
+    if (adventuringMissing(res, error)) return;
+    sendStoredError(res, error, 'Failed to buy');
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/campaigns/:campaignId/characters/:characterId/shops/:shopId/sell', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const gate = await requireShopCharacter(req, res);
+    if (!gate) return;
+    const quantity = positiveInt(req.body?.quantity, 'quantity');
+    const characterItemId = positiveInt(req.body?.character_item_id, 'character_item_id');
+    await client.query('BEGIN');
+    const character = await lockCharacter(client, req.params.characterId);
+    const shop = await shopOnBoard(client, req.params.campaignId, req.params.shopId);
+    const held = await client.query(
+      `SELECT ci.id, ci.item_id, ci.quantity, ci.bonus, ci.value, i.price, i.category
+       FROM character_items ci
+       LEFT JOIN items i ON i.id = ci.item_id
+       WHERE ci.id = $1 AND ci.character_id = $2
+       FOR UPDATE OF ci`,
+      [characterItemId, character.id]
+    );
+    if (held.rows.length === 0) throw storedError('Item is not on this character', 404);
+    const row = held.rows[0];
+    if (equippedItemIds(character).includes(Number(row.id))) {
+      throw storedError('Unequip that before selling it', 400);
+    }
+    const plain = (Number(row.bonus) || 0) === 0 && (Number(row.value) || 0) === 0;
+    const listed = row.item_id != null && plain
+      ? await catalogItem(client, shop.rulesetId, row.item_id)
+      : null;
+    if (!listed || !shop.categoryIds.includes(Number(listed.category))) {
+      throw storedError('This shop does not buy that', 400);
+    }
+    const unit = adjustedCopper(Number(listed.price), shop.sell);
+    const total = copperLine(unit, quantity);
+    if (unit == null || total == null) throw storedError('That payment is too large', 400);
+    const owned = Number(row.quantity) || 0;
+    if (quantity > owned) throw storedError('Not enough of that item', 400);
+    const money = Number(character.money);
+    if (money > COPPER_MAX - total) throw storedError('That payment is too large', 400);
+    const nextMoney = money + total;
+    await client.query(
+      'UPDATE characters SET money = $1, modified = CURRENT_TIMESTAMP WHERE id = $2',
+      [nextMoney, character.id]
+    );
+    let left = 0;
+    if (owned === quantity) {
+      await client.query(
+        'DELETE FROM character_items WHERE id = $1 AND character_id = $2',
+        [row.id, character.id]
+      );
+    } else {
+      left = owned - quantity;
+      await client.query(
+        `UPDATE character_items SET quantity = $1, modified = CURRENT_TIMESTAMP
+         WHERE id = $2 AND character_id = $3`,
+        [left, row.id, character.id]
+      );
+    }
+    await client.query('COMMIT');
+    res.json({ money: nextMoney, character_item_id: row.id, quantity: left });
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch (_) { /* connection already failed */ }
+    if (res.headersSent) return;
+    if (adventuringMissing(res, error)) return;
+    sendStoredError(res, error, 'Failed to sell');
   } finally {
     client.release();
   }

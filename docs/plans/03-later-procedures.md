@@ -83,7 +83,7 @@ Needs the stock tables from the r142 catalog follow-up. These help write an adve
 - [x] `done` Trap helper. The named traps in Part 8 (pit, dart, gas, and the rest) as a picker that fills a note. Not a trap engine.
   - Picking a trap fills an editable note. The note is not saved and the trap is not rolled.
 - [x] `done` Vehicles. Attacks against AC 11, hardness subtracted from damage, field repair 1d4 hit points per crew member per hour up to 90%.
-  - The catalog shows AC 11, hardness, and listed hit points. Damage past hardness adds to damage taken. One listed total is half speed. Twice that immobilizes a wagon and sinks a ship. Field repair rolls 1d4 per crew member and stops at 90% of the listed hit points. Vehicle hit points are not stored.
+  - The catalog is on Adventuring, after Travel. It shows AC 11, hardness, and listed hit points. Damage past hardness adds to damage taken. One listed total is half speed. Twice that immobilizes a wagon and sinks a ship. Field repair rolls 1d4 per crew member and stops at 90% of the listed hit points. Vehicle hit points are not stored.
 
 ## Shown to players
 

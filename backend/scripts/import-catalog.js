@@ -284,8 +284,8 @@ async function importCatalog(client, dir) {
       client.query(
         `INSERT INTO public.monster
            (id, name, hit_dice, hitdie_note, armor_class, defense_note, attack_note,
-            morale, morale_engaged, treasure_type, movement, number_appearing, ruleset_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+            morale, morale_engaged, treasure_type, movement, number_appearing, notes, ruleset_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
         [
           destId,
           String(row.name).trim(),
@@ -301,6 +301,7 @@ async function importCatalog(client, dir) {
             : String(row.treasure_type).trim(),
           String(row.movement).trim(),
           String(row.number_appearing).trim(),
+          blank(row.notes),
           id,
         ]
       )

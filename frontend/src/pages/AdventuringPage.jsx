@@ -19,6 +19,9 @@ import {
   getAdventuring,
   getCampaign,
   getItems,
+  getPrep,
+  prepDamage,
+  prepRepair,
   giveParty,
   removeAdventuringMark,
   removeEncounterEnemy,
@@ -80,6 +83,12 @@ function locationFacts(loc) {
 
 function errText(err) {
   return err.response?.data?.error || err.message;
+}
+
+function wholeInt(value) {
+  const text = String(value ?? '').trim();
+  if (!/^-?\d+$/.test(text)) return null;
+  return Number(text);
 }
 
 function signed(n) {
@@ -205,9 +214,8 @@ function ClockFields({ value, onChange }) {
   );
 }
 
-export default function AdventuringPage({ campaignName }) {
+export default function AdventuringPage() {
   const { campaignId } = useParams();
-  const [name, setName] = useState(campaignName || '');
   const [items, setItems] = useState([]);
   const [board, setBoard] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -217,6 +225,12 @@ export default function AdventuringPage({ campaignName }) {
   const [marchNote, setMarchNote] = useState(null);
   const [lostNote, setLostNote] = useState(null);
   const [weatherNote, setWeatherNote] = useState(null);
+  const [prep, setPrep] = useState(null);
+  const [vehicleName, setVehicleName] = useState('');
+  const [taken, setTaken] = useState(0);
+  const [damageAmount, setDamageAmount] = useState('');
+  const [crew, setCrew] = useState('1');
+  const [vehicleText, setVehicleText] = useState('');
   const [lostLeader, setLostLeader] = useState('');
   const [followingRoad, setFollowingRoad] = useState(false);
   const [navigatorOn, setNavigatorOn] = useState(false);
@@ -302,7 +316,6 @@ export default function AdventuringPage({ campaignName }) {
     getCampaign(campaignId)
       .then((r) => {
         if (cancelled) return null;
-        setName(r.data.name || '');
         return getItems(r.data.ruleset_id);
       })
       .then((r) => {
@@ -319,6 +332,18 @@ export default function AdventuringPage({ campaignName }) {
     const interval = setInterval(() => load(true), 5000);
     return () => clearInterval(interval);
   }, [load]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getPrep(campaignId)
+      .then((r) => {
+        if (!cancelled) setPrep(r.data);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(errText(err));
+      });
+    return () => { cancelled = true; };
+  }, [campaignId]);
 
   const gameSeconds = board == null ? null : Number(board.game_seconds);
 
@@ -778,6 +803,47 @@ export default function AdventuringPage({ campaignName }) {
     });
   };
 
+  const chosenVehicle = (prep?.vehicles || []).find((row) => row.name === vehicleName) || null;
+
+  const applyVehicleDamage = () => {
+    if (!chosenVehicle) return;
+    const amount = wholeInt(damageAmount);
+    if (amount == null || amount < 0) {
+      setError('Damage must be a non-negative integer.');
+      return;
+    }
+    run(() => prepDamage(campaignId, {
+      listed: chosenVehicle.hp,
+      hardness: chosenVehicle.hardness,
+      taken,
+      amount,
+      water: chosenVehicle.water,
+    })).then((res) => {
+      if (!res) return;
+      setTaken(res.data.taken);
+      setVehicleText(`${chosenVehicle.name}: ${res.data.excess} past hardness. Damage taken ${res.data.taken}. Remaining ${res.data.remaining}. ${res.data.condition}.`);
+    });
+  };
+
+  const repairVehicle = () => {
+    if (!chosenVehicle) return;
+    const count = wholeInt(crew);
+    if (count == null || count < 1 || count > 200) {
+      setError('Crew must be from 1 to 200.');
+      return;
+    }
+    run(() => prepRepair(campaignId, {
+      listed: chosenVehicle.hp,
+      taken,
+      crew: count,
+      water: chosenVehicle.water,
+    })).then((res) => {
+      if (!res) return;
+      setTaken(res.data.taken);
+      setVehicleText(`${chosenVehicle.name}: repaired ${res.data.restored} (rolled ${res.data.gained}). Damage taken ${res.data.taken}. Remaining ${res.data.remaining}, field repair stops at ${res.data.cap}. ${res.data.condition}.`);
+    });
+  };
+
   const rollWeather = () => {
     run(() => weatherAdventuring(campaignId, navigatorOn)).then((res) => {
       if (!res?.data) return;
@@ -896,6 +962,13 @@ export default function AdventuringPage({ campaignName }) {
   const clockLabel = Number.isInteger(now) ? formatGameTime(now) : '';
   const lastRoll = (board?.wanders || [])[0];
   const canAccept = Boolean(lastRoll && lastRoll.table_roll != null && lastRoll.label && !lastRoll.accepted);
+  const here = (board?.locations || []).find((loc) => String(loc.id) === String(board?.location_id)) || null;
+  const hereTable = here
+    ? (board?.tables || []).find((table) => String(table.id) === String(here.encounter_table_id))
+    : null;
+  const hereLine = here
+    ? [here.name, here.terrain, hereTable?.name].filter(Boolean).join(' · ')
+    : 'No location';
   const place = board?.place === 'inside' ? 'inside' : 'outside';
   const primary = primaryStep(place, board?.in_encounter);
   const fighters = fighterOptions(board);
@@ -912,50 +985,27 @@ export default function AdventuringPage({ campaignName }) {
   const clockButtons = [
     CLOCK_BUTTONS.find((button) => button.step === primary),
     ...CLOCK_BUTTONS.filter((button) => button.step !== primary),
-  ];
+  ].filter((button) => button.step !== 'round');
 
   return (
     <div className="adventuring">
       <div>
-        <div className="card">
-          <h1 style={{ marginTop: 0 }}>Adventuring</h1>
-          {name ? <p className="muted">{name}</p> : null}
-          {error && <p style={{ color: '#c95858' }}>{error}</p>}
-          {notice && <p style={{ color: '#e8c547' }}>{notice}</p>}
-          {loading && !board && <p className="muted">Loading…</p>}
+        {error && <p style={{ color: '#c95858', marginTop: 0 }}>{error}</p>}
+        {notice && <p style={{ color: '#e8c547', marginTop: 0 }}>{notice}</p>}
+        {loading && !board && <p className="muted">Loading…</p>}
 
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'flex-end' }}>
-            <form onSubmit={giveXp} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-              <label>
-                Party XP
-                <input type="number" min={1} value={xp} onChange={(e) => setXp(e.target.value)} style={{ ...FIELD, width: 90, marginLeft: 6 }} />
-              </label>
-              <button type="submit" className="btn btn-primary" disabled={busy || !board}>Give party XP</button>
-            </form>
-            <form onSubmit={giveItem} style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-              <label>
-                Item
-                <select value={itemId} onChange={(e) => setItemId(e.target.value)} style={{ ...FIELD, marginLeft: 6, maxWidth: 220 }}>
-                  <option value="">Choose…</option>
-                  {items.map((it) => <option key={it.id} value={it.id}>{it.name}</option>)}
-                </select>
-              </label>
-              <label>
-                Qty
-                <input type="number" min={1} value={quantity} onChange={(e) => setQuantity(e.target.value)} style={{ ...FIELD, width: 70, marginLeft: 6 }} />
-              </label>
-              <button type="submit" className="btn btn-primary" disabled={busy || !board || !itemId}>Give party item</button>
-            </form>
+        <div className="card">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: '0.75rem' }}>
+            <h2 style={{ margin: 0 }}>Encounter</h2>
             {board?.in_encounter ? (
-              <button type="button" className="btn btn-danger" disabled={busy} onClick={() => { clearDice(); run(() => endEncounter(campaignId)); }}>End encounter</button>
+              <>
+                <button type="button" className="btn btn-primary" disabled={busy} onClick={() => run(() => tickAdventuring(campaignId, 'round'))}>Next Round</button>
+                <button type="button" className="btn btn-danger" disabled={busy} onClick={() => { clearDice(); run(() => endEncounter(campaignId)); }}>End</button>
+              </>
             ) : (
-              <button type="button" className="btn btn-secondary" disabled={busy || !board} onClick={() => run(() => startEncounter(campaignId))}>Start encounter</button>
+              <button type="button" className="btn btn-secondary" disabled={busy || !board} onClick={() => run(() => startEncounter(campaignId))}>Start</button>
             )}
           </div>
-        </div>
-
-        <div className="card">
-          <h2>Encounter</h2>
           {board && !board.in_encounter && <p className="muted">No encounter.</p>}
           {board?.in_encounter && (
             <>
@@ -993,6 +1043,12 @@ export default function AdventuringPage({ campaignName }) {
                         <button type="button" className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem' }} disabled={busy} onClick={() => rollEnemyHp(enemy)}>Roll hit points</button>
                       ) : null}
                     </div>
+                    {enemy.notes ? (
+                      <details style={{ marginTop: 4 }}>
+                        <summary className="muted">Notes</summary>
+                        <p style={{ whiteSpace: 'pre-wrap', margin: '4px 0 0' }}>{enemy.notes}</p>
+                      </details>
+                    ) : null}
                   </li>
                 ))}
               </ul>
@@ -1344,6 +1400,29 @@ export default function AdventuringPage({ campaignName }) {
               </div>
             </>
           )}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'flex-end', marginTop: '1rem' }}>
+            <form onSubmit={giveXp} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <label>
+                Party XP
+                <input type="number" min={1} value={xp} onChange={(e) => setXp(e.target.value)} style={{ ...FIELD, width: 90, marginLeft: 6 }} />
+              </label>
+              <button type="submit" className="btn btn-primary" disabled={busy || !board}>Give party XP</button>
+            </form>
+            <form onSubmit={giveItem} style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+              <label>
+                Item
+                <select value={itemId} onChange={(e) => setItemId(e.target.value)} style={{ ...FIELD, marginLeft: 6, maxWidth: 220 }}>
+                  <option value="">Choose…</option>
+                  {items.map((it) => <option key={it.id} value={it.id}>{it.name}</option>)}
+                </select>
+              </label>
+              <label>
+                Qty
+                <input type="number" min={1} value={quantity} onChange={(e) => setQuantity(e.target.value)} style={{ ...FIELD, width: 70, marginLeft: 6 }} />
+              </label>
+              <button type="submit" className="btn btn-primary" disabled={busy || !board || !itemId}>Give party item</button>
+            </form>
+          </div>
         </div>
 
         <div className="card">
@@ -1409,6 +1488,61 @@ export default function AdventuringPage({ campaignName }) {
             <button type="button" className="btn btn-secondary" disabled={busy || !board} onClick={rollWeather}>Weather</button>
           </div>
           {weatherNote && <p style={{ color: '#e8c547' }}>{weatherNote}</p>}
+        </div>
+
+        <div className="card">
+          <h2>Vehicles</h2>
+          <p className="muted">{`Attacks hit AC ${prep?.vehicle_ac ?? 11}. Hardness comes off the damage. Field repair is 1d4 per crew member and stops at 90% of the listed hit points.`}</p>
+          <select
+            aria-label="Vehicle"
+            value={vehicleName}
+            onChange={(e) => {
+              const name = e.target.value;
+              const row = (prep?.vehicles || []).find((item) => item.name === name);
+              setVehicleName(name);
+              setTaken(0);
+              setCrew(String(row?.crew || 1));
+              setVehicleText('');
+            }}
+            style={FIELD}
+          >
+            <option value="">Choose a vehicle</option>
+            {(prep?.vehicles || []).map((row) => (
+              <option key={row.name} value={row.name}>{row.name}</option>
+            ))}
+          </select>
+          {chosenVehicle && (
+            <p>
+              {`${chosenVehicle.movement}${chosenVehicle.miles ? `, ${chosenVehicle.miles} miles` : ''}. Hardness ${chosenVehicle.hardness}, HP ${chosenVehicle.hp}, ${chosenVehicle.cost} gp. Damage taken ${taken}.`}
+            </p>
+          )}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <input
+              type="number"
+              min={0}
+              aria-label="Vehicle damage"
+              placeholder="Damage"
+              value={damageAmount}
+              onChange={(e) => setDamageAmount(e.target.value)}
+              style={{ ...FIELD, width: 90 }}
+            />
+            <button type="button" className="btn btn-secondary" disabled={busy || !chosenVehicle} onClick={applyVehicleDamage}>
+              Apply damage
+            </button>
+            <input
+              type="number"
+              min={1}
+              max={200}
+              aria-label="Repair crew"
+              value={crew}
+              onChange={(e) => setCrew(e.target.value)}
+              style={{ ...FIELD, width: 70 }}
+            />
+            <button type="button" className="btn btn-secondary" disabled={busy || !chosenVehicle} onClick={repairVehicle}>
+              Field repair
+            </button>
+          </div>
+          {vehicleText && <p>{vehicleText}</p>}
         </div>
 
         <div className="card">
@@ -1589,6 +1723,8 @@ export default function AdventuringPage({ campaignName }) {
       </div>
 
       <div className="card">
+        <p className="adventuring-clock">{clockLabel || '—'}</p>
+        {board && <p style={{ color: '#fff', margin: '0 0 0.75rem' }}>{hereLine}</p>}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {clockButtons.map((button) => (
             <button
@@ -1620,31 +1756,29 @@ export default function AdventuringPage({ campaignName }) {
             </button>
           ))}
         </div>
-        <p className="adventuring-clock">{clockLabel || '—'}</p>
-        <h2>Wander</h2>
-        <p className="muted">A roll does not start the encounter.</p>
-        {(board?.wanders || []).length === 0 && <p className="muted">No checks yet.</p>}
-        <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 0.5rem' }}>
-          {(board?.wanders || []).map((row) => (
-            <li key={row.id} style={{ marginBottom: 6 }}>
-              {row.table_roll == null
-                ? `Miss (${row.check_roll} on d${row.check_die})`
-                : `${row.label || 'No row'}${row.quantity ? ` · ${row.quantity}` : ''} (${row.table_roll} on d${row.table_die})`}
-              <span className="muted"> · {row.location_name} · {formatGameTime(Number(row.at_seconds))}</span>
-              {row.accepted ? <span className="muted"> · accepted</span> : null}
-            </li>
-          ))}
-        </ul>
-        <button
-          type="button"
-          className="btn btn-primary"
-          style={{ marginBottom: '1rem' }}
-          disabled={busy || !canAccept}
-          onClick={() => run(() => acceptWander(campaignId))}
-        >
-          Accept
-        </button>
-        <h2>Effects/Events</h2>
+        <div style={{ marginTop: '1rem', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: '0.75rem' }}>
+            <h2 style={{ margin: 0 }}>Wander</h2>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={busy || !canAccept}
+              onClick={() => run(() => acceptWander(campaignId))}
+            >
+              Accept
+            </button>
+          </div>
+          {!lastRoll && <p className="muted" style={{ marginTop: 0, marginBottom: 0 }}>No checks yet.</p>}
+          {lastRoll && (
+            <p style={{ marginTop: 0, marginBottom: 0 }}>
+              {lastRoll.table_roll == null
+                ? `Miss (${lastRoll.check_roll} on d${lastRoll.check_die})`
+                : `${lastRoll.label || 'No row'}${lastRoll.quantity ? ` · ${lastRoll.quantity}` : ''} (${lastRoll.table_roll} on d${lastRoll.table_die})`}
+              {lastRoll.accepted ? <span className="muted"> · accepted</span> : null}
+            </p>
+          )}
+        </div>
+        <h2 style={{ marginTop: 0 }}>Effects/Events</h2>
         {(board?.marks || []).length === 0 && <p className="muted">No effects or events.</p>}
         <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 1rem' }}>
           {(board?.marks || []).map((mark) => {

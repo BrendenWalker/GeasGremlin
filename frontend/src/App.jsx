@@ -170,7 +170,7 @@ function Shell() {
               <Route index element={<PlayPage />} />
               <Route path="characters/:id" element={<PlayerCharacterPage />} />
               <Route path="adventuring" element={<GmOnly session={session} />}>
-                <Route index element={<AdventuringPage campaignName={session?.name} />} />
+                <Route index element={<AdventuringPage />} />
               </Route>
               <Route path="configuration" element={<GmOnly session={session} />}>
                 <Route index element={<ConfigurationPage campaignName={session?.name} />} />

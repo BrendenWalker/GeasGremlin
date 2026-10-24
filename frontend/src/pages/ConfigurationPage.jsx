@@ -3,15 +3,17 @@ import { useParams } from 'react-router-dom';
 import {
   createEncounterTable,
   createLocation,
+  createShop,
   deleteEncounterTable,
   deleteLocation,
+  deleteShop,
   getAdventuring,
+  getItemCategories,
   getPrep,
-  prepDamage,
-  prepRepair,
   stockRoom,
   updateEncounterTable,
   updateLocation,
+  updateShop,
 } from '../api/api';
 
 const FIELD = {
@@ -45,6 +47,12 @@ function tableName(tables, id) {
   return found ? found.name : 'table';
 }
 
+function percentLabel(value) {
+  const n = Number(value);
+  if (!Number.isInteger(n)) return '';
+  return `${n > 0 ? '+' : ''}${n}%`;
+}
+
 export default function ConfigurationPage({ campaignName }) {
   const { campaignId } = useParams();
   const [board, setBoard] = useState(null);
@@ -67,17 +75,19 @@ export default function ConfigurationPage({ campaignName }) {
   const [stockText, setStockText] = useState('');
   const [trapName, setTrapName] = useState('');
   const [trapNote, setTrapNote] = useState('');
-  const [vehicleName, setVehicleName] = useState('');
-  const [taken, setTaken] = useState(0);
-  const [damageAmount, setDamageAmount] = useState('');
-  const [crew, setCrew] = useState('1');
-  const [vehicleText, setVehicleText] = useState('');
+  const [categories, setCategories] = useState([]);
+  const [shopId, setShopId] = useState(null);
+  const [shopName, setShopName] = useState('');
+  const [buyDelta, setBuyDelta] = useState('0');
+  const [sellDelta, setSellDelta] = useState('0');
+  const [shopCategoryIds, setShopCategoryIds] = useState([]);
 
   const load = useCallback(() => {
-    return Promise.all([getAdventuring(campaignId), getPrep(campaignId)])
-      .then(([boardRes, prepRes]) => {
+    return Promise.all([getAdventuring(campaignId), getPrep(campaignId), getItemCategories()])
+      .then(([boardRes, prepRes, categoryRes]) => {
         setBoard(boardRes.data);
         setPrep(prepRes.data);
+        setCategories(categoryRes.data || []);
       })
       .catch((err) => setError(errText(err)));
   }, [campaignId]);
@@ -99,6 +109,14 @@ export default function ConfigurationPage({ campaignName }) {
       .finally(() => setBusy(false));
   };
 
+  const blankShop = () => {
+    setShopId(null);
+    setShopName('');
+    setBuyDelta('0');
+    setSellDelta('0');
+    setShopCategoryIds([]);
+  };
+
   const blankLocation = () => {
     setLocId(null);
     setLocName('');
@@ -108,6 +126,7 @@ export default function ConfigurationPage({ campaignName }) {
     setLocTable('');
     setTerrain('');
     setMovement('');
+    blankShop();
   };
 
   const editLocation = (loc) => {
@@ -119,6 +138,7 @@ export default function ConfigurationPage({ campaignName }) {
     setLocTable(String(loc.encounter_table_id));
     setTerrain(loc.terrain || '');
     setMovement(loc.movement_pct == null ? '' : String(loc.movement_pct));
+    blankShop();
     setError(null);
   };
 
@@ -189,6 +209,56 @@ export default function ConfigurationPage({ campaignName }) {
   const removeLocation = (id) => {
     run(() => deleteLocation(campaignId, id)).then((res) => {
       if (res && String(locId) === String(id)) blankLocation();
+    });
+  };
+
+  const editShop = (shop) => {
+    setShopId(shop.id);
+    setShopName(shop.name);
+    setBuyDelta(String(shop.buy_cost_delta ?? 0));
+    setSellDelta(String(shop.sell_cost_delta ?? 0));
+    setShopCategoryIds((shop.category_ids || []).map((id) => Number(id)));
+    setError(null);
+  };
+
+  const toggleShopCategory = (id) => {
+    setShopCategoryIds((ids) => (ids.includes(id) ? ids.filter((row) => row !== id) : [...ids, id]));
+  };
+
+  const saveShop = (e) => {
+    e.preventDefault();
+    if (locId == null) return;
+    const buy = wholeInt(buyDelta);
+    const sell = wholeInt(sellDelta);
+    if (!shopName.trim()) {
+      setError('Shop name is required.');
+      return;
+    }
+    if (buy == null || buy < -100 || buy > 1000 || sell == null || sell < -100 || sell > 1000) {
+      setError('Buy and sell percent must be integers from -100 to 1000.');
+      return;
+    }
+    if (shopCategoryIds.length === 0) {
+      setError('A shop needs at least one category.');
+      return;
+    }
+    const body = {
+      name: shopName.trim(),
+      buy_cost_delta: buy,
+      sell_cost_delta: sell,
+      category_ids: shopCategoryIds,
+    };
+    const action = shopId == null
+      ? () => createShop(campaignId, locId, body)
+      : () => updateShop(campaignId, locId, shopId, body);
+    run(action).then((res) => {
+      if (res) blankShop();
+    });
+  };
+
+  const removeShop = (id) => {
+    run(() => deleteShop(campaignId, locId, id)).then((res) => {
+      if (res && String(shopId) === String(id)) blankShop();
     });
   };
 
@@ -275,51 +345,12 @@ export default function ConfigurationPage({ campaignName }) {
     });
   };
 
-  const chosenVehicle = (prep?.vehicles || []).find((row) => row.name === vehicleName) || null;
-
-  const applyVehicleDamage = () => {
-    if (!chosenVehicle) return;
-    const amount = wholeInt(damageAmount);
-    if (amount == null || amount < 0) {
-      setError('Damage must be a non-negative integer.');
-      return;
-    }
-    run(() => prepDamage(campaignId, {
-      listed: chosenVehicle.hp,
-      hardness: chosenVehicle.hardness,
-      taken,
-      amount,
-      water: chosenVehicle.water,
-    })).then((res) => {
-      if (!res) return;
-      setTaken(res.data.taken);
-      setVehicleText(`${chosenVehicle.name}: ${res.data.excess} past hardness. Damage taken ${res.data.taken}. Remaining ${res.data.remaining}. ${res.data.condition}.`);
-    });
-  };
-
-  const repairVehicle = () => {
-    if (!chosenVehicle) return;
-    const count = wholeInt(crew);
-    if (count == null || count < 1 || count > 200) {
-      setError('Crew must be from 1 to 200.');
-      return;
-    }
-    run(() => prepRepair(campaignId, {
-      listed: chosenVehicle.hp,
-      taken,
-      crew: count,
-      water: chosenVehicle.water,
-    })).then((res) => {
-      if (!res) return;
-      setTaken(res.data.taken);
-      setVehicleText(`${chosenVehicle.name}: repaired ${res.data.restored} (rolled ${res.data.gained}). Damage taken ${res.data.taken}. Remaining ${res.data.remaining}, field repair stops at ${res.data.cap}. ${res.data.condition}.`);
-    });
-  };
-
   const tables = board?.tables || [];
   const customTables = tables.filter((table) => table.custom);
   const stockTables = tables.filter((table) => !table.custom);
   const locations = board?.locations || [];
+  const editingLocation = locations.find((loc) => String(loc.id) === String(locId));
+  const locationShops = editingLocation?.shops || [];
 
   return (
     <div>
@@ -335,12 +366,14 @@ export default function ConfigurationPage({ campaignName }) {
           {locations.map((loc) => {
             const selected = String(board.location_id) === String(loc.id);
             const adjust = loc.terrain ? ` · ${loc.terrain} ${movementLabel(loc.movement_pct)}` : '';
+            const shopNames = (loc.shops || []).map((shop) => shop.name).join(', ');
+            const shops = shopNames ? ` · ${shopNames}` : '';
             return (
               <li key={loc.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 6, alignItems: 'center' }}>
                 <span>
                   <strong>{loc.name}</strong>
                   <span className="muted">
-                    {` · ${loc.place}${adjust} · d${loc.check_die} · ${tableName(tables, loc.encounter_table_id)}`}
+                    {` · ${loc.place}${adjust} · d${loc.check_die} · ${tableName(tables, loc.encounter_table_id)}${shops}`}
                   </span>
                   {selected ? <span className="muted"> · selected</span> : null}
                 </span>
@@ -424,6 +457,77 @@ export default function ConfigurationPage({ campaignName }) {
             )}
           </span>
         </form>
+
+        {locId != null && (
+          <form onSubmit={saveShop} style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
+            <h2 style={{ marginBottom: 0 }}>{shopId == null ? 'New shop' : 'Edit shop'}</h2>
+            <p className="muted">0 is the listed price. Buy +20 means the character pays 120%. Sell −50 means the shop pays half.</p>
+            {locationShops.length === 0 && <p className="muted">No shops at this location yet.</p>}
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+              {locationShops.map((shop) => (
+                <li key={shop.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 6, alignItems: 'center' }}>
+                  <span>
+                    <strong>{shop.name}</strong>
+                    <span className="muted">{` · buy ${percentLabel(shop.buy_cost_delta)} · sell ${percentLabel(shop.sell_cost_delta)}`}</span>
+                  </span>
+                  <span style={{ display: 'flex', gap: 6 }}>
+                    <button type="button" className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem' }} disabled={busy} onClick={() => editShop(shop)}>Edit</button>
+                    <button type="button" className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem' }} disabled={busy} onClick={() => removeShop(shop.id)}>Remove</button>
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <input value={shopName} onChange={(e) => setShopName(e.target.value)} placeholder="Shop name" maxLength={80} aria-label="Shop name" style={FIELD} />
+            <label>
+              Buy %
+              <input
+                type="number"
+                min={-100}
+                max={1000}
+                value={buyDelta}
+                onChange={(e) => setBuyDelta(e.target.value)}
+                aria-label="Buy percent"
+                style={{ ...FIELD, width: 90, marginLeft: 6 }}
+              />
+            </label>
+            <label>
+              Sell %
+              <input
+                type="number"
+                min={-100}
+                max={1000}
+                value={sellDelta}
+                onChange={(e) => setSellDelta(e.target.value)}
+                aria-label="Sell percent"
+                style={{ ...FIELD, width: 90, marginLeft: 6 }}
+              />
+            </label>
+            <div>
+              <div className="muted" style={{ marginBottom: 6 }}>Categories</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem 1rem' }}>
+                {categories.map((cat) => (
+                  <label key={cat.id}>
+                    <input
+                      type="checkbox"
+                      checked={shopCategoryIds.includes(Number(cat.id))}
+                      onChange={() => toggleShopCategory(Number(cat.id))}
+                      style={{ marginRight: 4 }}
+                    />
+                    {cat.name}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <span style={{ display: 'flex', gap: 8 }}>
+              <button type="submit" className="btn btn-secondary" disabled={busy || !board}>
+                {shopId == null ? 'Add shop' : 'Save shop'}
+              </button>
+              {shopId != null && (
+                <button type="button" className="btn btn-secondary" disabled={busy} onClick={blankShop}>Cancel</button>
+              )}
+            </span>
+          </form>
+        )}
       </div>
 
       <div className="card">
@@ -534,58 +638,6 @@ export default function ConfigurationPage({ campaignName }) {
           onChange={(e) => setTrapNote(e.target.value)}
           style={{ ...FIELD, display: 'block', width: '100%', minHeight: 72, marginTop: 8 }}
         />
-        <h3 style={{ marginBottom: 6 }}>Vehicles</h3>
-        <p className="muted">{`Attacks hit AC ${prep?.vehicle_ac ?? 11}. Hardness comes off the damage. Field repair is 1d4 per crew member and stops at 90% of the listed hit points.`}</p>
-        <select
-          aria-label="Vehicle"
-          value={vehicleName}
-          onChange={(e) => {
-            const name = e.target.value;
-            const row = (prep?.vehicles || []).find((item) => item.name === name);
-            setVehicleName(name);
-            setTaken(0);
-            setCrew(String(row?.crew || 1));
-            setVehicleText('');
-          }}
-          style={FIELD}
-        >
-          <option value="">Choose a vehicle</option>
-          {(prep?.vehicles || []).map((row) => (
-            <option key={row.name} value={row.name}>{row.name}</option>
-          ))}
-        </select>
-        {chosenVehicle && (
-          <p>
-            {`${chosenVehicle.movement}${chosenVehicle.miles ? `, ${chosenVehicle.miles} miles` : ''}. Hardness ${chosenVehicle.hardness}, HP ${chosenVehicle.hp}, ${chosenVehicle.cost} gp. Damage taken ${taken}.`}
-          </p>
-        )}
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          <input
-            type="number"
-            min={0}
-            aria-label="Vehicle damage"
-            placeholder="Damage"
-            value={damageAmount}
-            onChange={(e) => setDamageAmount(e.target.value)}
-            style={{ ...FIELD, width: 90 }}
-          />
-          <button type="button" className="btn btn-secondary" disabled={busy || !chosenVehicle} onClick={applyVehicleDamage}>
-            Apply damage
-          </button>
-          <input
-            type="number"
-            min={1}
-            max={200}
-            aria-label="Repair crew"
-            value={crew}
-            onChange={(e) => setCrew(e.target.value)}
-            style={{ ...FIELD, width: 70 }}
-          />
-          <button type="button" className="btn btn-secondary" disabled={busy || !chosenVehicle} onClick={repairVehicle}>
-            Field repair
-          </button>
-        </div>
-        {vehicleText && <p>{vehicleText}</p>}
       </div>
     </div>
   );

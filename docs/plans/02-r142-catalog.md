@@ -32,7 +32,7 @@ Do not delete Enhanced material that r142 never contained. Do not copy the Core 
 
 ## Drift
 
-- Core `GameSystems/BasicFantasy_Core/MONSTERS.json`, r142 PDF pages 67–166. 263 rows, loaded into `monster` for Basic Fantasy Core by `import-catalog`. Enhanced was not touched. Treasure type `None` is null. Saving throws and XP are not columns.
+- Core `GameSystems/BasicFantasy_Core/MONSTERS.json`, r142 PDF pages 67–166. 263 rows, loaded into `monster` for Basic Fantasy Core by `import-catalog`. `notes` is the prose under that heading, including a shared essay where the book groups the row (true dragons, elementals, and the like) and the target text where the book only says to see another monster. Dragon age tables stay in that prose. Enhanced was not touched. Treasure type `None` is null. Saving throws and XP are not columns.
 - Core `GameSystems/BasicFantasy_Core/TREASURE_TYPES.json`, r142 PDF pages 168–172 (printed 164–168). 30 rows: lair A–O, individual P–V, unguarded levels `1`, `2`, `3`, `4-5`, `6-7`, `8+`, plus lookup rows `GEMS` and `MAGIC`. Loaded into `treasure_type` for Basic Fantasy Core by `import-catalog`. Enhanced was not touched. A 100s column is `multiplier` 100. A printed xN in that column is one multiplier, N times 100, because the roller rejects two. Gem and jewelry counts are separate columns. The magic phrase is stored on `magic` and is not rolled. `GEMS` and `MAGIC` are the generation tables; a roll of either returns no lines. Type H has no single percent in r142. Its dice sit on `tables` and the age footnote sits on `note`, and a roll of H returns no lines. Item explanations after the generation tables were not copied.
 
 What the new columns hold:
