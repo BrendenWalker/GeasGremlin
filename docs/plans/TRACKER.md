@@ -10,6 +10,23 @@ The first pass, the r142 catalog, and later procedures are in the tree.
 
 ## Now
 
+- [x] `done` One creature roster. Each individual is a `campaign_creature`. Encounter membership is a link. Concluding restores base hit points and disposition, and deletes hirelings.
+  - `campaign_enemy` is gone. `in_fight` is the open fight. `base_hp` replaces `max_hp`. A plain integer wander quantity inserts that many creatures. Dice still inserts one. A march rest and a settled day that heals add those same points to every living creature, capped at `base_hp`. Dead stay dead. `node creature.check.js` and `node wander.check.js` pass.
+
+- [x] `done` Location creatures. A place keeps each creature's hit points after the fight ends.
+  - `campaign_creature` stores name, optional monster, hp, max hp, and present or fled. The open fight links with `figure_id` and damage writes both. Ending the fight deletes fight rows only. A rest on the march gives each living creature +1, capped at max. Dead stay dead. `node creature.check.js` passes.
+
+GM procedure. Design: [04-gm-procedure.md](04-gm-procedure.md).
+
+- [x] `done` Situation authoring. Detail edits live on Configuration. Adventuring plays the situation.
+  - Configuration creates, edits, and deletes a situation and its objectives, NPCs, clues, prepared encounters, and leads. A new situation stays planned. Adventuring activates one, sets the stage, flags objectives known and clues discovered, opens and resolves prepared encounters, arrives and returns, and writes the log. It does not change the wording.
+
+- [x] `done` GM procedure. A situation on the existing board.
+  - A situation, its objectives, NPCs, clues, prepared encounters, leads, and log live on the existing board. Stage changes do not open a fight. Players see the place and known objectives. `node situation.check.js` passes.
+
+- [x] `done` Module instructions. A Basic Fantasy module fills the existing situation rows.
+  - `ai/modules.md` maps a module onto locations, situations, objectives, NPCs, clues, prepared encounters, and leads. The catalog, the clock, and the open fight stay where they are.
+
 First pass. Design: [01-play-loop.md](01-play-loop.md).
 
 - [x] `done` Monster notes. The prose under each r142 heading is on the monster.
@@ -35,6 +52,16 @@ First pass. Design: [01-play-loop.md](01-play-loop.md).
 
 ## Next
 
+Module leftovers. One session each. Site visit before the empty checks. Room flags and deadlines have no dependency. The creature roster stays the location-creatures item.
+
+- [x] `done` Site visit. [05-site-visit.md](05-site-visit.md). Turns since the party entered this site, from the clock. Leaving for the fort clears the stamp.
+  - `campaign_location.site` is the shared label. `campaign_board.visit_seconds` is `game_seconds` at entry and does not tick. Whole turns are that difference divided by 600. The same label keeps the stamp. A different label, or none, clears it, and the next entry starts at 0. `arrived_seconds` stays. Players do not receive the count. `node visit.check.js` passes.
+- [x] `done` Visit checks. [06-visit-checks.md](06-visit-checks.md). An empty-room check fires once per visit and names a living creature. Needs the site visit stamp.
+  - A turn, watch, or day rolls the location check die once `game_seconds` is one interval past the site stamp. The same stamp does not roll again. A hit stores the first living creature at that location, present before fled, on `campaign_wander` as kind `visit`. It does not insert a creature or open the fight. A hit with nobody living stores nothing to meet. The interval wander still rolls. `node empty-check.check.js` passes.
+- [x] `done` Room flags. [07-room-flags.md](07-room-flags.md). A sprung pit, a taken chest, or a found secret stays on the place after the fight ends.
+  - `campaign_location_flag` stores a short note and a state of sprung, taken, or found on the location. The GM sets and clears it on Configuration and Adventuring. Deleting the location deletes the flags. Ending the fight does not. Players do not receive them, and `GET /campaigns/:id/here` leaves them out. `node room-flag.check.js` passes.
+- [ ] `todo` Deadlines and standing notes. [08-module-notes.md](08-module-notes.md). Midnight, day and night text, and rumors use marks, summaries, and clues.
+
 - [x] `done` Later procedures. [03-later-procedures.md](03-later-procedures.md). The list held back from the first pass.
   - Room stock and trap notes stay on Configuration. Vehicle damage and field repair to 90% are on Adventuring, after Travel. None of them are stored, and none open an encounter. Players do not see tables or GM rolls. The player-facing encounter table stays cut.
 
@@ -45,7 +72,7 @@ These came up in the r142 review and are not queued.
 - A second clock beside `game_seconds`.
 - Client-side encounter rolls, or encounter tables hardcoded in the UI.
 - One table column on the board and no location row.
-- A combatant list beside `campaign_enemy`.
+- A second combatant table beside `campaign_creature`. The open fight is `in_fight` on that roster.
 - Auto-starting combat when the wander die hits.
 - Auto-depositing generated loot.
 - A map or coordinates on a location.

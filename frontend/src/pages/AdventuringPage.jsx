@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { useNotices } from '../components/NoticeContext';
 import {
   addAdventuringMark,
   addHireling,
@@ -19,12 +20,14 @@ import {
   getAdventuring,
   getCampaign,
   getItems,
+  getMonsters,
   getPrep,
   prepDamage,
   prepRepair,
   giveParty,
   removeAdventuringMark,
   removeEncounterEnemy,
+  fleeEncounterEnemy,
   applyAward,
   applyDamage,
   rollAttack,
@@ -37,11 +40,15 @@ import {
   rollTurn,
   setEnemyHitPoints,
   startEncounter,
+  takeCreatures,
+  setLocationFlag,
+  clearLocationFlag,
   setAdventuringPlace,
   tickAdventuring,
   selectLocation,
 } from '../api/api';
 import { clockToSeconds, effectEndSeconds, effectTurnsLeft, formatGameTime, markStatus, primaryStep, splitGameTime } from '../domain/gameTime.mjs';
+import SituationPanel from '../components/SituationPanel';
 
 const COIN = new Set(['cp', 'sp', 'ep', 'gp', 'pp']);
 
@@ -71,6 +78,7 @@ function intervalLabel(seconds) {
 
 function locationFacts(loc) {
   const bits = [loc.place];
+  if (loc.site) bits.push(loc.site);
   if (loc.terrain) {
     const pct = Number(loc.movement_pct);
     const shown = Number.isInteger(pct) ? `${pct > 0 ? '+' : ''}${pct}%` : '';
@@ -111,6 +119,10 @@ function bodyLine(name, data) {
   if (data.food_damage) parts.push(`${data.food_damage} from hunger`);
   if (data.water_damage) parts.push(`${data.water_damage} from thirst`);
   if (data.healed) parts.push(`${data.healed} healed`);
+  if (data.creatures_healed) {
+    const count = Number(data.creatures_healed);
+    parts.push(`${count} creature${count === 1 ? '' : 's'} healed the same`);
+  }
   if (data.heal_food) parts.push('healing stopped until they eat');
   if (data.heal_water) parts.push('healing stopped until they drink');
   if (!data.slept) parts.push(`short of ${data.required_hours} hours sleep`);
@@ -123,6 +135,55 @@ function hitPointLabel(hp) {
   if (hp == null || hp === '') return 'no hit points';
   if (Number(hp) === 0) return 'down';
   return `${hp} hp`;
+}
+
+function characterHitPoints(current, maximum) {
+  if (maximum == null || maximum === '') return 'no hit points';
+  const now = current == null || current === '' ? maximum : current;
+  return `${now}/${maximum}`;
+}
+
+function emptyRoomLine(check) {
+  if (!check) return null;
+  const die = `${check.check_roll} on d${check.check_die}`;
+  if (check.outcome === 'named') return `Empty room: ${check.name} (${die})`;
+  if (check.outcome === 'none') return `Empty room, nothing to meet (${die})`;
+  return `Empty room miss (${die})`;
+}
+
+function creatureGroups(creatures) {
+  const groups = [];
+  for (const creature of creatures || []) {
+    const key = [creature.name, creature.hp, creature.base_hp, creature.disposition, creature.in_fight ? 1 : 0, creature.note || ''].join('|');
+    const found = groups.find((group) => group.key === key);
+    if (found) found.count += 1;
+    else {
+      groups.push({
+        key,
+        name: creature.name,
+        hp: creature.hp,
+        base_hp: creature.base_hp,
+        disposition: creature.disposition,
+        in_fight: creature.in_fight === true,
+        note: creature.note || '',
+        count: 1,
+      });
+    }
+  }
+  return groups;
+}
+
+function creatureLine(group) {
+  let state = 'no hit points';
+  if (group.hp === 0) state = 'down';
+  else if (group.hp != null && group.hp !== '') {
+    state = group.base_hp == null || group.base_hp === '' ? `${group.hp} hp` : `${group.hp}/${group.base_hp}`;
+  }
+  const fled = group.disposition === 'fled' ? ' · fled' : '';
+  const fight = group.in_fight ? ' · in the fight' : '';
+  const count = group.count > 1 ? ` · ${group.count}` : '';
+  const note = group.note ? ` · ${group.note}` : '';
+  return `${group.name}${count} · ${state}${fled}${fight}${note}`;
 }
 
 function fighterOptions(board) {
@@ -166,10 +227,6 @@ function surpriseActor(actor) {
   if (actor.range < 1) return `${actor.name}: cannot be surprised`;
   if (actor.surprised) return `${actor.name}: surprised on 1–${actor.range}, skips one round`;
   return `${actor.name}: not surprised (1–${actor.range})`;
-}
-
-function countDefault(enemy) {
-  return /^\d+$/.test(String(enemy.quantity || '').trim()) ? String(enemy.quantity).trim() : '';
 }
 
 function turnLines(result) {
@@ -216,12 +273,16 @@ function ClockFields({ value, onChange }) {
 
 export default function AdventuringPage() {
   const { campaignId } = useParams();
+  const { notify } = useNotices();
+  const notifyRef = useRef(notify);
+  notifyRef.current = notify;
+  const setError = (text) => notifyRef.current({ tone: 'error', text: text || '', source: 'adventuring-error' });
+  const setNotice = (text) => notifyRef.current({ tone: 'info', text: text || '', source: 'adventuring-notice' });
   const [items, setItems] = useState([]);
+  const [monsters, setMonsters] = useState([]);
   const [board, setBoard] = useState(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(null);
-  const [notice, setNotice] = useState(null);
   const [marchNote, setMarchNote] = useState(null);
   const [lostNote, setLostNote] = useState(null);
   const [weatherNote, setWeatherNote] = useState(null);
@@ -254,9 +315,13 @@ export default function AdventuringPage() {
   const [xp, setXp] = useState('');
   const [itemId, setItemId] = useState('');
   const [quantity, setQuantity] = useState(1);
+  const [enemyMonsterId, setEnemyMonsterId] = useState('');
   const [enemyName, setEnemyName] = useState('');
-  const [enemyQty, setEnemyQty] = useState('');
-  const [enemyTreasure, setEnemyTreasure] = useState('');
+  const [enemyQty, setEnemyQty] = useState('1');
+  const [takeName, setTakeName] = useState('');
+  const [takeCount, setTakeCount] = useState('1');
+  const [flagNote, setFlagNote] = useState('');
+  const [flagState, setFlagState] = useState('sprung');
   const [draft, setDraft] = useState(null);
   const [partyAmbush, setPartyAmbush] = useState(false);
   const [enemyAmbush, setEnemyAmbush] = useState(false);
@@ -300,6 +365,7 @@ export default function AdventuringPage() {
   const [eventNote, setEventNote] = useState('');
   const [eventClock, setEventClock] = useState(CLOCK_ZERO);
   const [eventDirty, setEventDirty] = useState(false);
+  const [locationPick, setLocationPick] = useState('');
 
   const load = useCallback((quiet) => {
     if (!quiet) setLoading(true);
@@ -316,10 +382,12 @@ export default function AdventuringPage() {
     getCampaign(campaignId)
       .then((r) => {
         if (cancelled) return null;
-        return getItems(r.data.ruleset_id);
+        return Promise.all([getItems(r.data.ruleset_id), getMonsters(r.data.ruleset_id)]);
       })
-      .then((r) => {
-        if (r && !cancelled) setItems(r.data || []);
+      .then((pair) => {
+        if (!pair || cancelled) return;
+        setItems(pair[0].data || []);
+        setMonsters(pair[1].data || []);
       })
       .catch((err) => {
         if (!cancelled) setError(errText(err));
@@ -353,15 +421,21 @@ export default function AdventuringPage() {
     if (parts) setEventClock(parts);
   }, [gameSeconds, eventDirty]);
 
+  useEffect(() => {
+    setLocationPick(board?.location_id == null ? '' : String(board.location_id));
+  }, [board?.location_id]);
+
   const run = (action) => {
     setBusy(true);
     setError(null);
     return action()
       .then((res) => {
         const parts = [];
-        const checks = res?.data?.checks;
         const n = res?.data?.queued;
-        if (checks > 0) parts.push(`${checks} wander check${checks === 1 ? '' : 's'}`);
+        const visit = res?.data?.visit;
+        if (visit?.outcome === 'named') parts.push(`Empty room: ${visit.name}`);
+        else if (visit?.outcome === 'none') parts.push('Empty room, nothing to meet');
+        else if (visit?.outcome === 'miss') parts.push('Empty room miss');
         if (res?.data?.accepted) parts.push('Accepted onto the encounter');
         if (n != null) parts.push(`Queued for ${n} character${n === 1 ? '' : 's'}`);
         setNotice(parts.length ? `${parts.join('. ')}.` : null);
@@ -401,20 +475,29 @@ export default function AdventuringPage() {
 
   const addEnemy = (e) => {
     e.preventDefault();
-    const nameTrim = enemyName.trim();
-    if (!nameTrim) {
-      setError('Enemy name is required.');
+    const count = enemyQty.trim() === '' ? 1 : parseInt(enemyQty, 10);
+    if (!Number.isInteger(count) || count < 1) {
+      setError('Count must be a positive integer.');
       return;
     }
-    run(() => addEncounterEnemy(campaignId, {
-      name: nameTrim,
-      quantity: enemyQty.trim() || null,
-      treasure_type: enemyTreasure.trim() || null,
-    })).then((ok) => {
+    const someoneElse = enemyMonsterId === 'other';
+    if (!enemyMonsterId) {
+      setError('Choose a monster.');
+      return;
+    }
+    const nameTrim = enemyName.trim();
+    if (someoneElse && !nameTrim) {
+      setError('Name is required.');
+      return;
+    }
+    const body = someoneElse
+      ? { name: nameTrim, count }
+      : { monster_id: Number(enemyMonsterId), count };
+    run(() => addEncounterEnemy(campaignId, body)).then((ok) => {
       if (!ok) return;
+      setEnemyMonsterId('');
       setEnemyName('');
-      setEnemyQty('');
-      setEnemyTreasure('');
+      setEnemyQty('1');
     });
   };
 
@@ -775,7 +858,11 @@ export default function AdventuringPage() {
     run(() => marchAdventuring(campaignId, rest)).then((res) => {
       if (!res?.data) return;
       if (res.data.rested) {
-        setMarchNote('A day of rest. Forced march starts over.');
+        const healed = Number(res.data.creatures_healed) || 0;
+        const extra = healed > 0
+          ? ` ${healed} creature${healed === 1 ? '' : 's'} regained a hit point.`
+          : '';
+        setMarchNote(`A day of rest. Forced march starts over.${extra}`);
         return;
       }
       const lines = (res.data.results || []).map((row) => {
@@ -960,15 +1047,30 @@ export default function AdventuringPage() {
 
   const now = Number(board?.game_seconds);
   const clockLabel = Number.isInteger(now) ? formatGameTime(now) : '';
-  const lastRoll = (board?.wanders || [])[0];
+  const lastRoll = (board?.wanders || []).find((row) => row.kind !== 'visit');
+  const visitRoll = board?.visit_check || null;
   const canAccept = Boolean(lastRoll && lastRoll.table_roll != null && lastRoll.label && !lastRoll.accepted);
   const here = (board?.locations || []).find((loc) => String(loc.id) === String(board?.location_id)) || null;
+  const saveFlag = (e) => {
+    e.preventDefault();
+    if (!here) return;
+    if (!flagNote.trim()) {
+      setError('Flag note is required.');
+      return;
+    }
+    run(() => setLocationFlag(campaignId, here.id, { note: flagNote.trim(), state: flagState })).then((res) => {
+      if (res) setFlagNote('');
+    });
+  };
   const hereTable = here
     ? (board?.tables || []).find((table) => String(table.id) === String(here.encounter_table_id))
     : null;
   const hereLine = here
     ? [here.name, here.terrain, hereTable?.name].filter(Boolean).join(' · ')
     : 'No location';
+  const visitLine = here?.site && Number.isInteger(board?.visit_turns)
+    ? `${board.visit_turns} ${board.visit_turns === 1 ? 'turn' : 'turns'} on ${here.site}`
+    : null;
   const place = board?.place === 'inside' ? 'inside' : 'outside';
   const primary = primaryStep(place, board?.in_encounter);
   const fighters = fighterOptions(board);
@@ -982,6 +1084,7 @@ export default function AdventuringPage() {
     : null;
   const needAttackBonus = Boolean(attackerEnemy && !attackerEnemy.hit_dice);
   const needArmorClass = Boolean(defenderEnemy && defenderEnemy.armor_class == null);
+  const chosenMonster = monsters.find((monster) => String(monster.id) === String(enemyMonsterId));
   const clockButtons = [
     CLOCK_BUTTONS.find((button) => button.step === primary),
     ...CLOCK_BUTTONS.filter((button) => button.step !== primary),
@@ -990,9 +1093,9 @@ export default function AdventuringPage() {
   return (
     <div className="adventuring">
       <div>
-        {error && <p style={{ color: '#c95858', marginTop: 0 }}>{error}</p>}
-        {notice && <p style={{ color: '#e8c547', marginTop: 0 }}>{notice}</p>}
         {loading && !board && <p className="muted">Loading…</p>}
+
+        <SituationPanel campaignId={campaignId} board={board} busy={busy} run={run} mode="play" />
 
         <div className="card">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: '0.75rem' }}>
@@ -1016,7 +1119,6 @@ export default function AdventuringPage() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                       <span>
                         {enemy.name}
-                        {enemy.quantity ? <span className="muted"> · {enemy.quantity}</span> : null}
                         {enemy.treasure_type ? <span className="muted"> · {enemy.treasure_type}</span> : null}
                         {enemy.armor_class != null ? <span className="muted"> · AC {enemy.armor_class}</span> : null}
                       </span>
@@ -1025,6 +1127,7 @@ export default function AdventuringPage() {
                           <button type="button" className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem' }} disabled={busy} onClick={() => rollEnemyTreasure(enemy)}>Roll treasure</button>
                         ) : null}
                         <button type="button" className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem' }} disabled={busy} onClick={() => run(() => removeEncounterEnemy(campaignId, enemy.id))}>Remove</button>
+                        <button type="button" className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem' }} disabled={busy} onClick={() => run(() => fleeEncounterEnemy(campaignId, enemy.id))}>Flee</button>
                       </span>
                     </div>
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 4, flexWrap: 'wrap' }}>
@@ -1039,7 +1142,7 @@ export default function AdventuringPage() {
                         style={{ ...FIELD, width: 70 }}
                       />
                       <button type="button" className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem' }} disabled={busy} onClick={() => saveEnemyHp(enemy)}>Set</button>
-                      {enemy.hit_dice ? (
+                      {enemy.hit_dice && enemy.base_hp == null ? (
                         <button type="button" className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem' }} disabled={busy} onClick={() => rollEnemyHp(enemy)}>Roll hit points</button>
                       ) : null}
                     </div>
@@ -1052,10 +1155,42 @@ export default function AdventuringPage() {
                   </li>
                 ))}
               </ul>
-              <form onSubmit={addEnemy} style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
-                <input value={enemyName} onChange={(e) => setEnemyName(e.target.value)} placeholder="Enemy name" maxLength={80} style={{ ...FIELD, flex: 1, minWidth: 120 }} />
-                <input value={enemyQty} onChange={(e) => setEnemyQty(e.target.value)} placeholder="Quantity" maxLength={80} style={{ ...FIELD, width: 100 }} />
-                <input value={enemyTreasure} onChange={(e) => setEnemyTreasure(e.target.value)} placeholder="Treasure" maxLength={40} style={{ ...FIELD, width: 90 }} />
+              <form onSubmit={addEnemy} style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <select
+                  value={enemyMonsterId}
+                  aria-label="Monster"
+                  onChange={(e) => {
+                    setEnemyMonsterId(e.target.value);
+                    if (e.target.value !== 'other') setEnemyName('');
+                  }}
+                  style={{ ...FIELD, flex: 1, minWidth: 160 }}
+                >
+                  <option value="">Monster…</option>
+                  {monsters.map((monster) => (
+                    <option key={monster.id} value={monster.id}>{monster.name}</option>
+                  ))}
+                  <option value="other">Someone else</option>
+                </select>
+                {enemyMonsterId === 'other' && (
+                  <input
+                    value={enemyName}
+                    onChange={(e) => setEnemyName(e.target.value)}
+                    placeholder="Name"
+                    aria-label="Enemy name"
+                    maxLength={80}
+                    style={{ ...FIELD, flex: 1, minWidth: 120 }}
+                  />
+                )}
+                {chosenMonster?.treasure_type ? <span className="muted">{chosenMonster.treasure_type}</span> : null}
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={enemyQty}
+                  onChange={(e) => setEnemyQty(e.target.value)}
+                  aria-label="Enemy count"
+                  style={{ ...FIELD, width: 80 }}
+                />
                 <button type="submit" className="btn btn-secondary" disabled={busy}>Add enemy</button>
               </form>
               {draft && (
@@ -1220,7 +1355,7 @@ export default function AdventuringPage() {
                       type="number"
                       min={1}
                       max={100}
-                      placeholder={countDefault(enemy) || 'Count'}
+                      placeholder="Count"
                       aria-label={`${enemy.name} count`}
                       value={turnCounts[enemy.id] ?? ''}
                       onChange={(e) => setTurnCounts((current) => ({ ...current, [enemy.id]: e.target.value }))}
@@ -1320,7 +1455,7 @@ export default function AdventuringPage() {
                       type="number"
                       min={1}
                       max={1000}
-                      placeholder={countDefault(enemy) || 'Count'}
+                      placeholder="Count"
                       aria-label={`${enemy.name} award count`}
                       value={awardCounts[enemy.id] ?? ''}
                       onChange={(e) => setAwardCounts((current) => ({ ...current, [enemy.id]: e.target.value }))}
@@ -1428,21 +1563,123 @@ export default function AdventuringPage() {
         <div className="card">
           <h2>Locations</h2>
           {(board?.locations || []).length === 0 && <p className="muted">No locations yet.</p>}
-          <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-            {(board?.locations || []).map((loc) => {
-              const selected = String(board.location_id) === String(loc.id);
-              return (
-                <li key={loc.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 6, alignItems: 'center' }}>
-                  <span>
-                    <strong>{loc.name}</strong>
-                    <span className="muted"> · {locationFacts(loc)}</span>
-                    {selected ? <span className="muted"> · selected</span> : null}
-                  </span>
-                  <button type="button" className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem' }} disabled={busy || selected} onClick={() => run(() => selectLocation(campaignId, loc.id))}>Select</button>
-                </li>
-              );
-            })}
-          </ul>
+          {board && (board.locations || []).length > 0 && (
+            <>
+              <p style={{ marginTop: 0 }}>
+                <strong>Selected</strong>
+                {here ? (
+                  <>
+                    {` ${here.name}`}
+                    <span className="muted">
+                      {` · ${locationFacts(here)}${(here.flags || []).length ? ` · ${(here.flags || []).length} flag${(here.flags || []).length === 1 ? '' : 's'}` : ''}`}
+                    </span>
+                  </>
+                ) : (
+                  <span className="muted"> · No location</span>
+                )}
+              </p>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!locationPick || String(locationPick) === String(board.location_id)) return;
+                  run(() => selectLocation(campaignId, locationPick));
+                }}
+                style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}
+              >
+                <label>
+                  Location
+                  <select
+                    aria-label="Location"
+                    value={locationPick}
+                    onChange={(e) => setLocationPick(e.target.value)}
+                    style={{ ...FIELD, marginLeft: 6, maxWidth: 280 }}
+                  >
+                    <option value="">Choose…</option>
+                    {(board.locations || []).map((loc) => (
+                      <option key={loc.id} value={loc.id}>{loc.name}</option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  type="submit"
+                  className="btn btn-secondary"
+                  disabled={busy || !locationPick || String(locationPick) === String(board.location_id)}
+                >
+                  Select
+                </button>
+              </form>
+            </>
+          )}
+          {here && (
+            <div style={{ marginTop: 12 }}>
+              <h3 style={{ marginBottom: 6 }}>Creatures here</h3>
+              {(here.creatures || []).length === 0 && <p className="muted">No creatures at this location.</p>}
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                {creatureGroups(here.creatures).map((group) => (
+                  <li key={group.key} style={{ marginBottom: 4 }}>{creatureLine(group)}</li>
+                ))}
+              </ul>
+              {board?.in_encounter && (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const count = parseInt(takeCount, 10);
+                    if (!takeName) {
+                      setError('Choose a creature.');
+                      return;
+                    }
+                    if (!Number.isInteger(count) || count < 1) {
+                      setError('Count must be a positive number.');
+                      return;
+                    }
+                    run(() => takeCreatures(campaignId, { name: takeName, count }));
+                  }}
+                  style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}
+                >
+                  <select value={takeName} aria-label="Creature to add" onChange={(e) => setTakeName(e.target.value)} style={FIELD}>
+                    <option value="">Living creature…</option>
+                    {[...new Set((here.creatures || []).filter((creature) => creature.hp > 0 && !creature.in_fight).map((creature) => creature.name))].map((name) => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={takeCount}
+                    aria-label="How many creatures"
+                    onChange={(e) => setTakeCount(e.target.value)}
+                    style={{ ...FIELD, width: 70 }}
+                  />
+                  <button type="submit" className="btn btn-secondary" disabled={busy}>Add to fight</button>
+                </form>
+              )}
+            </div>
+          )}
+          {here && (
+            <div style={{ marginTop: 12 }}>
+              <h3 style={{ marginBottom: 6 }}>Room flags</h3>
+              <p className="muted">Sprung, taken, or found. A sentence stays a clue.</p>
+              {(here.flags || []).length === 0 && <p className="muted">Nothing marked here.</p>}
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                {(here.flags || []).map((flag) => (
+                  <li key={flag.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 6, alignItems: 'center' }}>
+                    <span>{flag.note} · {flag.state}</span>
+                    <button type="button" className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem' }} disabled={busy} onClick={() => run(() => clearLocationFlag(campaignId, here.id, flag.id))}>Clear</button>
+                  </li>
+                ))}
+              </ul>
+              <form onSubmit={saveFlag} style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <input value={flagNote} onChange={(e) => setFlagNote(e.target.value)} placeholder="Pit, chest, secret" maxLength={80} aria-label="Flag note" style={FIELD} />
+                <select value={flagState} aria-label="Flag state" onChange={(e) => setFlagState(e.target.value)} style={FIELD}>
+                  <option value="sprung">Sprung</option>
+                  <option value="taken">Taken</option>
+                  <option value="found">Found</option>
+                </select>
+                <button type="submit" className="btn btn-secondary" disabled={busy}>Set flag</button>
+              </form>
+            </div>
+          )}
         </div>
 
         <div className="card">
@@ -1675,62 +1912,19 @@ export default function AdventuringPage() {
             </button>
           </div>
         </div>
-
-        <div className="card">
-          <h2>Characters</h2>
-          {board?.party_move != null && (
-            <p>The group moves at {board.party_slow}'s {board.party_move}' ({board.party_turn}' a turn, {board.party_miles} miles a day).</p>
-          )}
-          {bodyNote && <p style={{ color: '#e8c547' }}>{bodyNote}</p>}
-          {board && board.characters.length === 0 && <p className="muted">No characters in this campaign.</p>}
-          <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-            {(board?.characters || []).map((c) => (
-              <li key={c.id} style={{ marginBottom: 10 }}>
-                <strong>{c.name}</strong>
-                <span className="muted"> · {hitPointLabel(c.hp)}</span>
-                {c.user ? <span className="muted"> · {c.user}</span> : null}
-                <span style={{ marginLeft: 8, color: c.active ? '#e8c547' : '#8a7f72' }}>{c.active ? 'Active' : 'Inactive'}</span>
-                {carryLine(c) && <div className="muted">{carryLine(c)}</div>}
-                <div className="muted">
-                  {c.food_missed > 0 ? `${c.food_missed} day${c.food_missed === 1 ? '' : 's'} without food` : 'fed'}
-                  {c.heal_food ? ' · no healing until they eat' : ''}
-                  {c.heal_water ? ' · no healing until they drink' : ''}
-                  {` · sleep ${c.required_hours}h`}
-                  {c.march_days > 0 ? ` · forced march day ${c.march_days}${c.march_failed ? ', save failed' : ''}` : ''}
-                </div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 4 }}>
-                  <label><input type="checkbox" checked={bodyAte[c.id] !== false} onChange={(e) => setBodyAte((current) => ({ ...current, [c.id]: e.target.checked }))} /> Ate</label>
-                  <label><input type="checkbox" checked={bodyDrank[c.id] !== false} onChange={(e) => setBodyDrank((current) => ({ ...current, [c.id]: e.target.checked }))} /> Drank</label>
-                  <label><input type="checkbox" checked={bodyBed[c.id] === true} onChange={(e) => setBodyBed((current) => ({ ...current, [c.id]: e.target.checked }))} /> Bedrest</label>
-                  <label>
-                    Hours
-                    <input
-                      type="number"
-                      min={0}
-                      max={24}
-                      placeholder={String(c.required_hours)}
-                      value={bodyHours[c.id] ?? ''}
-                      onChange={(e) => setBodyHours((current) => ({ ...current, [c.id]: e.target.value }))}
-                      style={{ ...FIELD, width: 70, marginLeft: 6 }}
-                    />
-                  </label>
-                  <button type="button" className="btn btn-secondary" disabled={busy} onClick={() => settleCharacter(c)}>Settle day</button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
       </div>
 
+      <div>
       <div className="card">
         <p className="adventuring-clock">{clockLabel || '—'}</p>
         {board && <p style={{ color: '#fff', margin: '0 0 0.75rem' }}>{hereLine}</p>}
+        {visitLine ? <p className="muted" style={{ margin: '-0.5rem 0 0.75rem' }}>{visitLine}</p> : null}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {clockButtons.map((button) => (
             <button
               key={button.step}
               type="button"
-              className={button.step === primary ? 'btn btn-primary' : 'btn btn-secondary'}
+              className={button.step === primary ? 'btn clock-step' : 'btn btn-secondary'}
               disabled={busy || !board}
               onClick={() => run(() => tickAdventuring(campaignId, button.step))}
             >
@@ -1768,7 +1962,7 @@ export default function AdventuringPage() {
               Accept
             </button>
           </div>
-          {!lastRoll && <p className="muted" style={{ marginTop: 0, marginBottom: 0 }}>No checks yet.</p>}
+          {!lastRoll && !visitRoll && <p className="muted" style={{ marginTop: 0, marginBottom: 0 }}>No checks yet.</p>}
           {lastRoll && (
             <p style={{ marginTop: 0, marginBottom: 0 }}>
               {lastRoll.table_roll == null
@@ -1776,6 +1970,9 @@ export default function AdventuringPage() {
                 : `${lastRoll.label || 'No row'}${lastRoll.quantity ? ` · ${lastRoll.quantity}` : ''} (${lastRoll.table_roll} on d${lastRoll.table_die})`}
               {lastRoll.accepted ? <span className="muted"> · accepted</span> : null}
             </p>
+          )}
+          {visitRoll && (
+            <p style={{ marginTop: lastRoll ? 8 : 0, marginBottom: 0 }}>{emptyRoomLine(visitRoll)}</p>
           )}
         </div>
         <h2 style={{ marginTop: 0 }}>Effects/Events</h2>
@@ -1831,6 +2028,52 @@ export default function AdventuringPage() {
           </label>
           <button type="submit" className="btn btn-secondary" disabled={busy || !board}>Add event</button>
         </form>
+      </div>
+
+      <div className="card">
+        <h2>Characters</h2>
+        {board?.party_move != null && (
+          <p>The group moves at {board.party_slow}'s {board.party_move}' ({board.party_turn}' a turn, {board.party_miles} miles a day).</p>
+        )}
+        {bodyNote && <p style={{ color: '#e8c547' }}>{bodyNote}</p>}
+        {board && board.characters.length === 0 && <p className="muted">No characters in this campaign.</p>}
+        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+          {(board?.characters || []).map((c) => (
+            <li key={c.id} style={{ marginBottom: 10 }}>
+              <strong>{c.name}</strong>
+              <span className="muted"> · {characterHitPoints(c.current_hp, c.hp)}</span>
+              {c.user ? <span className="muted"> · {c.user}</span> : null}
+              <span style={{ marginLeft: 8, color: c.active ? '#e8c547' : '#8a7f72' }}>{c.active ? 'Active' : 'Inactive'}</span>
+              {carryLine(c) && <div className="muted">{carryLine(c)}</div>}
+              <div className="muted">
+                {c.food_missed > 0 ? `${c.food_missed} day${c.food_missed === 1 ? '' : 's'} without food` : 'fed'}
+                {c.heal_food ? ' · no healing until they eat' : ''}
+                {c.heal_water ? ' · no healing until they drink' : ''}
+                {` · sleep ${c.required_hours}h`}
+                {c.march_days > 0 ? ` · forced march day ${c.march_days}${c.march_failed ? ', save failed' : ''}` : ''}
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 4 }}>
+                <label><input type="checkbox" checked={bodyAte[c.id] !== false} onChange={(e) => setBodyAte((current) => ({ ...current, [c.id]: e.target.checked }))} /> Ate</label>
+                <label><input type="checkbox" checked={bodyDrank[c.id] !== false} onChange={(e) => setBodyDrank((current) => ({ ...current, [c.id]: e.target.checked }))} /> Drank</label>
+                <label><input type="checkbox" checked={bodyBed[c.id] === true} onChange={(e) => setBodyBed((current) => ({ ...current, [c.id]: e.target.checked }))} /> Bedrest</label>
+                <label>
+                  Hours
+                  <input
+                    type="number"
+                    min={0}
+                    max={24}
+                    placeholder={String(c.required_hours)}
+                    value={bodyHours[c.id] ?? ''}
+                    onChange={(e) => setBodyHours((current) => ({ ...current, [c.id]: e.target.value }))}
+                    style={{ ...FIELD, width: 70, marginLeft: 6 }}
+                  />
+                </label>
+                <button type="button" className="btn btn-secondary" disabled={busy} onClick={() => settleCharacter(c)}>Settle day</button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
       </div>
     </div>
   );

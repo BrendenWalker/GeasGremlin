@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { getCampaigns, createCampaign, deleteCampaign, getInvites, inviteToCampaign, acceptInvite, declineInvite, startCampaign } from '../api/api';
+import { useNavigate } from 'react-router-dom';
+import { getCampaigns, createCampaign, deleteCampaign, getInvites, getInviteCandidates, inviteToCampaign, acceptInvite, declineInvite, startCampaign } from '../api/api';
 import { useRuleset } from '../components/RulesetContext';
 
 export default function CampaignsPage() {
@@ -13,7 +13,8 @@ export default function CampaignsPage() {
   const [newRulesetId, setNewRulesetId] = useState('');
   const [creating, setCreating] = useState(false);
   const [invites, setInvites] = useState([]);
-  const [inviteName, setInviteName] = useState({});
+  const [candidates, setCandidates] = useState({});
+  const [inviteChoice, setInviteChoice] = useState({});
   const [startingId, setStartingId] = useState(null);
 
   const load = () => {
@@ -22,10 +23,17 @@ export default function CampaignsPage() {
     Promise.all([
       getCampaigns().then((res) => res.data || []),
       getInvites().then((res) => res.data || []),
+      getInviteCandidates().then((res) => res.data || []),
     ])
-      .then(([list, pending]) => {
+      .then(([list, pending, eligible]) => {
+        const grouped = {};
+        for (const row of eligible) {
+          if (!grouped[row.campaign_id]) grouped[row.campaign_id] = [];
+          grouped[row.campaign_id].push(row);
+        }
         setCampaigns(list);
         setInvites(pending);
+        setCandidates(grouped);
       })
       .catch((err) => setError(err.response?.data?.error || err.message))
       .finally(() => setLoading(false));
@@ -55,10 +63,14 @@ export default function CampaignsPage() {
   };
 
   const handleInvite = (id) => {
-    const username = (inviteName[id] || '').trim();
-    if (!username) return;
-    inviteToCampaign(id, username)
-      .then(() => setInviteName((prev) => ({ ...prev, [id]: '' })))
+    const characterId = Number(inviteChoice[id]);
+    if (!Number.isInteger(characterId) || characterId <= 0) return;
+    setError(null);
+    inviteToCampaign(id, characterId)
+      .then(() => {
+        setInviteChoice((prev) => ({ ...prev, [id]: '' }));
+        load();
+      })
       .catch((err) => setError(err.response?.data?.error || err.message));
   };
 
@@ -131,12 +143,20 @@ export default function CampaignsPage() {
                 }}
               >
                 <span style={{ display: 'flex', alignItems: 'baseline', gap: '0.75rem', minWidth: 0 }}>
-                  <Link to={`/campaigns/${c.id}/characters`} style={{ color: '#c9a227', textDecoration: 'none' }}>
-                    {c.name}
-                  </Link>
+                  <span>{c.name}</span>
                   {c.ruleset_name && <span className="muted">{c.ruleset_name}</span>}
                 </span>
-                <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  {c.role === 'gm' && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
+                      onClick={() => navigate(`/campaigns/${c.id}/characters`)}
+                    >
+                      Edit
+                    </button>
+                  )}
                   {c.role && (c.role === 'gm' || c.running) && (
                     <button
                       type="button"
@@ -145,19 +165,24 @@ export default function CampaignsPage() {
                       disabled={startingId === c.id}
                       onClick={() => handleStart(c.id)}
                     >
-                      Start
+                      {c.running ? 'Join' : 'Start'}
                     </button>
                   )}
-                  {c.role === 'gm' && (
+                  {c.role === 'gm' ? (
                     <>
-                    <input
-                      type="text"
-                      value={inviteName[c.id] || ''}
-                      onChange={(e) => setInviteName((prev) => ({ ...prev, [c.id]: e.target.value }))}
-                      placeholder="Invite username"
-                      style={{ width: 140, padding: '0.25rem 0.4rem', borderRadius: 4, border: '1px solid #3d3530', background: '#1a1614', color: '#e8e0d5' }}
-                    />
-                    <button type="button" className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }} onClick={() => handleInvite(c.id)}>Invite</button>
+                    <select
+                      aria-label={`Invite character to ${c.name}`}
+                      value={inviteChoice[c.id] || ''}
+                      disabled={(candidates[c.id] || []).length === 0}
+                      onChange={(e) => setInviteChoice((prev) => ({ ...prev, [c.id]: e.target.value }))}
+                      style={{ minWidth: 200, padding: '0.25rem 0.4rem', borderRadius: 4, border: '1px solid #3d3530', background: '#1a1614', color: '#e8e0d5' }}
+                    >
+                      <option value="">{(candidates[c.id] || []).length === 0 ? 'No characters to invite' : 'Choose character'}</option>
+                      {(candidates[c.id] || []).map((ch) => (
+                        <option key={ch.character_id} value={String(ch.character_id)}>{ch.name} ({ch.username})</option>
+                      ))}
+                    </select>
+                    <button type="button" className={`btn ${inviteChoice[c.id] ? 'btn-primary' : 'btn-secondary'}`} style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }} onClick={() => handleInvite(c.id)}>Invite</button>
                     <button
                       type="button"
                       className="btn btn-danger"
@@ -167,6 +192,8 @@ export default function CampaignsPage() {
                       Delete
                     </button>
                     </>
+                  ) : (
+                    c.owner ? <span className="muted">Owner: {c.owner}</span> : null
                   )}
                 </div>
               </li>

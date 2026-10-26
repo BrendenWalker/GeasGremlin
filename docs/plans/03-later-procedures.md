@@ -26,7 +26,7 @@ Needs the dice above, plus the character sheet's armor class, hit points, and at
 - [x] `done` Attack resolution. d20 plus attack bonus against armor class. A natural 20 hits. A natural 1 misses. Missile, melee, and back attack use the rules already on the sheet where those numbers exist.
   - On the open encounter, 1d20 plus the sheet melee or missile bonus, or the monster hit-dice bonus, against armor class. Natural 1 misses. Natural 20 hits. Back adds 2 to the melee bonus. A GM adjustment from −10 to +10 covers range and cover. Sneak attack is class text and is not a sheet number, so it is not applied. The clock does not move.
 - [x] `done` Damage application. Apply the roll to the character sheet or to the enemy row. At 0 hit points the figure is down. Subduing, brawling, and wrestling stay out until this is dull.
-  - The number is subtracted from `characters.hp` or `campaign_enemy.hp`. A hit is at least 1. At 0 the figure is down and the row stays. Enemy hit points are rolled from hit dice onto that row, or typed. Characters have no second pool. Subduing, brawling, and wrestling are not here.
+  - Character damage is an HP effect. The number is subtracted from `campaign_creature.hp` for a creature. `characters.hp` stays the maximum. A hit is at least 1. At 0 the figure is down and the row stays. Enemy hit points are rolled from hit dice onto that row, or typed. Characters have no second pool. Subduing, brawling, and wrestling are not here.
 
 ## Awards
 
@@ -46,9 +46,9 @@ Needs the watch, turn, and day steps.
 - [x] `done` Light. Torch 1d4+4 turns. Lantern oil 1d6+18 turns. A timed mark is enough if the duration is computed in seconds.
   - Light a torch or lantern rolls that duration and stores an effect on `campaign_mark`. The row shows turns left. The tick that reaches the end leaves it highlighted, and the next tick removes it. A turn is 10 minutes. Lighting does not move the clock.
 - [x] `done` Rations and water. One day of food and one quart of water. Food damage starts after two missed days. Water damage starts after one, 1d4 per day. Healing stops until they eat or drink.
-  - Settle day on a character writes `campaign_character.food_missed`, `heal_food`, and `heal_water`. Hunger deals 1 hit point from the third missed day. Thirst deals 1d4 from the first. Eating or drinking clears its own block. Hit points stay on `characters.hp`. The clock does not move.
+  - Settle day on a character writes `campaign_character.food_missed`, `heal_food`, and `heal_water`. Hunger deals 1 hit point from the third missed day. Thirst deals 1d4 from the first. Eating or drinking clears its own block. The hit-point change is one HP effect. `characters.hp` stays the maximum. The clock does not move.
 - [x] `done` Daily healing. 1 hit point per day of sleep. Full bedrest adds 1. Required sleep is 6 hours minus the Constitution bonus.
-  - The same settle adds 1 hit point when they slept at least that long and neither block is set. Bedrest adds 1. A short night adds nothing. There is no maximum on the sheet, so healing does not cap.
+  - The same settle adds 1 hit point when they slept at least that long and neither block is set. Bedrest adds 1. A short night adds nothing. Healing stops at `characters.hp`. Reaching it deletes the HP effects.
 - [x] `done` Encumbrance and movement. Light and heavy load from Strength and race. Armor sets the dungeon move. The group moves at the slowest member. Wilderness miles per day come from that move.
   - The character list shows carried pounds, the light and heavy limits, the armor band, and feet per round. Catalog weight is sixteenths of a pound. The group line is the slowest member, with feet per turn and base miles per day. Terrain is not applied. Over the heavy limit still uses the heavy rate.
 
@@ -57,7 +57,7 @@ Needs the watch, turn, and day steps.
 Needs the outside watch and a location with terrain. This is not a map.
 
 - [x] `done` Overland distance. Miles per day from movement, times the terrain factor. Outside locations already store `terrain` and `movement_pct`. This item still computes the miles. A forced march is 12 hours and +50% distance, with 1d6 damage on each day after the first unless a Death Ray save with Constitution bonus succeeds. One failure ends the saves. A day of rest resets it.
-  - The selected outside location's stored percent adjusts the group's miles. Stock percents are Clear 0, Road +33, Forest/Hills/Desert −33, and Jungle/Swamp/Mountains −67. Forced march adds half again and writes `march_days`. The first day deals no damage. Later days roll a Death Ray save with the Constitution bonus, or skip it after one failure, and write the hit points. Rest clears the count and the failure. The clock does not move.
+  - The selected outside location's stored percent adjusts the group's miles. Stock percents are Clear 0, Road +33, Forest/Hills/Desert −33, and Jungle/Swamp/Mountains −67. Forced march adds half again and writes `march_days`. The first day deals no damage. Later days roll a Death Ray save with the Constitution bonus, or skip it after one failure, and write an HP effect. Rest clears the count and the failure. The clock does not move.
 - [x] `done` Becoming lost. Off a road or river, a secret Death Ray save adjusted by the leader's Wisdom. The GM decides what failure means.
   - The GM picks the leader. Following a road or river skips the roll. Otherwise it is a Death Ray save plus the Wisdom bonus, shown only on this page. Nothing else changes.
 - [x] `done` Sailing weather. Wind direction and strength for the day. Travel distances are a 12-hour day, or 24 with a navigator who does not stop at night.

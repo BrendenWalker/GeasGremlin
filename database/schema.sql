@@ -103,6 +103,7 @@ CREATE TABLE IF NOT EXISTS public.campaign (
 	CONSTRAINT campaign_ruleset_id_fkey FOREIGN KEY (ruleset_id) REFERENCES public.ruleset(id) ON DELETE RESTRICT
 );
 ALTER TABLE public.campaign ADD COLUMN IF NOT EXISTS running boolean NOT NULL DEFAULT false;
+ALTER TABLE public.campaign ADD COLUMN IF NOT EXISTS concluded boolean NOT NULL DEFAULT false;
 
 
 -- public.classes definition
@@ -578,6 +579,7 @@ CREATE TABLE IF NOT EXISTS public.character_spells (
 	character_id int4 NOT NULL,
 	spell_id int4 NOT NULL,
 	memorized int4 NULL,
+	intend int4 NOT NULL DEFAULT 0,
 	known int4 NULL,
 	modified timestamp DEFAULT now() NOT NULL,
 	CONSTRAINT character_spells_pkey PRIMARY KEY (character_id, spell_id),
@@ -586,6 +588,10 @@ CREATE TABLE IF NOT EXISTS public.character_spells (
 );
 CREATE INDEX IF NOT EXISTS character_spells_character_spells_modified ON public.character_spells USING btree (modified);
 CREATE INDEX IF NOT EXISTS idx_character_spells_char ON public.character_spells USING btree (character_id);
+ALTER TABLE public.character_spells ADD COLUMN IF NOT EXISTS intend int4 NULL;
+UPDATE public.character_spells SET intend = COALESCE(memorized, 0) WHERE intend IS NULL;
+ALTER TABLE public.character_spells ALTER COLUMN intend SET DEFAULT 0;
+ALTER TABLE public.character_spells ALTER COLUMN intend SET NOT NULL;
 
 
 -- public.character_spells_cast definition
@@ -624,7 +630,10 @@ CREATE INDEX IF NOT EXISTS idx_campaign_command_recipient ON public.campaign_com
 CREATE INDEX IF NOT EXISTS idx_campaign_command_unread ON public.campaign_command (campaign_id, read_at) WHERE read_at IS NULL;
 
 -- Accounts and campaign membership. Any logged-in user can see a campaign.
--- Creating a character adds an accepted player row. GM actions require role gm.
+-- Only the GM creates a character in it. A GM invite links an existing sheet
+-- and, when that owner is not already a member, writes an invited player row.
+-- Declining that invite removes the owner's sheets from the campaign.
+-- GM actions require role gm.
 
 CREATE TABLE IF NOT EXISTS public.app_user (
 	id serial4 NOT NULL,
@@ -872,6 +881,30 @@ BEGIN
 	END IF;
 END $$;
 
+-- summary is the standing description the GM reads. Players do not receive it.
+-- arrived_seconds is the clock the first time this location was selected. Later selects leave it.
+-- site is the shared label for one visit. Empty means this place is outside every site.
+ALTER TABLE public.campaign_location ADD COLUMN IF NOT EXISTS summary text NULL;
+ALTER TABLE public.campaign_location ADD COLUMN IF NOT EXISTS arrived_seconds int4 NULL;
+ALTER TABLE public.campaign_location ADD COLUMN IF NOT EXISTS site varchar(80) NULL;
+DO $$
+BEGIN
+	IF NOT EXISTS (
+		SELECT 1 FROM pg_constraint WHERE conname = 'campaign_location_arrived_seconds_check'
+	) THEN
+		ALTER TABLE public.campaign_location
+			ADD CONSTRAINT campaign_location_arrived_seconds_check
+			CHECK (arrived_seconds IS NULL OR arrived_seconds >= 0);
+	END IF;
+	IF NOT EXISTS (
+		SELECT 1 FROM pg_constraint WHERE conname = 'campaign_location_site_check'
+	) THEN
+		ALTER TABLE public.campaign_location
+			ADD CONSTRAINT campaign_location_site_check
+			CHECK (site IS NULL OR char_length(btrim(site)) >= 1);
+	END IF;
+END $$;
+
 -- A shop at a location. It sells every priced catalog item in its categories.
 -- buy_cost_delta and sell_cost_delta are percents added to the listed copper price. 0 is list.
 CREATE TABLE IF NOT EXISTS public.campaign_location_shops (
@@ -896,7 +929,23 @@ CREATE TABLE IF NOT EXISTS public.campaign_location_shop_item_categories (
 	CONSTRAINT campaign_location_shop_item_categories_category_fkey FOREIGN KEY (item_category_id) REFERENCES public.item_categories(id) ON DELETE RESTRICT
 );
 
--- One stored roll per check the clock crossed. A miss has no table roll. This does not open an encounter.
+-- A short fact on a place. The fight does not own it. A sentence secret stays a clue.
+-- state is sprung, taken, or found. Deleting the location deletes these rows.
+CREATE TABLE IF NOT EXISTS public.campaign_location_flag (
+	id serial4 NOT NULL,
+	location_id int4 NOT NULL,
+	note varchar(80) NOT NULL,
+	state varchar(8) NOT NULL,
+	CONSTRAINT campaign_location_flag_pkey PRIMARY KEY (id),
+	CONSTRAINT campaign_location_flag_location_note_key UNIQUE (location_id, note),
+	CONSTRAINT campaign_location_flag_state_check CHECK (state IN ('sprung', 'taken', 'found')),
+	CONSTRAINT campaign_location_flag_location_fkey FOREIGN KEY (location_id) REFERENCES public.campaign_location(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_campaign_location_flag_location ON public.campaign_location_flag USING btree (location_id);
+
+-- One stored roll per check. A wander miss has no table roll. A visit row is the once-per-site empty check.
+-- A visit row has no table roll. A label is the living creature named. No label on a hit means the pool was empty.
+-- This does not open an encounter.
 CREATE TABLE IF NOT EXISTS public.campaign_wander (
 	id serial4 NOT NULL,
 	campaign_id int4 NOT NULL,
@@ -911,10 +960,27 @@ CREATE TABLE IF NOT EXISTS public.campaign_wander (
 	"label" varchar(80) NULL,
 	quantity varchar(80) NULL,
 	accepted boolean NOT NULL DEFAULT false,
+	kind varchar(8) NOT NULL DEFAULT 'wander',
 	CONSTRAINT campaign_wander_pkey PRIMARY KEY (id),
+	CONSTRAINT campaign_wander_kind_check CHECK (kind IN ('wander', 'visit')),
 	CONSTRAINT campaign_wander_miss_check CHECK (
-		(table_roll IS NULL AND table_die IS NULL AND monster_id IS NULL AND label IS NULL AND quantity IS NULL)
-		OR (table_roll IS NOT NULL AND table_die IS NOT NULL)
+		(
+			kind = 'wander'
+			AND (
+				(table_roll IS NULL AND table_die IS NULL AND monster_id IS NULL AND label IS NULL AND quantity IS NULL)
+				OR (table_roll IS NOT NULL AND table_die IS NOT NULL)
+			)
+		)
+		OR (
+			kind = 'visit'
+			AND table_die IS NULL
+			AND table_roll IS NULL
+			AND quantity IS NULL
+			AND (
+				(label IS NULL AND monster_id IS NULL)
+				OR label IS NOT NULL
+			)
+		)
 	),
 	CONSTRAINT campaign_wander_campaign_fkey FOREIGN KEY (campaign_id) REFERENCES public.campaign(id) ON DELETE CASCADE,
 	CONSTRAINT campaign_wander_location_fkey FOREIGN KEY (location_id) REFERENCES public.campaign_location(id) ON DELETE SET NULL,
@@ -922,8 +988,11 @@ CREATE TABLE IF NOT EXISTS public.campaign_wander (
 );
 CREATE INDEX IF NOT EXISTS idx_campaign_wander_campaign ON public.campaign_wander USING btree (campaign_id, at_seconds, id);
 
+-- visit_seconds is game_seconds when the party entered the current site. It does not tick.
+-- Selecting a place outside that site clears it. The next entry starts at 0 turns.
 ALTER TABLE public.campaign_board ADD COLUMN IF NOT EXISTS location_id int4 NULL;
 ALTER TABLE public.campaign_board ADD COLUMN IF NOT EXISTS check_seconds int4 NULL;
+ALTER TABLE public.campaign_board ADD COLUMN IF NOT EXISTS visit_seconds int4 NULL;
 DO $$
 BEGIN
 	IF NOT EXISTS (
@@ -940,48 +1009,132 @@ BEGIN
 			ADD CONSTRAINT campaign_board_check_seconds_check
 			CHECK (check_seconds IS NULL OR check_seconds >= 0);
 	END IF;
+	IF NOT EXISTS (
+		SELECT 1 FROM pg_constraint WHERE conname = 'campaign_board_visit_seconds_check'
+	) THEN
+		ALTER TABLE public.campaign_board
+			ADD CONSTRAINT campaign_board_visit_seconds_check
+			CHECK (visit_seconds IS NULL OR visit_seconds >= 0);
+	END IF;
 END $$;
 
--- Names in the open encounter. Deleted when the encounter ends.
--- monster_id is set when the row came from the catalog. Null while the name was typed.
--- quantity is the note from the table row. treasure_type is the monster's code, or one the GM typed.
-CREATE TABLE IF NOT EXISTS public.campaign_enemy (
+-- One individual in the campaign. hp and disposition are this run.
+-- base_hp and base_disposition are what a reset restores. in_fight is this run's open fight.
+-- location_id is null for a typed name or an accepted wanderer.
+CREATE TABLE IF NOT EXISTS public.campaign_creature (
 	id serial4 NOT NULL,
 	campaign_id int4 NOT NULL,
-	name varchar(80) NOT NULL,
+	location_id int4 NULL,
+	"name" varchar(80) NOT NULL,
 	monster_id int4 NULL,
-	quantity varchar(80) NULL,
 	treasure_type varchar(40) NULL,
 	hp int4 NULL,
-	CONSTRAINT campaign_enemy_pkey PRIMARY KEY (id),
-	CONSTRAINT campaign_enemy_campaign_fkey FOREIGN KEY (campaign_id) REFERENCES public.campaign(id) ON DELETE CASCADE,
-	CONSTRAINT campaign_enemy_monster_fkey FOREIGN KEY (monster_id) REFERENCES public.monster(id) ON DELETE RESTRICT
+	base_hp int4 NULL,
+	disposition varchar(8) NOT NULL DEFAULT 'present',
+	base_disposition varchar(8) NOT NULL DEFAULT 'present',
+	in_fight boolean NOT NULL DEFAULT false,
+	note varchar(400) NULL,
+	CONSTRAINT campaign_creature_pkey PRIMARY KEY (id),
+	CONSTRAINT campaign_creature_hp_check CHECK (
+		(base_hp IS NULL AND (hp IS NULL OR hp = 0))
+		OR (base_hp >= 1 AND (hp IS NULL OR (hp >= 0 AND hp <= base_hp)))
+	),
+	CONSTRAINT campaign_creature_disposition_check CHECK (disposition IN ('present', 'fled')),
+	CONSTRAINT campaign_creature_base_disposition_check CHECK (base_disposition IN ('present', 'fled')),
+	CONSTRAINT campaign_creature_campaign_fkey FOREIGN KEY (campaign_id) REFERENCES public.campaign(id) ON DELETE CASCADE,
+	CONSTRAINT campaign_creature_location_fkey FOREIGN KEY (location_id) REFERENCES public.campaign_location(id) ON DELETE RESTRICT,
+	CONSTRAINT campaign_creature_monster_fkey FOREIGN KEY (monster_id) REFERENCES public.monster(id) ON DELETE RESTRICT
 );
-CREATE INDEX IF NOT EXISTS idx_campaign_enemy_campaign ON public.campaign_enemy USING btree (campaign_id);
-ALTER TABLE public.campaign_enemy ADD COLUMN IF NOT EXISTS monster_id int4 NULL;
+CREATE INDEX IF NOT EXISTS idx_campaign_creature_location ON public.campaign_creature USING btree (location_id);
+CREATE INDEX IF NOT EXISTS idx_campaign_creature_monster ON public.campaign_creature (monster_id) WHERE monster_id IS NOT NULL;
+
+-- An older database still has max_hp, a required location, and no campaign_id.
 DO $$
 BEGIN
-	IF NOT EXISTS (
-		SELECT 1 FROM pg_constraint WHERE conname = 'campaign_enemy_monster_fkey'
+	IF EXISTS (
+		SELECT 1 FROM information_schema.columns
+		WHERE table_schema = 'public' AND table_name = 'campaign_creature' AND column_name = 'max_hp'
 	) THEN
-		ALTER TABLE public.campaign_enemy
-			ADD CONSTRAINT campaign_enemy_monster_fkey
-			FOREIGN KEY (monster_id) REFERENCES public.monster(id) ON DELETE RESTRICT;
+		ALTER TABLE public.campaign_creature ADD COLUMN IF NOT EXISTS campaign_id int4 NULL;
+		UPDATE public.campaign_creature c
+		SET campaign_id = l.campaign_id
+		FROM public.campaign_location l
+		WHERE c.location_id = l.id AND c.campaign_id IS NULL;
+		ALTER TABLE public.campaign_creature ALTER COLUMN campaign_id SET NOT NULL;
+		ALTER TABLE public.campaign_creature ALTER COLUMN location_id DROP NOT NULL;
+		ALTER TABLE public.campaign_creature ADD COLUMN IF NOT EXISTS treasure_type varchar(40) NULL;
+		ALTER TABLE public.campaign_creature RENAME COLUMN max_hp TO base_hp;
+		ALTER TABLE public.campaign_creature ALTER COLUMN hp DROP NOT NULL;
+		ALTER TABLE public.campaign_creature ALTER COLUMN base_hp DROP NOT NULL;
+		ALTER TABLE public.campaign_creature ADD COLUMN IF NOT EXISTS base_disposition varchar(8) NULL;
+		UPDATE public.campaign_creature SET base_disposition = disposition WHERE base_disposition IS NULL;
+		ALTER TABLE public.campaign_creature ALTER COLUMN base_disposition SET DEFAULT 'present';
+		ALTER TABLE public.campaign_creature ALTER COLUMN base_disposition SET NOT NULL;
+		ALTER TABLE public.campaign_creature ADD COLUMN IF NOT EXISTS in_fight boolean NOT NULL DEFAULT false;
+		ALTER TABLE public.campaign_creature DROP CONSTRAINT IF EXISTS campaign_creature_hp_check;
+		ALTER TABLE public.campaign_creature ADD CONSTRAINT campaign_creature_hp_check CHECK (
+			(base_hp IS NULL AND (hp IS NULL OR hp = 0))
+			OR (base_hp >= 1 AND (hp IS NULL OR (hp >= 0 AND hp <= base_hp)))
+		);
+		IF NOT EXISTS (
+			SELECT 1 FROM pg_constraint WHERE conname = 'campaign_creature_base_disposition_check'
+		) THEN
+			ALTER TABLE public.campaign_creature
+				ADD CONSTRAINT campaign_creature_base_disposition_check
+				CHECK (base_disposition IN ('present', 'fled'));
+		END IF;
+		IF NOT EXISTS (
+			SELECT 1 FROM pg_constraint WHERE conname = 'campaign_creature_campaign_fkey'
+		) THEN
+			ALTER TABLE public.campaign_creature
+				ADD CONSTRAINT campaign_creature_campaign_fkey
+				FOREIGN KEY (campaign_id) REFERENCES public.campaign(id) ON DELETE CASCADE;
+		END IF;
 	END IF;
 END $$;
-CREATE INDEX IF NOT EXISTS idx_campaign_enemy_monster ON public.campaign_enemy (monster_id) WHERE monster_id IS NOT NULL;
-ALTER TABLE public.campaign_enemy ADD COLUMN IF NOT EXISTS quantity varchar(80) NULL;
-ALTER TABLE public.campaign_enemy ADD COLUMN IF NOT EXISTS treasure_type varchar(40) NULL;
-ALTER TABLE public.campaign_enemy ADD COLUMN IF NOT EXISTS hp int4 NULL;
+
+-- Fold a fight copy into the creature it points at, then drop the fight table.
 DO $$
 BEGIN
-	IF NOT EXISTS (
-		SELECT 1 FROM pg_constraint WHERE conname = 'campaign_enemy_hp_check'
-	) THEN
-		ALTER TABLE public.campaign_enemy
-			ADD CONSTRAINT campaign_enemy_hp_check CHECK (hp IS NULL OR hp >= 0);
+	IF to_regclass('public.campaign_enemy') IS NULL THEN
+		RETURN;
 	END IF;
+	IF EXISTS (
+		SELECT 1 FROM information_schema.columns
+		WHERE table_schema = 'public' AND table_name = 'campaign_enemy' AND column_name = 'figure_id'
+	) THEN
+		UPDATE public.campaign_creature c
+		SET in_fight = true,
+			hp = CASE
+				WHEN e.hp IS NULL THEN c.hp
+				WHEN c.base_hp IS NOT NULL AND e.hp > c.base_hp THEN c.base_hp
+				ELSE e.hp
+			END,
+			treasure_type = COALESCE(c.treasure_type, e.treasure_type)
+		FROM public.campaign_enemy e
+		WHERE e.figure_id = c.id;
+		INSERT INTO public.campaign_creature (
+			campaign_id, location_id, name, monster_id, treasure_type, hp, base_hp,
+			disposition, base_disposition, in_fight
+		)
+		SELECT e.campaign_id, NULL, e.name, e.monster_id, e.treasure_type,
+			e.hp, CASE WHEN e.hp >= 1 THEN e.hp ELSE NULL END,
+			'present', 'present', true
+		FROM public.campaign_enemy e
+		WHERE e.figure_id IS NULL;
+	ELSE
+		INSERT INTO public.campaign_creature (
+			campaign_id, location_id, name, monster_id, treasure_type, hp, base_hp,
+			disposition, base_disposition, in_fight
+		)
+		SELECT e.campaign_id, NULL, e.name, e.monster_id, e.treasure_type,
+			e.hp, CASE WHEN e.hp >= 1 THEN e.hp ELSE NULL END,
+			'present', 'present', true
+		FROM public.campaign_enemy e;
+	END IF;
+	DROP TABLE public.campaign_enemy;
 END $$;
+CREATE INDEX IF NOT EXISTS idx_campaign_creature_campaign ON public.campaign_creature USING btree (campaign_id);
 
 -- Food and water for this campaign. Healing stays off while either flag is set.
 ALTER TABLE public.campaign_character ADD COLUMN IF NOT EXISTS food_missed int4 NOT NULL DEFAULT 0;
@@ -1038,6 +1191,37 @@ CREATE TABLE IF NOT EXISTS public.campaign_hireling (
 );
 CREATE INDEX IF NOT EXISTS idx_campaign_hireling_campaign ON public.campaign_hireling USING btree (campaign_id);
 ALTER TABLE public.campaign_wander ADD COLUMN IF NOT EXISTS accepted boolean NOT NULL DEFAULT false;
+ALTER TABLE public.campaign_wander ADD COLUMN IF NOT EXISTS kind varchar(8) NOT NULL DEFAULT 'wander';
+DO $$
+BEGIN
+	IF NOT EXISTS (
+		SELECT 1 FROM pg_constraint WHERE conname = 'campaign_wander_kind_check'
+	) THEN
+		ALTER TABLE public.campaign_wander
+			ADD CONSTRAINT campaign_wander_kind_check
+			CHECK (kind IN ('wander', 'visit'));
+	END IF;
+END $$;
+ALTER TABLE public.campaign_wander DROP CONSTRAINT IF EXISTS campaign_wander_miss_check;
+ALTER TABLE public.campaign_wander ADD CONSTRAINT campaign_wander_miss_check CHECK (
+	(
+		kind = 'wander'
+		AND (
+			(table_roll IS NULL AND table_die IS NULL AND monster_id IS NULL AND label IS NULL AND quantity IS NULL)
+			OR (table_roll IS NOT NULL AND table_die IS NOT NULL)
+		)
+	)
+	OR (
+		kind = 'visit'
+		AND table_die IS NULL
+		AND table_roll IS NULL
+		AND quantity IS NULL
+		AND (
+			(label IS NULL AND monster_id IS NULL)
+			OR label IS NOT NULL
+		)
+	)
+);
 
 -- A failed turning roll. until_seconds is the clock when the cleric may try again.
 CREATE TABLE IF NOT EXISTS public.campaign_turn_block (
@@ -1059,6 +1243,245 @@ CREATE TABLE IF NOT EXISTS public.campaign_presence (
 	CONSTRAINT campaign_presence_campaign_fkey FOREIGN KEY (campaign_id) REFERENCES public.campaign(id) ON DELETE CASCADE,
 	CONSTRAINT campaign_presence_character_fkey FOREIGN KEY (character_id) REFERENCES public."characters"(id) ON DELETE CASCADE
 );
+
+-- One scene in the GM procedure. At most one row per campaign is active.
+-- Deleting a location is refused while a situation still points at it.
+CREATE TABLE IF NOT EXISTS public.campaign_situation (
+	id serial4 NOT NULL,
+	campaign_id int4 NOT NULL,
+	location_id int4 NULL,
+	title varchar(80) NOT NULL,
+	stage varchar(32) NOT NULL DEFAULT 'setup',
+	description text NULL,
+	status varchar(16) NOT NULL DEFAULT 'planned',
+	CONSTRAINT campaign_situation_pkey PRIMARY KEY (id),
+	CONSTRAINT campaign_situation_campaign_fkey FOREIGN KEY (campaign_id) REFERENCES public.campaign(id) ON DELETE CASCADE,
+	CONSTRAINT campaign_situation_location_fkey FOREIGN KEY (location_id) REFERENCES public.campaign_location(id) ON DELETE RESTRICT,
+	CONSTRAINT campaign_situation_stage_check CHECK (stage IN (
+		'setup', 'location_intro', 'exploration', 'encounter', 'resolution', 'transition', 'rest_or_session_end', 'conclusion'
+	)),
+	CONSTRAINT campaign_situation_status_check CHECK (status IN ('planned', 'active', 'resolved'))
+);
+CREATE INDEX IF NOT EXISTS idx_campaign_situation_campaign ON public.campaign_situation USING btree (campaign_id);
+CREATE UNIQUE INDEX IF NOT EXISTS campaign_situation_one_active
+	ON public.campaign_situation (campaign_id) WHERE status = 'active';
+
+-- known is the only flag a player can see. A null situation_id is a campaign objective.
+CREATE TABLE IF NOT EXISTS public.campaign_objective (
+	id serial4 NOT NULL,
+	campaign_id int4 NOT NULL,
+	situation_id int4 NULL,
+	body text NOT NULL,
+	known boolean NOT NULL DEFAULT false,
+	base_known boolean NOT NULL DEFAULT false,
+	status varchar(16) NOT NULL DEFAULT 'open',
+	base_status varchar(16) NOT NULL DEFAULT 'open',
+	CONSTRAINT campaign_objective_pkey PRIMARY KEY (id),
+	CONSTRAINT campaign_objective_campaign_fkey FOREIGN KEY (campaign_id) REFERENCES public.campaign(id) ON DELETE CASCADE,
+	CONSTRAINT campaign_objective_situation_fkey FOREIGN KEY (situation_id) REFERENCES public.campaign_situation(id) ON DELETE CASCADE,
+	CONSTRAINT campaign_objective_status_check CHECK (status IN ('open', 'resolved')),
+	CONSTRAINT campaign_objective_base_status_check CHECK (base_status IN ('open', 'resolved'))
+);
+CREATE INDEX IF NOT EXISTS idx_campaign_objective_campaign ON public.campaign_objective USING btree (campaign_id);
+ALTER TABLE public.campaign_objective ADD COLUMN IF NOT EXISTS base_known boolean;
+ALTER TABLE public.campaign_objective ADD COLUMN IF NOT EXISTS base_status varchar(16);
+UPDATE public.campaign_objective SET base_known = known WHERE base_known IS NULL;
+UPDATE public.campaign_objective SET base_status = status WHERE base_status IS NULL;
+ALTER TABLE public.campaign_objective ALTER COLUMN base_known SET DEFAULT false;
+ALTER TABLE public.campaign_objective ALTER COLUMN base_known SET NOT NULL;
+ALTER TABLE public.campaign_objective ALTER COLUMN base_status SET DEFAULT 'open';
+ALTER TABLE public.campaign_objective ALTER COLUMN base_status SET NOT NULL;
+DO $$
+BEGIN
+	IF NOT EXISTS (
+		SELECT 1 FROM pg_constraint WHERE conname = 'campaign_objective_base_status_check'
+	) THEN
+		ALTER TABLE public.campaign_objective
+			ADD CONSTRAINT campaign_objective_base_status_check
+			CHECK (base_status IN ('open', 'resolved'));
+	END IF;
+END $$;
+
+-- A story NPC. Hirelings stay on campaign_hireling.
+CREATE TABLE IF NOT EXISTS public.campaign_npc (
+	id serial4 NOT NULL,
+	campaign_id int4 NOT NULL,
+	location_id int4 NULL,
+	"name" varchar(80) NOT NULL,
+	motivation text NULL,
+	knowledge text NULL,
+	attitude varchar(80) NULL,
+	CONSTRAINT campaign_npc_pkey PRIMARY KEY (id),
+	CONSTRAINT campaign_npc_campaign_fkey FOREIGN KEY (campaign_id) REFERENCES public.campaign(id) ON DELETE CASCADE,
+	CONSTRAINT campaign_npc_location_fkey FOREIGN KEY (location_id) REFERENCES public.campaign_location(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_campaign_npc_campaign ON public.campaign_npc USING btree (campaign_id);
+
+CREATE TABLE IF NOT EXISTS public.campaign_situation_npc (
+	situation_id int4 NOT NULL,
+	npc_id int4 NOT NULL,
+	CONSTRAINT campaign_situation_npc_pkey PRIMARY KEY (situation_id, npc_id),
+	CONSTRAINT campaign_situation_npc_situation_fkey FOREIGN KEY (situation_id) REFERENCES public.campaign_situation(id) ON DELETE CASCADE,
+	CONSTRAINT campaign_situation_npc_npc_fkey FOREIGN KEY (npc_id) REFERENCES public.campaign_npc(id) ON DELETE CASCADE
+);
+
+-- Clues stay on the GM board. discovered is bookkeeping, not a player flag.
+CREATE TABLE IF NOT EXISTS public.campaign_clue (
+	id serial4 NOT NULL,
+	campaign_id int4 NOT NULL,
+	location_id int4 NULL,
+	body text NOT NULL,
+	discovered boolean NOT NULL DEFAULT false,
+	base_discovered boolean NOT NULL DEFAULT false,
+	CONSTRAINT campaign_clue_pkey PRIMARY KEY (id),
+	CONSTRAINT campaign_clue_campaign_fkey FOREIGN KEY (campaign_id) REFERENCES public.campaign(id) ON DELETE CASCADE,
+	CONSTRAINT campaign_clue_location_fkey FOREIGN KEY (location_id) REFERENCES public.campaign_location(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_campaign_clue_campaign ON public.campaign_clue USING btree (campaign_id);
+ALTER TABLE public.campaign_clue ADD COLUMN IF NOT EXISTS base_discovered boolean;
+UPDATE public.campaign_clue SET base_discovered = discovered WHERE base_discovered IS NULL;
+ALTER TABLE public.campaign_clue ALTER COLUMN base_discovered SET DEFAULT false;
+ALTER TABLE public.campaign_clue ALTER COLUMN base_discovered SET NOT NULL;
+
+CREATE TABLE IF NOT EXISTS public.campaign_situation_clue (
+	situation_id int4 NOT NULL,
+	clue_id int4 NOT NULL,
+	CONSTRAINT campaign_situation_clue_pkey PRIMARY KEY (situation_id, clue_id),
+	CONSTRAINT campaign_situation_clue_situation_fkey FOREIGN KEY (situation_id) REFERENCES public.campaign_situation(id) ON DELETE CASCADE,
+	CONSTRAINT campaign_situation_clue_clue_fkey FOREIGN KEY (clue_id) REFERENCES public.campaign_clue(id) ON DELETE CASCADE
+);
+
+-- A prepared scene. The open fight is campaign_creature.in_fight. This row has no hit points.
+CREATE TABLE IF NOT EXISTS public.campaign_encounter (
+	id serial4 NOT NULL,
+	campaign_id int4 NOT NULL,
+	situation_id int4 NULL,
+	location_id int4 NULL,
+	title varchar(80) NOT NULL,
+	kind varchar(16) NOT NULL,
+	purpose text NULL,
+	notes text NULL,
+	status varchar(16) NOT NULL DEFAULT 'prepared',
+	base_status varchar(16) NOT NULL DEFAULT 'prepared',
+	CONSTRAINT campaign_encounter_pkey PRIMARY KEY (id),
+	CONSTRAINT campaign_encounter_campaign_fkey FOREIGN KEY (campaign_id) REFERENCES public.campaign(id) ON DELETE CASCADE,
+	CONSTRAINT campaign_encounter_situation_fkey FOREIGN KEY (situation_id) REFERENCES public.campaign_situation(id) ON DELETE SET NULL,
+	CONSTRAINT campaign_encounter_location_fkey FOREIGN KEY (location_id) REFERENCES public.campaign_location(id) ON DELETE SET NULL,
+	CONSTRAINT campaign_encounter_kind_check CHECK (kind IN (
+		'combat', 'social', 'hazard', 'trap', 'puzzle', 'environment', 'discovery'
+	)),
+	CONSTRAINT campaign_encounter_status_check CHECK (status IN ('prepared', 'opened', 'resolved')),
+	CONSTRAINT campaign_encounter_base_status_check CHECK (base_status IN ('prepared', 'opened', 'resolved'))
+);
+CREATE INDEX IF NOT EXISTS idx_campaign_encounter_campaign ON public.campaign_encounter USING btree (campaign_id);
+ALTER TABLE public.campaign_encounter ADD COLUMN IF NOT EXISTS base_status varchar(16);
+UPDATE public.campaign_encounter SET base_status = status WHERE base_status IS NULL;
+ALTER TABLE public.campaign_encounter ALTER COLUMN base_status SET DEFAULT 'prepared';
+ALTER TABLE public.campaign_encounter ALTER COLUMN base_status SET NOT NULL;
+DO $$
+BEGIN
+	IF NOT EXISTS (
+		SELECT 1 FROM pg_constraint WHERE conname = 'campaign_encounter_base_status_check'
+	) THEN
+		ALTER TABLE public.campaign_encounter
+			ADD CONSTRAINT campaign_encounter_base_status_check
+			CHECK (base_status IN ('prepared', 'opened', 'resolved'));
+	END IF;
+END $$;
+
+-- Older membership stored a name. Each of those becomes a creature, then the link.
+DO $$
+DECLARE
+	rec record;
+	copies int;
+	step int;
+	new_id int;
+BEGIN
+	IF NOT EXISTS (
+		SELECT 1 FROM information_schema.columns
+		WHERE table_schema = 'public' AND table_name = 'campaign_encounter_member' AND column_name = 'name'
+	) THEN
+		RETURN;
+	END IF;
+	CREATE TABLE public.campaign_encounter_member_link (
+		encounter_id int4 NOT NULL,
+		creature_id int4 NOT NULL,
+		CONSTRAINT campaign_encounter_member_link_pkey PRIMARY KEY (encounter_id, creature_id)
+	);
+	FOR rec IN
+		SELECT m.encounter_id, m.name, m.quantity, m.treasure_type, e.campaign_id, e.location_id
+		FROM public.campaign_encounter_member m
+		JOIN public.campaign_encounter e ON e.id = m.encounter_id
+		ORDER BY m.id
+	LOOP
+		copies := 1;
+		IF rec.quantity IS NOT NULL AND rec.quantity ~ '^[0-9]+$' THEN
+			copies := rec.quantity::int;
+			IF copies < 1 THEN copies := 1; END IF;
+			IF copies > 100 THEN copies := 100; END IF;
+		END IF;
+		FOR step IN 1..copies LOOP
+			INSERT INTO public.campaign_creature (
+				campaign_id, location_id, name, treasure_type, hp, base_hp,
+				disposition, base_disposition, in_fight
+			) VALUES (
+				rec.campaign_id, rec.location_id, rec.name, rec.treasure_type, NULL, NULL,
+				'present', 'present', false
+			) RETURNING id INTO new_id;
+			INSERT INTO public.campaign_encounter_member_link (encounter_id, creature_id)
+			VALUES (rec.encounter_id, new_id);
+		END LOOP;
+	END LOOP;
+	DROP TABLE public.campaign_encounter_member;
+	ALTER TABLE public.campaign_encounter_member_link RENAME TO campaign_encounter_member;
+	ALTER TABLE public.campaign_encounter_member
+		ADD CONSTRAINT campaign_encounter_member_encounter_fkey
+		FOREIGN KEY (encounter_id) REFERENCES public.campaign_encounter(id) ON DELETE CASCADE;
+	ALTER TABLE public.campaign_encounter_member
+		ADD CONSTRAINT campaign_encounter_member_creature_fkey
+		FOREIGN KEY (creature_id) REFERENCES public.campaign_creature(id) ON DELETE CASCADE;
+	ALTER INDEX public.campaign_encounter_member_link_pkey RENAME TO campaign_encounter_member_pkey;
+END $$;
+
+CREATE TABLE IF NOT EXISTS public.campaign_encounter_member (
+	encounter_id int4 NOT NULL,
+	creature_id int4 NOT NULL,
+	CONSTRAINT campaign_encounter_member_pkey PRIMARY KEY (encounter_id, creature_id),
+	CONSTRAINT campaign_encounter_member_encounter_fkey FOREIGN KEY (encounter_id) REFERENCES public.campaign_encounter(id) ON DELETE CASCADE,
+	CONSTRAINT campaign_encounter_member_creature_fkey FOREIGN KEY (creature_id) REFERENCES public.campaign_creature(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_campaign_encounter_member_encounter ON public.campaign_encounter_member USING btree (encounter_id);
+CREATE INDEX IF NOT EXISTS idx_campaign_encounter_member_creature ON public.campaign_encounter_member USING btree (creature_id);
+
+-- A lead to a location. Taking it selects that location. It does not resolve the scene.
+CREATE TABLE IF NOT EXISTS public.campaign_transition (
+	id serial4 NOT NULL,
+	campaign_id int4 NOT NULL,
+	situation_id int4 NULL,
+	to_location_id int4 NOT NULL,
+	reason text NULL,
+	CONSTRAINT campaign_transition_pkey PRIMARY KEY (id),
+	CONSTRAINT campaign_transition_campaign_fkey FOREIGN KEY (campaign_id) REFERENCES public.campaign(id) ON DELETE CASCADE,
+	CONSTRAINT campaign_transition_situation_fkey FOREIGN KEY (situation_id) REFERENCES public.campaign_situation(id) ON DELETE SET NULL,
+	CONSTRAINT campaign_transition_location_fkey FOREIGN KEY (to_location_id) REFERENCES public.campaign_location(id) ON DELETE RESTRICT
+);
+CREATE INDEX IF NOT EXISTS idx_campaign_transition_campaign ON public.campaign_transition USING btree (campaign_id);
+
+-- Decisions and consequences. Clock effects stay on campaign_mark.
+CREATE TABLE IF NOT EXISTS public.campaign_log (
+	id serial4 NOT NULL,
+	campaign_id int4 NOT NULL,
+	situation_id int4 NULL,
+	at_seconds int4 NOT NULL DEFAULT 0,
+	kind varchar(16) NOT NULL,
+	body text NOT NULL,
+	CONSTRAINT campaign_log_pkey PRIMARY KEY (id),
+	CONSTRAINT campaign_log_at_check CHECK (at_seconds >= 0),
+	CONSTRAINT campaign_log_campaign_fkey FOREIGN KEY (campaign_id) REFERENCES public.campaign(id) ON DELETE CASCADE,
+	CONSTRAINT campaign_log_situation_fkey FOREIGN KEY (situation_id) REFERENCES public.campaign_situation(id) ON DELETE SET NULL,
+	CONSTRAINT campaign_log_kind_check CHECK (kind IN ('decision', 'consequence', 'discovery'))
+);
+CREATE INDEX IF NOT EXISTS idx_campaign_log_campaign ON public.campaign_log USING btree (campaign_id, id);
 
 
 -- ==================== Stat lookup seed (idempotent) ====================

@@ -96,12 +96,33 @@ assert.equal(short.healed, 0);
 const rested = settleBody(fed, { ate: true, drank: true, hours: 3, bedrest: false, constitution: 18 }, () => 1);
 assert.equal(rested.healed, 1);
 
-const hurt = applyBodyHitPoints(4, -3);
+const hurt = applyBodyHitPoints(4, -3, 10);
 assert.equal(hurt.hp, 1);
-const down = applyBodyHitPoints(1, -4);
+assert.equal(hurt.applied, -3);
+assert.equal(hurt.full, false);
+const down = applyBodyHitPoints(1, -4, 10);
 assert.equal(down.hp, 0);
+assert.equal(down.applied, -1);
 assert.equal(down.down, true);
-assert.equal(applyBodyHitPoints(null, -1).error, 'set hit points first');
-assert.equal(applyBodyHitPoints(null, 0).changed, false);
+assert.equal(applyBodyHitPoints(null, -1, 10).error, 'set hit points first');
+assert.equal(applyBodyHitPoints(4, 0, 10).changed, false);
+assert.equal(applyBodyHitPoints(4, 0, null).error, 'set hit points first');
+
+const over = applyBodyHitPoints(8, 5, 10);
+assert.equal(over.hp, 10);
+assert.equal(over.applied, 2);
+assert.equal(over.full, true);
+const landed = applyBodyHitPoints(9, 1, 10);
+assert.equal(landed.hp, 10);
+assert.equal(landed.applied, 1);
+assert.equal(landed.full, true);
+const wound = applyBodyHitPoints(10, -3, 10);
+assert.equal(wound.hp, 7);
+assert.equal(wound.applied, -3);
+assert.equal(wound.full, false);
+const stopped = applyBodyHitPoints(2, -5, 10);
+assert.equal(stopped.hp, 0);
+assert.equal(stopped.applied, -2);
+assert.equal(stopped.down, true);
 
 console.log('body ok');

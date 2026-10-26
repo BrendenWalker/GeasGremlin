@@ -128,21 +128,23 @@ async function columnExists(client, table, column) {
 }
 
 async function monsterReplaceBlock(client, rulesetId) {
-  const enemies = await client.query(
-    `SELECT e.id, e.name, m.id AS monster_id, m.name AS monster_name
-     FROM campaign_enemy e
-     JOIN monster m ON m.id = e.monster_id
-     WHERE m.ruleset_id = $1
-     ORDER BY e.id
-     LIMIT 10`,
-    [rulesetId]
-  );
-  const enemyMessage = referenceBlockMessage(
-    rulesetId,
-    'a campaign enemy',
-    enemies.rows.map((row) => `enemy ${row.id} (${row.name}) → monster ${row.monster_id} (${row.monster_name})`)
-  );
-  if (enemyMessage) return enemyMessage;
+  if (await columnExists(client, 'campaign_creature', 'monster_id')) {
+    const creatures = await client.query(
+      `SELECT c.id, c.name, m.id AS monster_id, m.name AS monster_name
+       FROM campaign_creature c
+       JOIN monster m ON m.id = c.monster_id
+       WHERE m.ruleset_id = $1
+       ORDER BY c.id
+       LIMIT 10`,
+      [rulesetId]
+    );
+    const creatureMessage = referenceBlockMessage(
+      rulesetId,
+      'a campaign creature',
+      creatures.rows.map((row) => `creature ${row.id} (${row.name}) → monster ${row.monster_id} (${row.monster_name})`)
+    );
+    if (creatureMessage) return creatureMessage;
+  }
 
   if (await columnExists(client, 'campaign_location', 'monster_id')) {
     const locs = await client.query(

@@ -448,13 +448,14 @@ export function circleSpellList(spells, knownSpells, classLinks, classRows, circ
       name: spell.name,
       level: access.level,
       memorized: Number(learned?.memorized) || 0,
+      intend: learned?.intend == null ? (Number(learned?.memorized) || 0) : (Number(learned.intend) || 0),
     });
   }
   out.sort((a, b) => String(a.name).localeCompare(String(b.name)));
   return out;
 }
 
-/** True when setting this spell's memorized count keeps the circle total within the slot cap. */
+/** True when setting this spell's intend count keeps the circle total within the slot cap. */
 export function memorizeWithinCap(rows, spellId, nextCount, slots) {
   const next = Number(nextCount);
   const cap = Number(slots);
@@ -468,14 +469,14 @@ export function memorizeWithinCap(rows, spellId, nextCount, slots) {
       sum += next;
       seen = true;
     } else {
-      sum += Number(row.memorized) || 0;
+      sum += Number(row.intend) || 0;
     }
   }
   if (!seen) sum += next;
   return sum <= cap;
 }
 
-/** Daily cast counters back to zero. Memorized spells stay prepared. */
+/** Daily cast counters back to zero. Settle day and a new-day command copy intend into memorized. */
 export function newDayWrite(character) {
   const casts = (character?.spells_cast || [])
     .map((row) => ({ spell_level: Number(row.spell_level), numcast: 0 }))

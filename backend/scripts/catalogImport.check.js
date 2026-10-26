@@ -305,12 +305,14 @@ async function databaseProof(client) {
       'INSERT INTO public.campaign (id, name, ruleset_id) VALUES ($1, $2, $3)',
       [campaignId, 'Check', seeded.rulesetId]
     );
-    const enemyId = await freeId(client, 'campaign_enemy');
+    const creatureId = await freeId(client, 'campaign_creature');
     await client.query(
-      'INSERT INTO public.campaign_enemy (id, campaign_id, name, monster_id) VALUES ($1, $2, $3, $4)',
-      [enemyId, campaignId, 'Goblin', monster.rows[0].id]
+      `INSERT INTO public.campaign_creature
+         (id, campaign_id, name, monster_id, hp, base_hp, disposition, base_disposition)
+       VALUES ($1, $2, $3, $4, 4, 4, 'present', 'present')`,
+      [creatureId, campaignId, 'Goblin', monster.rows[0].id]
     );
-    await assert.rejects(importCatalog(client, full), /campaign enemy/);
+    await assert.rejects(importCatalog(client, full), /campaign creature/);
   });
 
   await withRollback(client, async () => {

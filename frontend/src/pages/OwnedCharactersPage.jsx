@@ -23,7 +23,7 @@ export default function OwnedCharactersPage() {
     <div className="card" style={{ maxWidth: 560 }}>
       <h1 style={{ marginTop: 0 }}>Characters</h1>
       <p style={{ color: '#8a7f72', marginBottom: '1rem' }}>
-        Characters you own. Open a sheet to edit it. New characters are created from a campaign.
+        Characters you own. A character in a campaign is edited by the GM. New characters are created from a campaign.
       </p>
       {error && <p style={{ color: '#c95858', marginBottom: '0.5rem' }}>{error}</p>}
       {loading && <p style={{ color: '#8a7f72' }}>Loading…</p>}

@@ -14,19 +14,24 @@ export default function PlayPage() {
     setLoading(true);
     setError(null);
     getPlayerCharacters()
-      .then((r) => setCharacters(r.data || []))
+      .then((r) => {
+        const rows = r.data || [];
+        setCharacters(rows.filter((c) => (
+          (c.campaign_ids || []).some((id) => String(id) === String(campaignId))
+        )));
+      })
       .catch((err) => {
         setError(err.response?.data?.error || err.message);
         setCharacters([]);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [campaignId]);
 
   return (
     <div className="card" style={{ maxWidth: 560 }}>
-      <h1 style={{ marginTop: 0 }}>Play</h1>
+      <h1 style={{ marginTop: 0 }}>My Characters</h1>
       <p style={{ color: '#8a7f72', marginBottom: '1rem' }}>
-        Characters owned by {user.username}. Open a sheet to receive GM rewards and send items or gold to other party members.
+        Characters owned by {user.username} in this campaign. Open a sheet to receive GM rewards and send items or gold to other party members.
       </p>
 
       {error && <p style={{ color: '#c95858', marginBottom: '0.5rem' }}>{error}</p>}
@@ -36,7 +41,7 @@ export default function PlayPage() {
         <>
           <h2 style={{ marginBottom: '0.5rem' }}>Characters</h2>
           {characters.length === 0 ? (
-            <p style={{ color: '#8a7f72' }}>No characters yet. Create one from a campaign you belong to.</p>
+            <p style={{ color: '#8a7f72' }}>None of your characters are in this campaign.</p>
           ) : (
             <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
               {characters.map((c) => (

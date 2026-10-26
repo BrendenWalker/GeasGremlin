@@ -7,10 +7,11 @@ import {
   getSpells,
   getItems,
   updateCharacter,
+  adjustCharacterHitPoints,
   addCharacterItem,
   removeCharacterItem,
   learnCharacterSpell,
-  setCharacterSpellMemorized,
+  setCharacterSpellIntend,
   castCharacterSpell,
   getParty,
   getCharacterCommands,
@@ -19,13 +20,16 @@ import {
   getCharacterTransfers,
   updateTransfer,
   postPresence,
+  getCampaignHere,
   getCharacterShops,
   buyFromShop,
   sellToShop,
 } from '../api/api';
 import { useAuth } from '../components/AuthContext';
 import { useRuleset } from '../components/RulesetContext';
-import { acceptTransfer, castTabs, castsRemaining, characterHasSpellbook, circleSpellList, commandWrite, finishLevelUp, formatModifier, inventoryTabs, itemsOnTab, labelHeldItems, learnableSpells, memorizeWithinCap, openMechanic, primaryClass, savingThrowTargets } from '../domain/character.mjs';
+import { acceptTransfer, castTabs, characterHasSpellbook, circleSpellList, commandWrite, finishLevelUp, formatModifier, inventoryTabs, itemsOnTab, labelHeldItems, learnableSpells, memorizeWithinCap, openMechanic, primaryClass, savingThrowTargets } from '../domain/character.mjs';
+import { commandReceipt } from '../domain/notices.mjs';
+import { useNotices } from '../components/NoticeContext';
 import { formatItemPrice } from '../domain/itemPrice.mjs';
 
 const INPUT_STYLE = {
@@ -248,9 +252,19 @@ function keepLoadedLists(prev, row) {
   };
 }
 
+function itemLabel(command, items) {
+  if (command?.type !== 'give_item') return null;
+  const row = (items || []).find((item) => String(item.id) === String(command.payload?.item_id));
+  if (!row?.name) return null;
+  const quantity = Number(command.payload?.quantity);
+  if (Number.isInteger(quantity) && quantity > 1) return `${row.name} × ${quantity}`;
+  return row.name;
+}
+
 export default function CharacterDetailPage({ playerMode = false }) {
   const { id, campaignId } = useParams();
   const { user } = useAuth();
+  const { notify } = useNotices();
   const { rulesets, error: rulesetError } = useRuleset();
   const [character, setCharacter] = useState(null);
   const [races, setRaces] = useState([]);
@@ -264,6 +278,7 @@ export default function CharacterDetailPage({ playerMode = false }) {
   const [saving, setSaving] = useState(false);
   const [spellModal, setSpellModal] = useState(false);
   const [spellCircle, setSpellCircle] = useState(1);
+  const [hideUnavailable, setHideUnavailable] = useState(false);
   const [addItemModal, setAddItemModal] = useState(false);
   const [itemTab, setItemTab] = useState(null);
   const [addItemTab, setAddItemTab] = useState(null);
@@ -275,12 +290,17 @@ export default function CharacterDetailPage({ playerMode = false }) {
   const [sendStuffGold, setSendStuffGold] = useState(0);
   const [incomingTransfers, setIncomingTransfers] = useState([]);
   const classesRef = useRef([]);
+  const itemsRef = useRef([]);
+  const notifyRef = useRef(notify);
   const applyingRef = useRef(false);
   const levelUpRef = useRef(null);
   const [levelUp, setLevelUp] = useState(null);
   const [shopBoard, setShopBoard] = useState(null);
   const [shopBusy, setShopBusy] = useState(false);
+  const [here, setHere] = useState(null);
   classesRef.current = classes;
+  itemsRef.current = allItems;
+  notifyRef.current = notify;
   levelUpRef.current = levelUp;
 
   const refreshCharacter = useCallback(() => {
@@ -338,19 +358,39 @@ export default function CharacterDetailPage({ playerMode = false }) {
   }, [playerMode, campaignId, character?.id, character?.user, user?.username, presenceKey]);
 
   useEffect(() => {
+    if (!playerMode || !campaignId) return undefined;
+    let stopped = false;
+    const loadHere = () => {
+      getCampaignHere(campaignId)
+        .then((r) => { if (!stopped) setHere(r.data); })
+        .catch(() => {});
+    };
+    loadHere();
+    const interval = setInterval(loadHere, 10000);
+    return () => {
+      stopped = true;
+      clearInterval(interval);
+    };
+  }, [playerMode, campaignId]);
+
+  useEffect(() => {
     if (!playerMode || !id) return undefined;
     let stopped = false;
     const applyOne = async (cmd) => {
       const needsSheet = cmd.type === 'give_xp' || cmd.type === 'give_gold' || cmd.type === 'give_item'
         || cmd.type === 'new_day' || cmd.type === 'new_round';
       let write = {};
+      let name = null;
       if (needsSheet) {
         if (cmd.type === 'give_xp' && classesRef.current.length === 0) return false;
         const loaded = await getCharacter(id);
+        name = loaded.data?.name;
         write = commandWrite(loaded.data, classesRef.current, cmd);
         if (write.error) throw new Error(write.error);
         if (write.needsRolls) {
           if (!stopped) {
+            const text = commandReceipt(name, cmd, itemLabel(cmd, itemsRef.current));
+            if (text) notifyRef.current({ tone: 'success', text, source: `command:${cmd.id}` });
             setLevelUp({
               commandId: cmd.id,
               write,
@@ -362,7 +402,11 @@ export default function CharacterDetailPage({ playerMode = false }) {
         }
       }
       await markCommandRead(cmd.id, write);
-      if (!stopped) await refreshCharacter();
+      if (!stopped) {
+        const text = commandReceipt(name, cmd, itemLabel(cmd, itemsRef.current));
+        if (text) notifyRef.current({ tone: 'success', text, source: `command:${cmd.id}` });
+        await refreshCharacter();
+      }
       return false;
     };
     const tick = async () => {
@@ -377,7 +421,11 @@ export default function CharacterDetailPage({ playerMode = false }) {
         }
       } catch (err) {
         const status = err.response?.status;
-        if (!stopped && status !== 404) setError(err.response?.data?.error || err.message);
+        if (!stopped && status !== 404) {
+          const text = err.response?.data?.error || err.message;
+          setError(text);
+          notifyRef.current({ tone: 'error', text, source: 'command-apply' });
+        }
       } finally {
         applyingRef.current = false;
       }
@@ -472,8 +520,8 @@ export default function CharacterDetailPage({ playerMode = false }) {
       .catch((err) => setError(err.response?.data?.error || err.message));
   };
 
-  const handleSetMemorized = (spellId, memorized) => {
-    setCharacterSpellMemorized(id, spellId, memorized)
+  const handleSetIntend = (spellId, intend) => {
+    setCharacterSpellIntend(id, spellId, intend)
       .then(() => refreshCharacter())
       .catch((err) => setError(err.response?.data?.error || err.message));
   };
@@ -540,9 +588,9 @@ export default function CharacterDetailPage({ playerMode = false }) {
   };
 
   const handleHpChange = (delta) => {
-    const newHp = Math.max(0, (character.hp ?? 0) + delta);
-    updateCharacter(id, { hp: newHp })
-      .then((r) => { setCharacter((prev) => keepLoadedLists(prev, r.data)); setHpAdjust(null); })
+    adjustCharacterHitPoints(id, delta)
+      .then(() => refreshCharacter())
+      .then(() => setHpAdjust(null))
       .catch((err) => setError(err.response?.data?.error || err.message));
   };
 
@@ -619,7 +667,15 @@ export default function CharacterDetailPage({ playerMode = false }) {
   const circleSpells = activeSpellTab
     ? circleSpellList(allSpells, character.spells, character.character_classes, classes, activeSpellTab.circle)
     : [];
-  const memorizedHere = circleSpells.reduce((sum, spell) => sum + spell.memorized, 0);
+  const intendHere = circleSpells.reduce((sum, spell) => sum + spell.intend, 0);
+  const shownSpells = hideUnavailable ? circleSpells.filter((spell) => spell.memorized > 0) : circleSpells;
+  const castableCircles = new Set();
+  for (const tab of spellTabs) {
+    const rows = tab.circle === activeSpellTab?.circle
+      ? circleSpells
+      : circleSpellList(allSpells, character.spells, character.character_classes, classes, tab.circle);
+    if (rows.some((spell) => spell.memorized > 0)) castableCircles.add(tab.circle);
+  }
   const showLearn = characterHasSpellbook(character.character_classes, classes);
   const learnChoices = learnableSpells(allSpells, character.character_classes, classes)
     .filter((spell) => !knownSpellIds.has(spell.id));
@@ -628,6 +684,7 @@ export default function CharacterDetailPage({ playerMode = false }) {
   const sheetClass = primaryClass(character, classes);
   const sheetRace = races.find((race) => String(race.id) === String(character.race));
   const saveTargets = savingThrowTargets(sheetClass.row?.abilities, sheetRace?.abilities, sheetClass.level);
+  const sheetLocked = (character.campaign_ids || []).length > 0 && character.viewer_is_gm !== true;
 
   return (
     <div>
@@ -692,7 +749,9 @@ export default function CharacterDetailPage({ playerMode = false }) {
             </span>
           )}
           <span style={{ marginLeft: 'auto' }}>
-            {editing ? (
+            {sheetLocked ? (
+              <span style={{ color: '#8a7f72' }}>The GM edits this sheet.</span>
+            ) : editing ? (
               <>
                 <button key="save" type="button" className="btn btn-primary" disabled={saving} onClick={handleSave}>Save</button>
                 <button key="cancel" type="button" className="btn btn-secondary" style={{ marginLeft: '0.5rem' }} onClick={() => { setForm(sheetForm(character)); setEditing(false); }}>Cancel</button>
@@ -796,7 +855,7 @@ export default function CharacterDetailPage({ playerMode = false }) {
               <input
                 type="number"
                 min={0}
-                aria-label="HP"
+                aria-label="Maximum HP"
                 value={form.hp ?? ''}
                 onChange={(e) => setForm((f) => ({ ...f, hp: parseInt(e.target.value, 10) || null }))}
                 style={{ ...INPUT_STYLE, width: '100%', marginTop: '0.35rem', textAlign: 'center', fontSize: '1.5rem' }}
@@ -804,7 +863,7 @@ export default function CharacterDetailPage({ playerMode = false }) {
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}>
                 <button type="button" className="btn btn-secondary" aria-label="Take damage" onClick={() => setHpAdjust('damage')} style={{ padding: '0.15rem 0.55rem', fontSize: '1.25rem', lineHeight: 1 }}>−</button>
-                <div style={{ fontSize: '1.75rem', lineHeight: 1.1, color: '#c9a227', margin: '0.35rem 0' }}>{character.hp ?? '—'}</div>
+                <div style={{ fontSize: '1.75rem', lineHeight: 1.1, color: '#c9a227', margin: '0.35rem 0' }}>{character.hp == null ? '—' : `${character.current_hp ?? character.hp}/${character.hp}`}</div>
                 <button type="button" className="btn btn-secondary" aria-label="Heal" onClick={() => setHpAdjust('heal')} style={{ padding: '0.15rem 0.55rem', fontSize: '1.25rem', lineHeight: 1 }}>+</button>
               </div>
             )}
@@ -926,12 +985,20 @@ export default function CharacterDetailPage({ playerMode = false }) {
 
       {activeSpellTab && (
       <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h2>Spells</h2>
-            {showLearn && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2 style={{ marginBottom: 0 }}>Spells</h2>
+            {showLearn && !sheetLocked && (
               <button type="button" className="btn btn-primary" onClick={() => setSpellModal(true)}>Learn spell</button>
             )}
           </div>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', margin: '0.35rem 0 1rem', color: '#b8b0a0' }}>
+            <input
+              type="checkbox"
+              checked={hideUnavailable}
+              onChange={(e) => setHideUnavailable(e.target.checked)}
+            />
+            Hide unavailable spells
+          </label>
           <div className="catalog-tabs" role="tablist">
             {spellTabs.map((tab) => (
               <button
@@ -942,29 +1009,35 @@ export default function CharacterDetailPage({ playerMode = false }) {
                 className={`catalog-tab${tab.circle === activeSpellTab.circle ? ' active' : ''}`}
                 onClick={() => setSpellCircle(tab.circle)}
               >
-                Level {tab.circle}
+                Level {tab.circle}{castableCircles.has(tab.circle) ? '*' : ''}
               </button>
             ))}
           </div>
           <p style={{ color: '#8a7f72', marginTop: 0 }}>
-            {memorizedHere} / {activeSpellTab.slots} memorized
+            {intendHere} / {activeSpellTab.slots} to memorize
           </p>
-          {circleSpells.length === 0 && (
+          {shownSpells.length === 0 && (
             <p style={{ color: '#8a7f72' }}>
-              {showLearn ? 'No spells learned at this level.' : 'No spells at this level.'}
+              {circleSpells.length === 0
+                ? (showLearn ? 'No spells learned at this level.' : 'No spells at this level.')
+                : 'No spells you can cast at this level.'}
             </p>
           )}
-          <ul style={{ listStyle: 'none' }}>
-            {circleSpells.map((s) => {
-              const remaining = castsRemaining(sheetClass.row, sheetClass.level, activeSpellTab.circle, character.spells_cast);
-              return (
-                <li key={s.id} style={{ padding: '0.25rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  <strong style={{ flex: '1 1 auto' }}>{s.name}</strong>
+          {shownSpells.length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 6.5rem 7.5rem auto', columnGap: '0.75rem', rowGap: '0.35rem', alignItems: 'center' }}>
+              <span />
+              <span style={{ textAlign: 'center', color: '#8a7f72', fontSize: '0.75rem' }}>Memorized</span>
+              <span style={{ textAlign: 'center', color: '#8a7f72', fontSize: '0.75rem' }}>To memorize</span>
+              <span />
+              {shownSpells.map((s) => (
+                <React.Fragment key={s.id}>
+                  <strong>{s.name}</strong>
+                  <span style={{ color: '#c9a227', textAlign: 'center' }} aria-label={`${s.name} memorized`}>{s.memorized}</span>
                   <input
                     type="number"
                     min={0}
-                    aria-label={`${s.name} memorized`}
-                    value={s.memorized}
+                    aria-label={`${s.name} to memorize`}
+                    value={s.intend}
                     onChange={(e) => {
                       const next = parseInt(e.target.value, 10);
                       if (!Number.isInteger(next) || next < 0) return;
@@ -973,23 +1046,23 @@ export default function CharacterDetailPage({ playerMode = false }) {
                         return;
                       }
                       setError(null);
-                      handleSetMemorized(s.id, next);
+                      handleSetIntend(s.id, next);
                     }}
-                    style={{ width: 48, ...INPUT_STYLE }}
+                    style={{ width: '4.5rem', justifySelf: 'center', ...INPUT_STYLE, textAlign: 'right' }}
                   />
                   <button
                     type="button"
                     className="btn btn-secondary"
                     onClick={() => handleCastSpell(s.id)}
-                    disabled={!(s.memorized > 0) || (remaining != null && remaining <= 0)}
+                    disabled={!(s.memorized > 0)}
                   >
                     Cast
                   </button>
-                </li>
-              );
-            })}
-          </ul>
-          {spellModal && showLearn && (
+                </React.Fragment>
+              ))}
+            </div>
+          )}
+          {spellModal && showLearn && !sheetLocked && (
             <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setSpellModal(false)}>
               <div className="card" style={{ maxWidth: 400, maxHeight: '80vh', overflow: 'auto' }} onClick={(e) => e.stopPropagation()}>
                 <h3>Learn spell</h3>
@@ -1015,6 +1088,25 @@ export default function CharacterDetailPage({ playerMode = false }) {
       )}
 
       {playerMode && campaignId && (
+        <div className="card">
+          <h2 style={{ marginTop: 0 }}>Here</h2>
+          <p>{here?.location_name || 'The GM has not set a location.'}</p>
+          <h3>Objectives</h3>
+          {(here?.objectives || []).length === 0 && <p className="muted">None yet.</p>}
+          {(here?.objectives || []).length > 0 && (
+            <ul style={{ margin: 0 }}>
+              {here.objectives.map((row) => (
+                <li key={row.id}>
+                  {row.body}
+                  {row.status === 'resolved' ? <span className="muted"> · resolved</span> : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {playerMode && campaignId && (
         <ShopVisit
           board={shopBoard}
           busy={shopBusy}
@@ -1026,7 +1118,9 @@ export default function CharacterDetailPage({ playerMode = false }) {
       <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
             <h2>Inventory</h2>
-            <button type="button" className="btn btn-primary" onClick={() => setAddItemModal(true)}>Add item</button>
+            {!sheetLocked && (
+              <button type="button" className="btn btn-primary" onClick={() => setAddItemModal(true)}>Add item</button>
+            )}
           </div>
           <div style={{ marginBottom: '1rem' }}>
             <div style={{ fontSize: '0.75rem', color: '#8a7f72' }}>Money</div>
@@ -1091,8 +1185,10 @@ export default function CharacterDetailPage({ playerMode = false }) {
               ))}
             </ul>
           )}
-          {(!character.items || character.items.length === 0) && <p style={{ color: '#8a7f72' }}>No items. Add items from the reference list.</p>}
-          {addItemModal && (
+          {(!character.items || character.items.length === 0) && (
+            <p style={{ color: '#8a7f72' }}>{sheetLocked ? 'No items.' : 'No items. Add items from the reference list.'}</p>
+          )}
+          {addItemModal && !sheetLocked && (
             <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setAddItemModal(false)}>
               <div className="card" style={{ maxWidth: 400, maxHeight: '80vh', overflow: 'auto' }} onClick={(e) => e.stopPropagation()}>
                 <h3>Add item</h3>
@@ -1149,7 +1245,7 @@ export default function CharacterDetailPage({ playerMode = false }) {
           <ul style={{ listStyle: 'none', padding: 0 }}>
             {party.filter((p) => p.id !== character?.id).map((p) => (
               <li key={p.id} style={{ padding: '0.25rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span><strong>{p.name}</strong> ({p.user}) · HP {p.hp ?? '—'}</span>
+                <span><strong>{p.name}</strong> ({p.user}) · HP {p.hp == null ? '—' : `${p.current_hp ?? p.hp}/${p.hp}`}</span>
                 <button type="button" className="btn btn-secondary" onClick={() => { setSendStuffRecipient(p); setSendStuffModal(true); }}>Send stuff</button>
               </li>
             ))}

@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, NavLink, Navigate, useLocation, useNavigate, useParams, Outlet } from 'react-router-dom';
 import { AuthProvider, useAuth } from './components/AuthContext';
+import { NoticeProvider, NoticeStack, useNotices } from './components/NoticeContext';
+import NeedsYou from './components/NeedsYou';
 import { getCampaign, pauseCampaign } from './api/api';
 import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage';
@@ -32,6 +34,11 @@ function campaignIdFromPath(pathname) {
   return match ? match[1] : null;
 }
 
+function editCampaignIdFromPath(pathname) {
+  const match = pathname.match(/^\/campaigns\/(\d+)(?:\/|$)/);
+  return match ? match[1] : null;
+}
+
 function PlayCharacterRedirect() {
   const { id } = useParams();
   return <Navigate to={`/characters/${id}`} replace />;
@@ -45,9 +52,18 @@ function CampaignSession({ session, sessionReady }) {
   return <Outlet />;
 }
 
-function GmOnly({ session }) {
+function EditSession({ session, sessionReady }) {
   const { campaignId } = useParams();
-  if (session?.role !== 'gm') return <Navigate to={`/play/${campaignId}`} replace />;
+  if (!/^\d+$/.test(campaignId || '')) return <Navigate to="/campaigns" replace />;
+  if (!sessionReady) return <p className="muted">Loading…</p>;
+  if (!session?.role) return <Navigate to="/campaigns" replace />;
+  return <Outlet />;
+}
+
+function GmOnly({ session, home }) {
+  const { campaignId } = useParams();
+  const to = home === 'edit' ? `/campaigns/${campaignId}/characters` : `/play/${campaignId}`;
+  if (session?.role !== 'gm') return <Navigate to={to} replace />;
   return <Outlet />;
 }
 
@@ -68,22 +84,22 @@ function Shell() {
   const { user, loading, logout } = useAuth();
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const campaignId = campaignIdFromPath(pathname);
+  const playCampaignId = campaignIdFromPath(pathname);
+  const editCampaignId = editCampaignIdFromPath(pathname);
+  const campaignId = playCampaignId || editCampaignId;
+  const { notify } = useNotices();
   const [session, setSession] = useState(null);
   const [sessionFor, setSessionFor] = useState(null);
-  const [pauseError, setPauseError] = useState(null);
 
   useEffect(() => {
     if (!campaignId) {
       setSession(null);
       setSessionFor(null);
-      setPauseError(null);
       return undefined;
     }
     let cancelled = false;
     setSession(null);
     setSessionFor(null);
-    setPauseError(null);
     getCampaign(campaignId)
       .then((res) => {
         if (cancelled) return;
@@ -104,15 +120,21 @@ function Shell() {
   if (!user) return <LoginPage />;
 
   const sessionReady = !campaignId || sessionFor === campaignId;
-  const inCampaign = Boolean(campaignId && sessionReady && session?.running);
-  const showCampaignNav = Boolean(campaignId) && (!sessionReady || session?.running);
+  const inCampaign = Boolean(playCampaignId && sessionReady && session?.running);
+  const inEdit = Boolean(editCampaignId && sessionReady && session?.role);
+  const showCampaignNav = Boolean(playCampaignId) && (!sessionReady || session?.running);
+  const showEditNav = Boolean(editCampaignId) && (!sessionReady || session?.role);
 
   const returnToHub = () => {
-    setPauseError(null);
-    if (session?.role === 'gm') {
-      pauseCampaign(campaignId)
+    notify({ tone: 'error', text: '', source: 'pause' });
+    if (playCampaignId && session?.role === 'gm') {
+      pauseCampaign(playCampaignId)
         .then(() => navigate('/'))
-        .catch((err) => setPauseError(err.response?.data?.error || err.message));
+        .catch((err) => notify({
+          tone: 'error',
+          text: err.response?.data?.error || err.message,
+          source: 'pause',
+        }));
       return;
     }
     navigate('/');
@@ -123,17 +145,31 @@ function Shell() {
       <div className="app">
         <nav className="navbar">
           <div className="nav-container">
-            <NavLink to={showCampaignNav ? `/play/${campaignId}` : '/'} className="nav-logo" end>RPGHub</NavLink>
+            <NavLink to={showCampaignNav ? (sessionReady && session?.role !== 'gm' ? `/play/${playCampaignId}/characters` : `/play/${playCampaignId}`) : showEditNav ? `/campaigns/${editCampaignId}/characters` : '/'} className="nav-logo" end>RPGHub</NavLink>
             <div className="nav-links">
               {showCampaignNav ? (
+                sessionReady && (
                 <>
-                  <NavLink to={`/play/${campaignId}`} end className={navClass}>Home</NavLink>
+                  {session?.role === 'gm' && (
+                    <NavLink to={`/play/${playCampaignId}`} end className={navClass}>My Characters</NavLink>
+                  )}
+                  <NavLink to={`/play/${playCampaignId}/characters`} className={navClass}>
+                    {session?.role === 'gm' ? 'Campaign Roster' : 'Characters'}
+                  </NavLink>
                   {session?.role === 'gm' && (
                     <>
-                      <NavLink to={`/play/${campaignId}/adventuring`} className={navClass}>Adventuring</NavLink>
-                      <NavLink to={`/play/${campaignId}/configuration`} className={navClass}>Configuration</NavLink>
-                      <NavLink to={`/play/${campaignId}/reference`} className={navClass}>Reference</NavLink>
+                      <NavLink to={`/play/${playCampaignId}/adventuring`} className={navClass}>Adventuring</NavLink>
+                      <NavLink to={`/play/${playCampaignId}/configuration`} className={navClass}>Configuration</NavLink>
+                      <NavLink to={`/play/${playCampaignId}/reference`} className={navClass}>Reference</NavLink>
                     </>
+                  )}
+                </>
+                )
+              ) : showEditNav ? (
+                <>
+                  <NavLink to={`/campaigns/${editCampaignId}/characters`} className={navClass}>Characters</NavLink>
+                  {session?.role === 'gm' && (
+                    <NavLink to={`/campaigns/${editCampaignId}/configuration`} className={navClass}>Configuration</NavLink>
                   )}
                 </>
               ) : (
@@ -145,20 +181,21 @@ function Shell() {
                 </>
               )}
             </div>
-            {inCampaign && session?.name ? (
+            {(inCampaign || inEdit) && session?.name ? (
               <p className="campaign-banner">Campaign: {session.name}</p>
             ) : null}
+            <NeedsYou />
             <span className="nav-ruleset" style={{ color: '#8a7f72' }}>{user.username}</span>
             <button type="button" className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem' }} onClick={logout}>Log out</button>
-            {inCampaign && (
+            {(inCampaign || inEdit) && (
               <button type="button" className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem' }} onClick={returnToHub}>
                 Return to Hub
               </button>
             )}
-            {pauseError && <span style={{ color: '#c95858' }}>{pauseError}</span>}
           </div>
         </nav>
         <main className="main-content">
+          <NoticeStack />
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/play" element={<Navigate to="/" replace />} />
@@ -167,7 +204,9 @@ function Shell() {
               path="/play/:campaignId"
               element={<CampaignSession session={session} sessionReady={sessionReady} />}
             >
-              <Route index element={<PlayPage />} />
+              <Route index element={session?.role === 'gm' ? <PlayPage /> : <Navigate to="characters" replace />} />
+              <Route path="characters" element={<CharactersPage />} />
+              <Route path="characters/new" element={<NewCharacterWizardPage />} />
               <Route path="characters/:id" element={<PlayerCharacterPage />} />
               <Route path="adventuring" element={<GmOnly session={session} />}>
                 <Route index element={<AdventuringPage />} />
@@ -187,8 +226,17 @@ function Shell() {
               </Route>
             </Route>
             <Route path="/campaigns" element={<CampaignsPage />} />
-            <Route path="/campaigns/:campaignId/characters" element={<CharactersPage />} />
-            <Route path="/campaigns/:campaignId/characters/new" element={<NewCharacterWizardPage />} />
+            <Route
+              path="/campaigns/:campaignId"
+              element={<EditSession session={session} sessionReady={sessionReady} />}
+            >
+              <Route index element={<Navigate to="characters" replace />} />
+              <Route path="characters" element={<CharactersPage />} />
+              <Route path="characters/new" element={<NewCharacterWizardPage />} />
+              <Route path="configuration" element={<GmOnly session={session} home="edit" />}>
+                <Route index element={<ConfigurationPage campaignName={session?.name} />} />
+              </Route>
+            </Route>
             <Route path="/characters" element={<OwnedCharactersPage />} />
             <Route path="/characters/:id" element={<CharacterDetailPage />} />
             <Route path="/rulesets" element={<RulesetRedirect />} />
@@ -217,7 +265,9 @@ function App() {
   return (
     <AuthProvider>
       <Router>
-        <Shell />
+        <NoticeProvider>
+          <Shell />
+        </NoticeProvider>
       </Router>
     </AuthProvider>
   );

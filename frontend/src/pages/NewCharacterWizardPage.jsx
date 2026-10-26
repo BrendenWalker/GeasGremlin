@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   getCampaign,
   getRaces,
@@ -38,6 +38,10 @@ function optionalAge(value) {
 
 export default function NewCharacterWizardPage() {
   const { campaignId } = useParams();
+  const { pathname } = useLocation();
+  const rosterPath = pathname.startsWith(`/play/${campaignId}`)
+    ? `/play/${campaignId}/characters`
+    : `/campaigns/${campaignId}/characters`;
   const navigate = useNavigate();
   const { error: rulesetError, loading: rulesetsLoading, rulesets } = useRuleset();
   const [campaign, setCampaign] = useState(null);
@@ -223,7 +227,7 @@ export default function NewCharacterWizardPage() {
     return (
       <div className="card">
         <p style={{ color: '#c95858' }}>{mechanicError}</p>
-        <Link to={`/campaigns/${campaignId}/characters`} className="btn btn-secondary">Back to characters</Link>
+        <Link to={rosterPath} className="btn btn-secondary">Back to characters</Link>
       </div>
     );
   }
@@ -235,13 +239,21 @@ export default function NewCharacterWizardPage() {
       </div>
     );
   }
+  if (campaign.role !== 'gm') {
+    return (
+      <div className="card">
+        <p>The GM adds characters to this campaign.</p>
+        <Link to={rosterPath} className="btn btn-secondary">Back to characters</Link>
+      </div>
+    );
+  }
 
   return (
     <div>
       <div className="card" style={{ marginBottom: '1rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
           <Link
-            to={`/campaigns/${campaignId}/characters`}
+            to={rosterPath}
             style={{ color: '#8a7f72', textDecoration: 'none' }}
           >
             ← Characters

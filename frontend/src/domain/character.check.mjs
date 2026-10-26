@@ -252,9 +252,19 @@ assert.deepEqual(
   circleSpellList(spellBook, [], [{ class_id: 1, class_level: 2 }], [cleric], 1).map((spell) => spell.name),
   ['Cure Light Wounds', 'Light']
 );
+assert.deepEqual(
+  circleSpellList(
+    spellBook,
+    [{ spell_id: 2, memorized: 0, intend: 1 }],
+    [{ class_id: 1, class_level: 2 }],
+    [cleric],
+    1
+  ).map((spell) => [spell.name, spell.memorized, spell.intend]),
+  [['Cure Light Wounds', 0, 1], ['Light', 0, 0]]
+);
 const prepared = [
-  { id: 1, memorized: 1 },
-  { id: 2, memorized: 0 },
+  { id: 1, intend: 1, memorized: 0 },
+  { id: 2, intend: 0, memorized: 1 },
 ];
 assert.equal(memorizeWithinCap(prepared, 2, 1, 1), false);
 assert.equal(memorizeWithinCap(prepared, 1, 1, 1), true);

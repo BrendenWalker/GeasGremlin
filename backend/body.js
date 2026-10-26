@@ -6,7 +6,8 @@
  * ponytail: catalog item weight is sixteenths of a pound (leather 240 is 15 lb).
  * A custom weight typed as whole pounds is read the same way.
  * Over the heavy load still uses the heavy movement column. The book has no third rate.
- * Healing is not capped. The sheet has no maximum hit points.
+ * Healing stops at the stored maximum. Current hit points are that maximum
+ * plus the permanent HP effects, from 0 through the maximum.
  * Miles per day are the base rate. Terrain is a later step.
  */
 
@@ -179,11 +180,17 @@ function settleBody(state, choice, rollDie) {
   };
 }
 
-function applyBodyHitPoints(current, delta) {
-  if (delta === 0) return { hp: current, down: current === 0, changed: false };
+function applyBodyHitPoints(current, delta, maximum) {
+  if (!Number.isInteger(maximum) || maximum < 0) return { error: 'set hit points first' };
   if (!Number.isInteger(current) || current < 0) return { error: 'set hit points first' };
-  const hp = Math.max(0, current + delta);
-  return { hp, down: hp === 0, changed: true };
+  if (!Number.isInteger(delta)) return { error: 'hit point change must be an integer' };
+  const start = Math.min(maximum, current);
+  if (delta === 0) {
+    return { hp: start, applied: 0, full: start === maximum, down: start === 0, changed: false };
+  }
+  const hp = Math.min(maximum, Math.max(0, start + delta));
+  const applied = hp - start;
+  return { hp, applied, full: hp === maximum, down: hp === 0, changed: applied !== 0 };
 }
 
 module.exports = {

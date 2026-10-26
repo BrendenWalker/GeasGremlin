@@ -29,6 +29,8 @@ assert.equal(matchingRow([{ face_lo: 1, face_hi: 2, label: 'A' }, { face_lo: 3, 
 assert.equal(matchingRow([{ face_lo: 1, face_hi: 1, label: 'A' }], 4), null);
 
 assert.equal(acceptRoll(null).error, 'No roll to accept');
+assert.equal(acceptRoll({ kind: 'visit', table_roll: null, label: 'Wolf' }).error, 'Open the fight and take that creature');
+assert.equal(acceptRoll({ kind: 'visit', table_roll: null, label: null }).error, 'The last check missed');
 assert.equal(acceptRoll({ table_roll: null, label: 'Wolves' }).error, 'The last check missed');
 assert.equal(acceptRoll({ table_roll: 3, label: 'Wolves', accepted: true }).error, 'That roll is already accepted');
 assert.equal(acceptRoll({ table_roll: 3, label: '  ' }).error, 'That roll has no name');
@@ -44,6 +46,9 @@ assert.deepEqual(accepted.enemy, {
   monster_id: 9,
   quantity: '2d4',
   treasure_type: 'B',
+  count: 1,
 });
+assert.equal(acceptRoll({ table_roll: 4, label: 'Goblins', quantity: '3' }).enemy.count, 3);
+assert.equal(acceptRoll({ table_roll: 4, label: 'Goblins', quantity: '101' }).error, 'quantity must be from 1 to 100');
 
 console.log('wander ok');

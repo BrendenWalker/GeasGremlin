@@ -36,18 +36,35 @@ function blankToNull(value) {
   return text === '' ? null : text;
 }
 
+// ponytail: a dice note stays on the wander row and accepts as one creature.
+// The upgrade is to roll that expression here.
+function individualCount(quantity) {
+  if (quantity == null || String(quantity).trim() === '') return 1;
+  const text = String(quantity).trim();
+  if (!/^\d+$/.test(text)) return 1;
+  const count = Number(text);
+  if (count < 1 || count > 100) return null;
+  return count;
+}
+
 function acceptRoll(roll) {
   if (!roll) return { error: 'No roll to accept' };
+  if (roll.kind === 'visit') {
+    return { error: roll.label ? 'Open the fight and take that creature' : 'The last check missed' };
+  }
   if (roll.accepted === true) return { error: 'That roll is already accepted' };
   if (roll.table_roll == null) return { error: 'The last check missed' };
   const name = typeof roll.label === 'string' ? roll.label.trim() : '';
   if (!name) return { error: 'That roll has no name' };
+  const count = individualCount(roll.quantity);
+  if (count == null) return { error: 'quantity must be from 1 to 100' };
   return {
     enemy: {
       name,
       monster_id: roll.monster_id == null ? null : roll.monster_id,
       quantity: blankToNull(roll.quantity),
       treasure_type: blankToNull(roll.treasure_type),
+      count,
     },
   };
 }
@@ -59,4 +76,5 @@ module.exports = {
   checkHit,
   matchingRow,
   acceptRoll,
+  individualCount,
 };

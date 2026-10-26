@@ -22,9 +22,15 @@
     "test:travel": "node travel.check.js",
     "test:hirelings": "node hirelings.check.js",
     "test:prep": "node prep.check.js",
+    "test:situation": "node situation.check.js",
+    "test:creature": "node creature.check.js",
+    "test:visit": "node visit.check.js",
+    "test:empty-check": "node empty-check.check.js",
+    "test:room-flag": "node room-flag.check.js",
     "test:ruleset-roundtrip": "node scripts/test-ruleset-roundtrip.js",
     "test:overlay": "node overlay.check.js",
-    "test:class-assignment": "node classAssignment.check.js"
+    "test:class-assignment": "node classAssignment.check.js",
+    "test:sheet-lock": "node sheetLock.check.js"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",
