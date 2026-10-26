@@ -29,11 +29,11 @@ Log in as ShopTester. Open Campaigns.
 ## 2. Characters, before the session
 
 1. The heading is `Feature Walk — Characters`. The four rows are Feature Bram (Human Fighter), Feature Nix (Elf Magic User), Feature Oda (Human Cleric), and Feature Pip (Halfling Thief).
-2. Click **GM commands**. Pick Feature Nix. Set XP to 10 and click **Give XP**. Set Gold (cp) to 100 and click **Give gold**. Click **New day**, then **New round**.
+2. Click **GM commands**. Pick Feature Nix. Set XP to 10 and click **Give XP**. Set Money (cp) to 100 and click **Give Money**. Click **New day**, then **New round**.
 3. Hide the panel.
 
     ```
-    Give XP, Give gold, New day, and New round each put a line in the notice stack. The page still does not keep a list of commands already sent.
+    Give XP, Give Money, New day, and New round each put a line in the notice stack. The page still does not keep a list of commands already sent.
     ```
 
     ```

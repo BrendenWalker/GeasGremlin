@@ -201,10 +201,10 @@ export default function CharactersPage() {
               </div>
               <button type="button" className="btn btn-primary" disabled={!gmTargetId || gmXp <= 0 || gmSending} onClick={() => sendToCharacter('give_xp', { amount: gmXp }, () => setGmXp(0))}>Give XP</button>
               <div>
-                <label style={{ display: 'block', marginBottom: 2 }}>Gold (cp)</label>
+                <label style={{ display: 'block', marginBottom: 2 }}>Money (cp)</label>
                 <input type="number" min={0} value={gmGold} onChange={(e) => setGmGold(parseInt(e.target.value, 10) || 0)} style={{ width: 80, padding: '0.5rem', borderRadius: 4, border: '1px solid #3d3530', background: '#1a1614', color: '#e8e0d5' }} />
               </div>
-              <button type="button" className="btn btn-primary" disabled={!gmTargetId || gmGold <= 0 || gmSending} onClick={() => sendToCharacter('give_gold', { amount_cp: gmGold }, () => setGmGold(0))}>Give gold</button>
+              <button type="button" className="btn btn-primary" disabled={!gmTargetId || gmGold <= 0 || gmSending} onClick={() => sendToCharacter('give_gold', { amount_cp: gmGold }, () => setGmGold(0))}>Give Money</button>
               <button type="button" className="btn btn-secondary" disabled={!gmTargetId || gmSending} onClick={() => sendToCharacter('new_day', {})}>New day</button>
               <button type="button" className="btn btn-secondary" disabled={!gmTargetId || gmSending} onClick={() => sendToCharacter('new_round', {})}>New round</button>
             </div>
