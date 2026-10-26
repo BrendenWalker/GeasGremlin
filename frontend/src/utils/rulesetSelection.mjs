@@ -5,7 +5,7 @@ export const CATALOG_SECTIONS = [
   { path: 'items', label: 'Items' },
 ];
 
-export const RULESET_STORAGE_KEY = 'rpghub_ruleset_id';
+export const RULESET_STORAGE_KEY = 'geasgremlin_ruleset_id';
 
 /** Catalog section in a hub or campaign reference URL. Anything else is races. */
 export function catalogSection(pathname) {

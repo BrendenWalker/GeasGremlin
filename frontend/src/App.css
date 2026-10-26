@@ -24,11 +24,22 @@
 }
 
 .nav-logo {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
   font-size: 1.4rem;
   font-weight: bold;
   color: #c9a227;
   text-decoration: none;
   letter-spacing: 0.05em;
+}
+
+.nav-tagline {
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: #8a7f72;
+  max-width: 16rem;
 }
 
 .nav-links {

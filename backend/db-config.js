@@ -1,5 +1,5 @@
 /**
- * PostgreSQL connection pool helpers for RPGHub backend.
+ * PostgreSQL connection pool helpers for the GeasGremlin backend.
  */
 
 const { Pool } = require('pg');

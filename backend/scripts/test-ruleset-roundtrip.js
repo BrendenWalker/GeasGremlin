@@ -228,7 +228,7 @@ function main() {
   }
 
   const rulesetName = loadGamesystemMeta(dir).name;
-  const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rpghub-ruleset-export-'));
+  const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'geasgremlin-ruleset-export-'));
 
   console.log(`Round-trip: ${dir}`);
   console.log(`Ruleset name: ${JSON.stringify(rulesetName)}`);

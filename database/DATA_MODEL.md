@@ -1,4 +1,4 @@
-# RPGHub data model (conceptual)
+# GeasGremlin data model (conceptual)
 
 Canonical physical DDL lives in [`schema.sql`](schema.sql). This document classifies **what each table is for** when reasoning about imports, APIs, and permissions. It is tool-agnostic documentation (not tied to any editor or AI product).
 

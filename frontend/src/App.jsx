@@ -18,6 +18,7 @@ import SpellsPage from './pages/SpellsPage';
 import ItemsPage from './pages/ItemsPage';
 import RulesetLayout, { RulesetRedirect } from './components/RulesetLayout';
 import { referenceTail } from './utils/rulesetSelection.mjs';
+import { taglineForDate, documentTitle } from './branding.mjs';
 import { RulesetProvider } from './components/RulesetContext';
 import VersionFooter from './components/VersionFooter';
 import './App.css';
@@ -71,6 +72,12 @@ function Shell() {
   const [session, setSession] = useState(null);
   const [sessionFor, setSessionFor] = useState(null);
   const [pauseError, setPauseError] = useState(null);
+  const tagline = taglineForDate();
+
+  useEffect(() => {
+    // ponytail: title and tagline freeze until reload. Ceiling is a tab left open past local midnight; upgrade is a timer to the next local midnight.
+    document.title = documentTitle();
+  }, []);
 
   useEffect(() => {
     if (!campaignId) {
@@ -122,7 +129,10 @@ function Shell() {
       <div className="app">
         <nav className="navbar">
           <div className="nav-container">
-            <NavLink to={showCampaignNav ? `/play/${campaignId}` : '/'} className="nav-logo" end>RPGHub</NavLink>
+            <NavLink to={showCampaignNav ? `/play/${campaignId}` : '/'} className="nav-logo" end>
+              <span>GeasGremlin</span>
+              <span className="nav-tagline">{tagline}</span>
+            </NavLink>
             <div className="nav-links">
               {showCampaignNav ? (
                 <>

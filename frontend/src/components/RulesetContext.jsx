@@ -5,7 +5,7 @@ import { RULESET_STORAGE_KEY, resolveRulesetId } from '../utils/rulesetSelection
 const RulesetContext = createContext(null);
 
 function readStoredId() {
-  return localStorage.getItem(RULESET_STORAGE_KEY) || '';
+  return localStorage.getItem(RULESET_STORAGE_KEY) || localStorage.getItem('rpghub_ruleset_id') || '';
 }
 
 export function RulesetProvider({ children }) {

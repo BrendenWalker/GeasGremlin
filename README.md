@@ -1,6 +1,6 @@
-# RPGHub
+# GeasGremlin
 
-Tabletop RPG campaign and character management. Replaces the original Delphi N-tier Hub (RabbitMQ + Firebird) with a single web app: REST API backend and React frontend, using your existing **rpghub** PostgreSQL database.
+Tabletop RPG campaign and character management. Replaces the original Delphi N-tier Hub (RabbitMQ + Firebird) with a single web app: REST API backend and React frontend, using your existing **geasgremlin** PostgreSQL database.
 
 The data model is game-agnostic: the same tables support D&D, Pathfinder, Basic Fantasy, or other systems; only the reference data (races, classes, spells, items) changes.
 
@@ -12,25 +12,25 @@ The data model is game-agnostic: the same tables support D&D, Pathfinder, Basic 
 ## Prerequisites
 
 - Docker and Docker Compose
-- PostgreSQL with the **rpghub** database (you’ve already migrated from Firebird)
+- PostgreSQL with the **geasgremlin** database (you’ve already migrated from Firebird)
 - A `.env` at the **repository root**: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`
 
 Node.js 18+ is only needed for the optional hot-reload path or the ruleset import/export scripts.
 
 ## Database
 
-The backend expects a PostgreSQL database named `rpghub` with tables created from the reference schema. The schema includes a **campaign** table (and all others); if you see "Failed to create campaign" or "No campaigns yet", the database has not been initialized.
+The backend expects a PostgreSQL database named `geasgremlin` with tables created from the reference schema. The schema includes a **campaign** table (and all others); if you see "Failed to create campaign" or "No campaigns yet", the database has not been initialized.
 
 ### First-time setup: create the schema
 
 1. Create the database (if it doesn’t exist):
    ```bash
-   psql -U postgres -c "CREATE DATABASE rpghub;"
+   psql -U postgres -c "CREATE DATABASE geasgremlin;"
    ```
 
 2. Run the full schema from the **repository root**:
    ```bash
-   psql -h localhost -U postgres -d rpghub -f database/schema.sql
+   psql -h localhost -U postgres -d geasgremlin -f database/schema.sql
    ```
    Use your actual host, user, and DB name (e.g. from `.env`: `DB_HOST`, `DB_USER`, `DB_NAME`).
 
@@ -104,7 +104,7 @@ Use this only when you want Vite/nodemon on the host. Set `PORT=8140` so the bac
 # Backend
 cd backend
 npm install
-# Set DB_NAME=rpghub and other DB_* in ../.env (repo root) or backend/.env
+# Set DB_NAME=geasgremlin and other DB_* in ../.env (repo root) or backend/.env
 # PORT=8140
 node server.js   # or: npm run dev
 
@@ -129,7 +129,7 @@ Health: `GET /api/health` (returns status and version).
 
 ## Feature parity with Familiar
 
-RPGHub aims for basic feature parity with the Familiar (Basic Fantasy) client:
+GeasGremlin aims for basic feature parity with the Familiar (Basic Fantasy) client:
 
 - **New character wizard**: Class → Race → Attributes (with race/class min–max) → Name & starting gold.
 - **Character sheet (tabs)**:

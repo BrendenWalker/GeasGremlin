@@ -23,11 +23,11 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: rpghub_ci
+          POSTGRES_DB: geasgremlin_ci
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres -d rpghub_ci"
+          --health-cmd "pg_isready -U postgres -d geasgremlin_ci"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -35,7 +35,7 @@ jobs:
     env:
       DB_HOST: localhost
       DB_PORT: 5432
-      DB_NAME: rpghub_ci
+      DB_NAME: geasgremlin_ci
       DB_USER: postgres
       DB_PASSWORD: postgres
       PGPASSWORD: postgres
@@ -59,7 +59,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
 
       - name: Apply schema
-        run: psql -h localhost -U postgres -d rpghub_ci -v ON_ERROR_STOP=1 -f database/schema.sql
+        run: psql -h localhost -U postgres -d geasgremlin_ci -v ON_ERROR_STOP=1 -f database/schema.sql
 
       - name: Import → export → compare
         working-directory: backend
