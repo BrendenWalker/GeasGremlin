@@ -1,7 +1,7 @@
 {
-  "name": "rpghub-frontend",
+  "name": "geasgremlin-frontend",
   "version": "1.0.0",
-  "description": "React frontend for RPGHub - tabletop RPG character and campaign management",
+  "description": "React frontend for GeasGremlin - tabletop RPG character and campaign management",
   "private": true,
   "dependencies": {
     "react": "^18.2.0",

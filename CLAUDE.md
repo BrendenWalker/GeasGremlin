@@ -1,4 +1,4 @@
-# RPGHub
+# GeasGremlin
 
 Follow the project instructions:
 

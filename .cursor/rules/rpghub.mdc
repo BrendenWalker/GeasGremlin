@@ -1,9 +1,9 @@
 ---
-description: Read the shared RPGHub instructions in ai/ before changing the app, schema, or a ruleset
+description: Read the shared GeasGremlin instructions in ai/ before changing the app, schema, or a ruleset
 alwaysApply: true
 ---
 
-# RPGHub
+# GeasGremlin
 
 The project instructions are in `ai/`. Read them before changing the app, the schema, or a ruleset. Do not copy them into this rule.
 

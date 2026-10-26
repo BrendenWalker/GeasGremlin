@@ -1,10 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { PRODUCT_NAME, taglineForDate } from '../branding.mjs';
 
 export default function HomePage() {
   return (
     <div className="card">
-      <h1 style={{ fontSize: '1.75rem', marginBottom: '1rem' }}>RPGHub</h1>
+      <h1 style={{ fontSize: '1.75rem', marginBottom: '0.35rem' }}>{PRODUCT_NAME}</h1>
+      <p style={{ marginTop: 0, marginBottom: '1rem', color: '#8a7f72' }}>{taglineForDate()}</p>
       <p style={{ marginBottom: '1.5rem', color: '#b8b0a0' }}>
         Manage campaigns and characters for tabletop RPGs. The same data model supports
         multiple game systems (D&D, Pathfinder, Basic Fantasy, etc.) — only the reference

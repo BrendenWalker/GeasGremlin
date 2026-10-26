@@ -1,4 +1,4 @@
--- RPGHub: Schema for the rpghub PostgreSQL database
+-- GeasGremlin: Schema for the geasgremlin PostgreSQL database
 -- Matches the structure migrated from the original Firebird/Delphi RPG system.
 -- Ruleset-aware catalog data (multiple RPG systems in one DB).
 -- Idempotent: safe to run repeatedly (CREATE … IF NOT EXISTS; seed uses ON CONFLICT DO NOTHING).

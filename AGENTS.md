@@ -1,4 +1,4 @@
-# RPGHub
+# GeasGremlin
 
 Shared project instructions live in `ai/`. Read these before changing the app, the schema, or a ruleset:
 

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../components/AuthContext';
+import { PRODUCT_NAME, taglineForDate } from '../branding.mjs';
 
 const INPUT_STYLE = {
   width: '100%',
@@ -42,6 +43,8 @@ export default function LoginPage() {
 
   return (
     <div className="card" style={{ maxWidth: 420, margin: '2rem auto' }}>
+      <p style={{ marginTop: 0, marginBottom: '0.25rem', color: '#c9a227', fontWeight: 'bold', letterSpacing: '0.05em', fontSize: '1.4rem' }}>{PRODUCT_NAME}</p>
+      <p style={{ marginTop: 0, color: '#8a7f72' }}>{taglineForDate()}</p>
       <h1 style={{ marginTop: 0 }}>{mode === 'login' ? 'Log in' : 'Create account'}</h1>
       <form onSubmit={submit}>
         <label style={{ display: 'block', marginBottom: 4 }}>Username</label>

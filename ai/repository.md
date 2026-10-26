@@ -1,6 +1,6 @@
 # Repository
 
-RPGHub is a tabletop campaign and character app: a React frontend, a REST API, and a PostgreSQL database named `rpghub`. The same tables serve more than one game. The ruleset catalog is what changes.
+GeasGremlin is a tabletop campaign and character app: a React frontend, a REST API, and a PostgreSQL database named `geasgremlin`. The same tables serve more than one game. The ruleset catalog is what changes.
 
 - Backend port 8140. Frontend port 8150.
 - How to run, import, and export: [README.md](../README.md).

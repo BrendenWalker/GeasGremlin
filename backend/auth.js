@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 
-const COOKIE = 'rpghub_session';
+const COOKIE = 'geasgremlin_session';
 const SESSION_SECONDS = 14 * 24 * 60 * 60;
 
 function hashToken(token) {

@@ -101,7 +101,7 @@ app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 
 const pool = createDbPool({
-  database: process.env.DB_NAME || 'rpghub',
+  database: process.env.DB_NAME || 'geasgremlin',
 });
 
 testConnection(pool);
@@ -339,7 +339,7 @@ app.get('/api/campaigns', async (req, res) => {
   } catch (error) {
     console.error('Error fetching campaigns:', error);
     if (error.code === '42P01') {
-      return res.status(503).json({ error: 'Campaign table does not exist. Run database/schema.sql on your rpghub database (see README).' });
+      return res.status(503).json({ error: 'Campaign table does not exist. Run database/schema.sql on your geasgremlin database (see README).' });
     }
     res.status(500).json({ error: error.message || 'Failed to fetch campaigns' });
   }
@@ -393,7 +393,7 @@ app.post('/api/campaigns', async (req, res) => {
       return res.status(409).json({ error: 'Campaign name already exists' });
     }
     if (error.code === '42P01') {
-      return res.status(503).json({ error: 'Campaign table does not exist. Run database/schema.sql on your rpghub database (see README).' });
+      return res.status(503).json({ error: 'Campaign table does not exist. Run database/schema.sql on your geasgremlin database (see README).' });
     }
     res.status(500).json({ error: error.message || 'Failed to create campaign' });
   }
@@ -969,7 +969,7 @@ app.post('/api/campaigns/:campaignId/characters', async (req, res) => {
       return res.status(400).json({ error: 'Invalid campaign, race, class, or ruleset reference' });
     }
     if (error.code === '42P01') {
-      return res.status(503).json({ error: 'Characters table does not exist. Run the full database/schema.sql on your rpghub database (see README).' });
+      return res.status(503).json({ error: 'Characters table does not exist. Run the full database/schema.sql on your geasgremlin database (see README).' });
     }
     if (error.code === '42703') {
       return res.status(503).json({ error: 'Database schema mismatch: ' + (error.message || 'missing column') });
@@ -6956,7 +6956,7 @@ app.get('/api/health', (req, res) => {
 
 function startServer(portToUse = port) {
   return app.listen(portToUse, () => {
-    console.log(`RPGHub server running on port ${portToUse}`);
+    console.log(`GeasGremlin server running on port ${portToUse}`);
     isReady = true;
   });
 }
