@@ -948,6 +948,20 @@ export default function CharacterDetailPage({ playerMode = false }) {
                 ))}
               </ul>
             )}
+            {(here?.exits || []).length > 0 && (
+              <>
+                <h3 style={{ margin: '0.5rem 0 0.25rem', fontSize: '1rem' }}>Exits:</h3>
+                <ul style={{ margin: 0, paddingLeft: '1.25rem' }}>
+                  {here.exits.map((row) => (
+                    <li key={`${row.destination_name}-${row.reason || ''}`}>
+                      {row.destination_name}
+                      {row.reason ? <span className="muted"> · {row.reason}</span> : null}
+                      {row.blocked ? <span className="muted"> · blocked</span> : null}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
           </div>
           <ShopVisit
             board={shopBoard}

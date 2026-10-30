@@ -43,9 +43,23 @@ assert.ok(plan.keep.CLASSES.some((row) => row.name === 'Archer'));
 assert.ok(!plan.keep.CLASSES.some((row) => row.name === 'Fighter'));
 assert.ok(!plan.keep.CLASSES.some((row) => row.name === 'Cleric'));
 assert.ok(!plan.keep.RACES.some((row) => row.name === 'Dwarf'));
-assert.equal(plan.keep.SPELLS.length, 0);
+assert.deepEqual(
+  plan.keep.SPELLS.map((row) => [norm(row.id), row.name]).sort((a, b) => a[0] - b[0]),
+  [
+    [1001, 'Take Animal Form'],
+    [1002, 'Tree Form'],
+    [1003, 'Summon Weather'],
+    [1004, 'Animal Friendship'],
+  ]
+);
 assert.equal(plan.keep.ITEMS.length, 0);
-assert.equal(plan.keep.ABILITIES.length, 0);
+assert.deepEqual(
+  plan.keep.ABILITIES.map((row) => [norm(row.id), row.description]).sort((a, b) => a[0] - b[0]),
+  [
+    [101, '%d%% Detect Traps'],
+    [102, 'Control Animals - consult GM'],
+  ]
+);
 assert.ok(plan.keep.RACE_ABILITIES.some((row) => norm(row.race_id) === 1));
 assert.ok(plan.keep.CLASS_ABILITIES.some((row) => norm(row.class_id) === 4));
 

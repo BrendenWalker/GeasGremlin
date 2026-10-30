@@ -4,6 +4,8 @@
  * session only clears that flag. The statements below are the contract.
  */
 
+const { RESTORE_FACTS_SQL } = require('./playState');
+
 function missingCampaign() {
   const error = new Error('Campaign not found');
   error.status = 404;
@@ -58,6 +60,20 @@ const RESET_STEPS = [
     table: 'campaign_location',
     phrase: 'arrived',
     sql: 'UPDATE campaign_location SET arrived_seconds = NULL WHERE campaign_id = $1',
+  },
+  {
+    kind: 'restore',
+    table: 'campaign_state_value',
+    phrase: 'object facts',
+    sql: RESTORE_FACTS_SQL,
+  },
+  {
+    kind: 'restore',
+    table: 'campaign_transition',
+    phrase: 'path discovery',
+    sql: `UPDATE campaign_transition
+     SET discovered = base_discovered, blocked = base_blocked
+     WHERE campaign_id = $1`,
   },
   {
     kind: 'restore',
@@ -134,6 +150,7 @@ const PRESERVED_TABLES = [
   'campaign_npc',
   'campaign_encounter_member',
   'campaign_transition',
+  'campaign_state_value',
   'campaign_location_shops',
   'campaign_location_shop_item_categories',
   'encounter_table',

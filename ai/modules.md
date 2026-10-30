@@ -20,9 +20,9 @@ Leave the ruleset catalog alone. Do not run `import-catalog` or `import-ruleset`
 | A story person | `campaign_npc` | Name, motivation, knowledge, and attitude. `location_id` is where they are. |
 | A secret | `campaign_clue` | Body. `location_id` is where it is found. `npc_id` is who can tell it. `discovered` stays false. When the secret implies a goal, set `objective_id`. |
 | A planned fight or discovery | `campaign_encounter` plus members | Kind, title, purpose, and the place. Status stays `prepared`. |
-| A path to another place | `campaign_transition` | The place it leaves, the destination, and a reason. `one_way` when the way back is closed. Otherwise the path is listed at both places. Create both places first. |
+| A path to another place | `campaign_transition` | The place it leaves, the destination, and a reason. `one_way` when the way back is closed. Otherwise the path is listed at both places. `discovered` false when the party has not found it. `blocked` is separate and stays as written when they find it. Create both places first. |
 
-A sprung pit, a taken chest, or a found secret is a `campaign_location_flag` with that state. The GM sets it during play. The fill does not. A sentence secret stays a clue.
+A sprung pit, a taken chest, or a found secret is a `campaign_location_flag` with that state. The GM sets it during play. The fill does not. A sentence secret stays a clue. A wheel or slab fact is a `campaign_state_value` on that playthrough. The fill does not write it. Room flags stay sprung, taken, or found.
 
 A goal about one place sets `location_id`. A goal for the whole module leaves it empty.
 

@@ -8,6 +8,7 @@
  */
 require('dotenv').config({ path: require('path').join(__dirname, '..', '..', '.env') });
 const { Pool } = require('pg');
+const { attachAuthoredFacts } = require('../playState');
 
 const CAMPAIGN_NAME = 'Feature Walk';
 const RULESET_NAME = 'Basic Fantasy Core';
@@ -403,7 +404,7 @@ async function main() {
     await scene(
       'Cistern Gate', 'Scratch marks', 'discovery',
       'Marks climb the shaft.',
-      'The marks are there, and the clue starts hidden. Mark it discovered when someone sees them. The chalk door on this landing only shortens the way back. Set Secret door found when they find it.',
+      'The marks are there, and the clue starts hidden. Mark it discovered when someone sees them. The chalk door on this landing only shortens the way back. It starts secret. Mark it found when they see the chalk. That does not block or open it.',
       []
     );
     await scene(
@@ -450,13 +451,15 @@ async function main() {
       ['Cistern Stair', 'Cistern Crypt', 'Down the flight.'],
       ['Cistern Crypt', 'Cistern Deep', 'The far arch.'],
       ['Cistern Deep', 'Cistern Heart', 'The passage on.'],
-      ['Cistern Heart', 'Cistern Gate', 'The chalk door. It shortens the way back.'],
+      ['Cistern Heart', 'Cistern Gate', 'The chalk door. It shortens the way back.', true, false],
     ];
-    for (const [fromName, toName, reason] of paths) {
+    for (const [fromName, toName, reason, oneWay, discovered] of paths) {
+      const found = discovered !== false;
       await client.query(
-        `INSERT INTO campaign_transition (campaign_id, from_location_id, to_location_id, reason)
-         VALUES ($1, $2, $3, $4)`,
-        [campaignId, locationIds[fromName], locationIds[toName], reason]
+        `INSERT INTO campaign_transition
+           (campaign_id, from_location_id, to_location_id, reason, one_way, discovered, base_discovered, blocked, base_blocked)
+         VALUES ($1, $2, $3, $4, $5, $6, $6, false, false)`,
+        [campaignId, locationIds[fromName], locationIds[toName], reason, oneWay === true, found]
       );
     }
 
@@ -465,6 +468,7 @@ async function main() {
        VALUES ($1, 'event', 'The carter leaves', $2, NULL)`,
       [campaignId, CARTER_LEAVES]
     );
+    await attachAuthoredFacts(client, campaignId);
 
     await client.query('COMMIT');
     console.log(JSON.stringify({

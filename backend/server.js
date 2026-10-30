@@ -12,7 +12,7 @@ const cors = require('cors');
 const { createDbPool, testConnection } = require('./db-config');
 const { assignmentError, inCatalog } = require('./classAssignment');
 const { CAMPAIGN_SHEET_ERROR, authoringRefused, sheetEditRefused } = require('./sheetLock');
-const { pathDestination } = require('./pathWay');
+const { pathTravel, markPathFound, setPathAccess } = require('./pathWay');
 const { INSIDE_INTERVAL, OUTSIDE_INTERVAL, checksDue, checkHit, matchingRow, acceptRoll } = require('./wander');
 const { MIN_DELTA, MAX_DELTA, adjustedCopper } = require('./shopPrice');
 const { rollTreasure } = require('./treasure');
@@ -47,6 +47,16 @@ const {
 const { applyCreatureHitPoints, catalogTreasure, fightCreature, recoverCreature } = require('./creature');
 const { nextVisitStamp, visitTurns, arrivedAfterSelect } = require('./visit');
 const { readFlag, playerHere } = require('./room-flag');
+const {
+  listFacts,
+  readStateCommand,
+  setFact,
+  risingWaterPreview,
+  readPreviewCommand,
+  rejectRisingWater,
+  applyRisingWater,
+} = require('./playState');
+const { openPreparedEncounter } = require('./preparedEncounter');
 const { visitCheckDue, emptyCheckResult, currentVisitCheck } = require('./empty-check');
 const { TERRAINS, locationTerrain } = require('./terrain');
 const { objectiveKnownAfterClue } = require('./reveal');
@@ -2624,6 +2634,14 @@ async function loadAdventuring(campaignId) {
     if (!flagsByLocation.has(placeId)) flagsByLocation.set(placeId, []);
     flagsByLocation.get(placeId).push(flag);
   }
+  const playState = await listFacts(pool, campaignId);
+  const factsByLocation = new Map();
+  for (const fact of playState.facts) {
+    if (fact.location_id == null) continue;
+    if (!factsByLocation.has(fact.location_id)) factsByLocation.set(fact.location_id, []);
+    factsByLocation.get(fact.location_id).push(fact);
+  }
+  const situation = await loadSituation(campaignId, camp.rows[0].concluded === true);
   return {
     game_seconds: camp.rows[0].game_seconds,
     in_encounter: camp.rows[0].in_encounter,
@@ -2657,6 +2675,7 @@ async function loadAdventuring(campaignId) {
       shops: shopsByLocation.get(Number(row.id)) || [],
       creatures: creaturesByLocation.get(Number(row.id)) || [],
       flags: flagsByLocation.get(Number(row.id)) || [],
+      facts: factsByLocation.get(Number(row.id)) || [],
     })),
     tables: tables.rows.map((row) => ({
       id: row.id,
@@ -2669,7 +2688,9 @@ async function loadAdventuring(campaignId) {
     wanders: wanders.rows,
     visit_check: currentVisitCheck(visitRows.rows, visitStamp == null ? null : Number(visitStamp)),
     turn_blocks: turnBlocks.rows,
-    situation: await loadSituation(campaignId, camp.rows[0].concluded === true),
+    water_flowing: playState.water_flowing,
+    rising_water: risingWaterPreview(playState.facts, situation.encounters),
+    situation,
   };
 }
 
@@ -3747,6 +3768,80 @@ app.delete('/api/campaigns/:campaignId/adventuring/locations/:locationId/flags/:
     if (error.status) return res.status(error.status).json({ error: error.message });
     console.error('Error clearing room flag:', error);
     res.status(500).json({ error: error.message || 'Failed to clear flag' });
+  }
+});
+
+app.get('/api/campaigns/:campaignId/adventuring/state', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    res.json(await listFacts(pool, req.params.campaignId));
+  } catch (error) {
+    if (adventuringMissing(res, error)) return;
+    console.error('Error reading play facts:', error);
+    res.status(500).json({ error: error.message || 'Failed to read facts' });
+  }
+});
+
+app.post('/api/campaigns/:campaignId/adventuring/state', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const command = readStateCommand(req.body || {});
+    if (command.error) return res.status(400).json({ error: command.error });
+    await client.query('BEGIN');
+    const saved = await setFact(client, req.params.campaignId, command);
+    const listed = await listFacts(client, req.params.campaignId);
+    await client.query('COMMIT');
+    res.json({ changed: saved.changed, fact: saved.fact, water_flowing: listed.water_flowing });
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch (_) { /* connection already failed */ }
+    if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    console.error('Error setting play fact:', error);
+    res.status(500).json({ error: error.message || 'Failed to set fact' });
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/campaigns/:campaignId/adventuring/preview/apply', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const command = readPreviewCommand(req.body || {});
+    if (command.error) return res.status(400).json({ error: command.error });
+    await client.query('BEGIN');
+    const saved = await applyRisingWater(
+      client,
+      req.params.campaignId,
+      command.encounter_id,
+      openPreparedEncounter
+    );
+    await client.query('COMMIT');
+    res.json(saved);
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch (_) { /* connection already failed */ }
+    if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    console.error('Error applying rising water preview:', error);
+    res.status(500).json({ error: error.message || 'Failed to open Rising water' });
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/campaigns/:campaignId/adventuring/preview/reject', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    res.json(rejectRisingWater());
+  } catch (error) {
+    if (adventuringMissing(res, error)) return;
+    console.error('Error rejecting rising water preview:', error);
+    res.status(500).json({ error: error.message || 'Failed to leave Rising water' });
   }
 });
 
@@ -6201,7 +6296,7 @@ async function loadSituation(campaignId, concluded) {
       [campaignId]
     ),
     pool.query(
-      `SELECT id, from_location_id, to_location_id, reason, one_way
+      `SELECT id, from_location_id, to_location_id, reason, one_way, discovered, blocked
        FROM campaign_transition WHERE campaign_id = $1 ORDER BY id`,
       [campaignId]
     ),
@@ -6268,6 +6363,9 @@ async function loadSituation(campaignId, concluded) {
       from_location_id: placeId(row.from_location_id),
       to_location_id: Number(row.to_location_id),
       reason: row.reason,
+      one_way: row.one_way === true,
+      discovered: row.discovered !== false,
+      blocked: row.blocked === true,
     })),
     log: logs.rows.map((row) => ({
       id: Number(row.id),
@@ -6648,47 +6746,13 @@ app.delete('/api/campaigns/:campaignId/situation/encounters/:encounterId/members
   return { id: creatureId };
 }));
 
-app.post('/api/campaigns/:campaignId/situation/encounters/:encounterId/open', (req, res) => withSituation(req, res, 'Failed to open encounter', async (client, request) => {
-  const encounter = await client.query(
-    `SELECT id, kind, status FROM campaign_encounter
-     WHERE id = $1 AND campaign_id = $2
-     FOR UPDATE`,
-    [positiveInt(request.params.encounterId, 'encounter_id'), request.params.campaignId]
-  );
-  if (encounter.rows.length === 0) throw storedError('Encounter not found', 404);
-  const row = encounter.rows[0];
-  if (row.status === 'resolved') throw storedError('That encounter is not prepared', 400);
-  if (row.status !== 'prepared' && row.status !== 'opened') {
-    throw storedError('That encounter is not prepared', 400);
-  }
-  const members = await client.query(
-    'SELECT creature_id FROM campaign_encounter_member WHERE encounter_id = $1',
-    [row.id]
-  );
-  const openFight = row.kind === 'combat' || members.rows.length > 0;
-  if (openFight) {
-    await client.query(
-      `INSERT INTO campaign_board (campaign_id, in_encounter)
-       VALUES ($1, true)
-       ON CONFLICT (campaign_id) DO UPDATE SET in_encounter = true`,
-      [request.params.campaignId]
-    );
-    await client.query(
-      `UPDATE campaign_creature c
-       SET in_fight = true
-       FROM campaign_encounter_member m
-       WHERE m.encounter_id = $1 AND m.creature_id = c.id`,
-      [row.id]
-    );
-  }
-  if (row.status === 'prepared') {
-    await client.query(
-      `UPDATE campaign_encounter SET status = 'opened' WHERE id = $1`,
-      [row.id]
-    );
-  }
-  return { id: Number(row.id), in_encounter: openFight };
-}));
+app.post('/api/campaigns/:campaignId/situation/encounters/:encounterId/open', (req, res) => withSituation(req, res, 'Failed to open encounter', async (client, request) => (
+  openPreparedEncounter(
+    client,
+    request.params.campaignId,
+    positiveInt(request.params.encounterId, 'encounter_id')
+  )
+)));
 
 app.post('/api/campaigns/:campaignId/situation/encounters/:encounterId/resolve', (req, res) => withSituation(req, res, 'Failed to resolve encounter', async (client, request) => {
   const updated = await client.query(
@@ -6707,11 +6771,14 @@ app.post('/api/campaigns/:campaignId/situation/transitions', (req, res) => withS
   if (!loc) throw storedError('to_location_id is required', 400);
   const reason = optionalText(request.body?.reason, 'reason', PROSE_MAX);
   const oneWay = request.body?.one_way === true;
+  const discovered = request.body?.discovered == null ? true : booleanField(request.body.discovered, 'discovered');
+  const blocked = request.body?.blocked == null ? false : booleanField(request.body.blocked, 'blocked');
   const inserted = await client.query(
-    `INSERT INTO campaign_transition (campaign_id, from_location_id, to_location_id, reason, one_way)
-     VALUES ($1, $2, $3, $4, $5)
+    `INSERT INTO campaign_transition
+       (campaign_id, from_location_id, to_location_id, reason, one_way, discovered, base_discovered, blocked, base_blocked)
+     VALUES ($1, $2, $3, $4, $5, $6, $6, $7, $7)
      RETURNING id`,
-    [request.params.campaignId, from ? from.id : null, loc.id, reason, oneWay]
+    [request.params.campaignId, from ? from.id : null, loc.id, reason, oneWay, discovered, blocked]
   );
   return { statusCode: 201, body: { id: Number(inserted.rows[0].id) } };
 }));
@@ -6740,6 +6807,14 @@ app.patch('/api/campaigns/:campaignId/situation/transitions/:transitionId', (req
     values.push(body.one_way === true);
     sets.push(`one_way = $${values.length}`);
   }
+  if (Object.prototype.hasOwnProperty.call(body, 'discovered')) {
+    values.push(booleanField(body.discovered, 'discovered'));
+    sets.push(`discovered = $${values.length}`);
+  }
+  if (Object.prototype.hasOwnProperty.call(body, 'blocked')) {
+    values.push(booleanField(body.blocked, 'blocked'));
+    sets.push(`blocked = $${values.length}`);
+  }
   if (sets.length === 0) throw storedError('Nothing to change', 400);
   values.push(id, request.params.campaignId);
   const updated = await client.query(
@@ -6763,15 +6838,42 @@ app.delete('/api/campaigns/:campaignId/situation/transitions/:transitionId', (re
 
 app.post('/api/campaigns/:campaignId/situation/transitions/:transitionId/arrive', (req, res) => withSituation(req, res, 'Failed to arrive', async (client, request) => {
   const lead = await client.query(
-    'SELECT id, from_location_id, to_location_id, one_way FROM campaign_transition WHERE id = $1 AND campaign_id = $2',
+    `SELECT id, from_location_id, to_location_id, one_way, reason, discovered, blocked
+     FROM campaign_transition WHERE id = $1 AND campaign_id = $2`,
     [positiveInt(request.params.transitionId, 'transition_id'), request.params.campaignId]
   );
   if (lead.rows.length === 0) throw storedError('Lead not found', 404);
-  const way = pathDestination(lead.rows[0], request.body?.reverse === true);
+  const way = pathTravel(lead.rows[0], request.body?.reverse === true, request.body?.override === true);
   if (way.error) throw storedError(way.error, 400);
   const selected = await arriveAtLocation(client, request.params.campaignId, way.locationId);
+  if (way.log) {
+    const at = await clockSeconds(client, request.params.campaignId);
+    const board = await client.query(
+      'SELECT location_id FROM campaign_board WHERE campaign_id = $1',
+      [request.params.campaignId]
+    );
+    const locationId = board.rows.length === 0 ? null : board.rows[0].location_id;
+    await client.query(
+      `INSERT INTO campaign_log (campaign_id, location_id, at_seconds, kind, body)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [request.params.campaignId, locationId, at, way.log.kind, way.log.body]
+    );
+  }
   return { location_id: selected.location_id, place: selected.place };
 }));
+
+app.post('/api/campaigns/:campaignId/situation/transitions/:transitionId/found', (req, res) => withSituation(req, res, 'Failed to mark path found', async (client, request) => (
+  markPathFound(client, request.params.campaignId, positiveInt(request.params.transitionId, 'transition_id'))
+)));
+
+app.post('/api/campaigns/:campaignId/situation/transitions/:transitionId/access', (req, res) => withSituation(req, res, 'Failed to change path access', async (client, request) => (
+  setPathAccess(
+    client,
+    request.params.campaignId,
+    positiveInt(request.params.transitionId, 'transition_id'),
+    booleanField(request.body?.blocked, 'blocked')
+  )
+)));
 
 app.post('/api/campaigns/:campaignId/situation/log', (req, res) => withSituation(req, res, 'Failed to record log', async (client, request) => {
   const kind = oneOf(request.body?.kind, LOG_KINDS, 'kind');
@@ -6804,7 +6906,7 @@ app.get('/api/campaigns/:campaignId/here', async (req, res) => {
     const member = await requireCampaign(req, res, req.params.campaignId, false);
     if (!member) return;
     const here = await pool.query(
-      `SELECT l.name AS location_name
+      `SELECT b.location_id, l.name AS location_name
        FROM campaign c
        LEFT JOIN campaign_board b ON b.campaign_id = c.id
        LEFT JOIN campaign_location l ON l.id = b.location_id AND l.campaign_id = c.id
@@ -6819,9 +6921,21 @@ app.get('/api/campaigns/:campaignId/here', async (req, res) => {
        ORDER BY id`,
       [req.params.campaignId]
     );
+    const paths = await pool.query(
+      `SELECT t.id, t.from_location_id, t.to_location_id, t.reason, t.one_way, t.discovered, t.blocked,
+              f.name AS from_name, d.name AS to_name
+       FROM campaign_transition t
+       LEFT JOIN campaign_location f ON f.id = t.from_location_id
+       JOIN campaign_location d ON d.id = t.to_location_id
+       WHERE t.campaign_id = $1
+       ORDER BY t.id`,
+      [req.params.campaignId]
+    );
     res.json(playerHere({
       location_name: here.rows[0].location_name,
+      location_id: here.rows[0].location_id,
       objectives: objectives.rows,
+      paths: paths.rows,
     }));
   } catch (error) {
     if (adventuringMissing(res, error)) return;

@@ -24,7 +24,8 @@ const shown = playerHere({
   site: 'Caves',
   gm_text: 'Secret pit',
 });
-assert.deepEqual(Object.keys(shown).sort(), ['location_name', 'objectives']);
+assert.deepEqual(Object.keys(shown).sort(), ['exits', 'location_name', 'objectives']);
+assert.deepEqual(shown.exits, []);
 assert.equal(shown.location_name, 'Cave');
 assert.equal(Object.hasOwn(shown, 'flags'), false);
 assert.equal(Object.hasOwn(shown, 'summary'), false);
@@ -32,6 +33,7 @@ assert.equal(Object.hasOwn(shown, 'gm_text'), false);
 assert.deepEqual(shown.objectives, [{ id: 3, body: 'Find the chest', status: 'open' }]);
 assert.equal(playerHere({}).location_name, null);
 assert.deepEqual(playerHere({}).objectives, []);
+assert.deepEqual(playerHere({}).exits, []);
 
 const flags = [{ id: 1, note: 'pit', state: 'sprung' }, { id: 2, note: 'chest', state: 'taken' }];
 const before = JSON.stringify(flags);

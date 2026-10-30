@@ -1451,6 +1451,8 @@ CREATE INDEX IF NOT EXISTS idx_campaign_encounter_member_creature ON public.camp
 
 -- A path from one place to another. Taking it selects the destination.
 -- one_way false also offers the path at the destination, back to the place it left.
+-- discovered is whether this playthrough knows the path. base_discovered is the reset.
+-- blocked is whether the way is shut. Finding the path does not change it.
 CREATE TABLE IF NOT EXISTS public.campaign_transition (
 	id serial4 NOT NULL,
 	campaign_id int4 NOT NULL,
@@ -1458,6 +1460,10 @@ CREATE TABLE IF NOT EXISTS public.campaign_transition (
 	to_location_id int4 NOT NULL,
 	reason text NULL,
 	one_way boolean NOT NULL DEFAULT false,
+	discovered boolean NOT NULL DEFAULT true,
+	base_discovered boolean NOT NULL DEFAULT true,
+	blocked boolean NOT NULL DEFAULT false,
+	base_blocked boolean NOT NULL DEFAULT false,
 	CONSTRAINT campaign_transition_pkey PRIMARY KEY (id),
 	CONSTRAINT campaign_transition_campaign_fkey FOREIGN KEY (campaign_id) REFERENCES public.campaign(id) ON DELETE CASCADE,
 	CONSTRAINT campaign_transition_from_fkey FOREIGN KEY (from_location_id) REFERENCES public.campaign_location(id) ON DELETE RESTRICT,
@@ -1484,6 +1490,10 @@ CREATE INDEX IF NOT EXISTS idx_campaign_log_campaign ON public.campaign_log USIN
 -- Older campaigns stored a situation scene. Copy its place onto the rows, then drop it.
 ALTER TABLE public.campaign_transition ADD COLUMN IF NOT EXISTS from_location_id int4;
 ALTER TABLE public.campaign_transition ADD COLUMN IF NOT EXISTS one_way boolean NOT NULL DEFAULT false;
+ALTER TABLE public.campaign_transition ADD COLUMN IF NOT EXISTS discovered boolean NOT NULL DEFAULT true;
+ALTER TABLE public.campaign_transition ADD COLUMN IF NOT EXISTS base_discovered boolean NOT NULL DEFAULT true;
+ALTER TABLE public.campaign_transition ADD COLUMN IF NOT EXISTS blocked boolean NOT NULL DEFAULT false;
+ALTER TABLE public.campaign_transition ADD COLUMN IF NOT EXISTS base_blocked boolean NOT NULL DEFAULT false;
 ALTER TABLE public.campaign_log ADD COLUMN IF NOT EXISTS location_id int4;
 DO $$
 BEGIN
@@ -1692,3 +1702,32 @@ FROM (
 JOIN public.stat s ON s.name = m.stat_name
 WHERE a.stat_id IS NULL
   AND a.description = m.description;
+
+-- One playthrough fact that is not a room flag. campaign_id is the owner.
+-- There is no campaign_run_id. Clock, clues, objectives, encounters, and room flags stay on their own tables.
+-- Water flowing is not stored. It follows the wheel and the slab.
+CREATE TABLE IF NOT EXISTS public.campaign_state_value (
+	id serial4 NOT NULL,
+	campaign_id int4 NOT NULL,
+	location_id int4 NULL,
+	subject_type varchar(16) NOT NULL,
+	subject_key varchar(40) NOT NULL,
+	state_key varchar(40) NOT NULL,
+	value_json jsonb NOT NULL,
+	base_value_json jsonb NOT NULL,
+	version int4 NOT NULL DEFAULT 1,
+	updated_at timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	CONSTRAINT campaign_state_value_pkey PRIMARY KEY (id),
+	CONSTRAINT campaign_state_value_scope_key UNIQUE (campaign_id, subject_type, subject_key, state_key),
+	CONSTRAINT campaign_state_value_version_check CHECK (version >= 1),
+	CONSTRAINT campaign_state_value_bool_check CHECK (
+		jsonb_typeof(value_json) = 'boolean' AND jsonb_typeof(base_value_json) = 'boolean'
+	),
+	CONSTRAINT campaign_state_value_key_check CHECK (
+		(subject_type = 'object' AND subject_key = 'waterwheel' AND state_key = 'blocked')
+		OR (subject_type = 'object' AND subject_key = 'burial_slab' AND state_key = 'removed')
+	),
+	CONSTRAINT campaign_state_value_campaign_fkey FOREIGN KEY (campaign_id) REFERENCES public.campaign(id) ON DELETE CASCADE,
+	CONSTRAINT campaign_state_value_location_fkey FOREIGN KEY (location_id) REFERENCES public.campaign_location(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_campaign_state_value_campaign ON public.campaign_state_value USING btree (campaign_id);

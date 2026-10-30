@@ -42,6 +42,9 @@ import {
   startEncounter,
   takeCreatures,
   setLocationFlag,
+  setPlayFact,
+  applyRisingWater,
+  rejectRisingWater,
   clearLocationFlag,
   setAdventuringPlace,
   tickAdventuring,
@@ -372,6 +375,7 @@ export default function AdventuringPage() {
   const [eventClock, setEventClock] = useState(CLOCK_ZERO);
   const [eventDirty, setEventDirty] = useState(false);
   const [locationPick, setLocationPick] = useState('');
+  const [risingDismissed, setRisingDismissed] = useState(false);
 
   const load = useCallback((quiet) => {
     if (!quiet) setLoading(true);
@@ -430,6 +434,11 @@ export default function AdventuringPage() {
   useEffect(() => {
     setLocationPick(board?.location_id == null ? '' : String(board.location_id));
   }, [board?.location_id]);
+
+  const risingId = board?.rising_water?.encounter_id ?? null;
+  useEffect(() => {
+    if (risingId == null) setRisingDismissed(false);
+  }, [risingId]);
 
   const run = (action) => {
     setBusy(true);
@@ -1102,6 +1111,34 @@ export default function AdventuringPage() {
     ...CLOCK_BUTTONS.filter((button) => button.step !== primary),
   ].filter((button) => button.step !== 'round');
 
+  const risingPrompt = board?.rising_water && !risingDismissed ? (
+    <div style={{ margin: '8px 0 12px' }}>
+      <p style={{ marginTop: 0 }}>{board.rising_water.why}</p>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={busy}
+          onClick={() => run(() => applyRisingWater(campaignId, { encounter_id: board.rising_water.encounter_id }))}
+        >
+          Open Rising water
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          disabled={busy}
+          onClick={() => {
+            run(() => rejectRisingWater(campaignId)).then((res) => {
+              if (res) setRisingDismissed(true);
+            });
+          }}
+        >
+          Leave it
+        </button>
+      </div>
+    </div>
+  ) : null;
+
   return (
     <div className="adventuring">
       <div>
@@ -1615,6 +1652,7 @@ export default function AdventuringPage() {
                   <span className="muted"> · No location</span>
                 )}
               </p>
+              {(!here || (here.facts || []).length === 0) && risingPrompt}
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -1715,6 +1753,33 @@ export default function AdventuringPage() {
                 </select>
                 <button type="submit" className="btn btn-secondary" disabled={busy}>Set flag</button>
               </form>
+            </div>
+          )}
+          {here && (here.facts || []).length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <h3 style={{ marginBottom: 6 }}>Object facts</h3>
+              <p className="muted">This playthrough. Room flags stay sprung, taken, or found.</p>
+              {(here.facts || []).map((fact) => (
+                <label key={fact.id} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+                  <input
+                    type="checkbox"
+                    checked={fact.value === true}
+                    disabled={busy}
+                    onChange={() => run(() => setPlayFact(campaignId, {
+                      subject_type: fact.subject_type,
+                      subject_key: fact.subject_key,
+                      state_key: fact.state_key,
+                      value: fact.value !== true,
+                      version: fact.version,
+                    }))}
+                  />
+                  <span>{fact.label}</span>
+                </label>
+              ))}
+              {board?.water_flowing != null && (
+                <p className="muted">{board.water_flowing ? 'Water is flowing.' : 'Water is not flowing.'}</p>
+              )}
+              {risingPrompt}
             </div>
           )}
         </div>

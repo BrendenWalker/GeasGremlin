@@ -157,6 +157,8 @@ Every new runtime state or event record must have a clear **playthrough owner**.
 
 Inspect existing Core/Enhanced ruleset inheritance, override precedence, resolution of mechanical modifiers, time-based mechanics, and supplement interaction. Trace how combat, conditions, resources, and turn advancement are currently calculated. Document whether Enhanced is a **curated fixed ruleset** or whether independently composable supplements are a product requirement. Identify conflicts, ambiguity, or duplicated calculations; add focused regression tests where needed. The campaign condition/effect evaluator should **orchestrate state and call existing ruleset services**, not reimplement AC, attack modifiers, saving throws, resource consumption, or other mechanics. Deliver an interface contract and recommendation; **do not** broaden scope to generic ruleset composition without separate approval.
 
+**Completed 2026-10-30.** The record is `docs/plans/ruleset-integration-assessment.md`. Enhanced stays one curated overlay. Phase 2 is narrative facts only, through `playState.js`. No composition redesign. `npm run test:overlay` locks the four Enhanced spells and two abilities. Phase 2 is not approved by that record.
+
 ### Phase 1 — Inventory, state foundation, and one end-to-end use case
 
 **Goal:** Represent the walkthrough waterwheel/slab truth explicitly without disturbing existing encounter flows.
@@ -177,6 +179,8 @@ Tasks:
 
 ### Phase 2 — Declarative conditions, effects, and preview/apply
 
+**Handoff:** `docs/plans/TRACKER.md`, next-session note. The walkthrough wins where the example matrix below disagrees. Water flowing stays derived. The slice is a GM-confirmed open of the existing Rising water encounter when the wheel is unblocked. No new rules table.
+
 **Goal:** Eliminate manual bookkeeping for the walkthrough's causal water puzzle.
 
 Tasks:
@@ -185,7 +189,7 @@ Tasks:
 - Implement a rule evaluator that produces proposed effects without mutating state.
 - Add preview/confirm API and a GM review UI showing source, matched conditions, changes, and notifications.
 - Add atomic application, idempotency, concurrency checking, bounded chaining, and audit records.
-- Encode: wheel unblocked while slab present → rising water active; slab removed → water can flow downstream. Verify both action orders, including slab-first.
+- Encode the walkthrough, not the old example matrix: the wheel unblocked and Rising water still prepared asks the GM to open that encounter. The slab does not gate the prompt. Water flowing stays derived, true only when the wheel is unblocked and the slab is removed. Re-blocking the wheel does not resolve the encounter. Verify both action orders, including slab-first.
 - Make repeated application a no-op; handle re-blocking/replacing only if explicitly supported by the authored scenario.
 
 **Acceptance:** Both action orders produce coherent state; repeated commands cannot duplicate consequences; preview can be rejected or adjusted; the log explains what happened; no scripts are embedded in campaign content.
@@ -205,6 +209,8 @@ Tasks:
 **Acceptance:** Players cannot see/traverse the secret route before discovery under normal play; the GM can inspect and override; existing non-secret paths work unchanged.
 
 ### Phase 4 — Situations, time, and environmental automation
+
+**Handoff:** `docs/plans/TRACKER.md`, next-session note. The walkthrough wins where this section asks for a Situation model or a damage roll. The slice is a GM-confirmed 1 damage when a turn is spent searching the stair while the existing Bad air encounter is opened. Rising water stays the Phase 2 preview. No new situation table. No second clock.
 
 **Goal:** Make non-combat circumstances first-class without destabilizing combat encounters.
 
@@ -263,11 +269,11 @@ Start with **read-only story/automation views** before building visual graph edi
 | Scenario | Expected result |
 |---|---|
 | New run | Wheel blocked, slab in place, rising water inactive, secret passage unknown |
-| Remove wheel obstruction first | Wheel unblocked; rising water activates if slab still blocks drainage |
-| Remove slab afterward | Water drains/flows; rising-water situation resolves according to authored rules |
-| Remove slab first | Subsequent wheel action does **not** incorrectly activate rising water |
+| Remove wheel obstruction first | Wheel unblocked; the GM is asked to open Rising water. Water is not flowing while the slab is in place. |
+| Remove slab afterward | Water flowing becomes true. Rising water stays opened. Putting the bone back does not resolve it. |
+| Remove slab first | The next time the wheel is freed, the GM is still asked to open Rising water. Water flowing becomes true only once the wheel is also free. |
 | Discover secret door | Knowledge changes; path becomes visible to party without silently changing locked/blocked state |
-| Enter bad-air area and advance time | Hazard evaluated once per applicable turn, with correct GM review/roll mechanics |
+| Search the stair for a turn | Bad air is already opened, the fight is closed, and the party is on that stair. The GM is asked to apply 1 damage. No roll. A declined turn writes nothing. The same turn cannot apply twice. |
 | Repeat same action/request | No duplicate events or effects |
 | GM overrides outcome | Override is recorded; state and presentation remain consistent |
 | Reload/reconnect | State, time, and history remain coherent |

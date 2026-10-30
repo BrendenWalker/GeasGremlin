@@ -98,6 +98,9 @@ export const deleteShop = (campaignId, locationId, shopId) => api.delete(`/campa
 export const createCreatures = (campaignId, locationId, body) => api.post(`/campaigns/${campaignId}/adventuring/locations/${locationId}/creatures`, body);
 export const deleteCreature = (campaignId, locationId, creatureId) => api.delete(`/campaigns/${campaignId}/adventuring/locations/${locationId}/creatures/${creatureId}`);
 export const setLocationFlag = (campaignId, locationId, body) => api.post(`/campaigns/${campaignId}/adventuring/locations/${locationId}/flags`, body);
+export const setPlayFact = (campaignId, body) => api.post(`/campaigns/${campaignId}/adventuring/state`, body);
+export const applyRisingWater = (campaignId, body) => api.post(`/campaigns/${campaignId}/adventuring/preview/apply`, body);
+export const rejectRisingWater = (campaignId) => api.post(`/campaigns/${campaignId}/adventuring/preview/reject`);
 export const clearLocationFlag = (campaignId, locationId, flagId) => api.delete(`/campaigns/${campaignId}/adventuring/locations/${locationId}/flags/${flagId}`);
 export const takeCreatures = (campaignId, body) => api.post(`/campaigns/${campaignId}/adventuring/creatures/take`, body);
 export const getCharacterShops = (campaignId, characterId) => api.get(`/campaigns/${campaignId}/characters/${characterId}/shops`);
@@ -161,7 +164,9 @@ export const deletePreparedEncounter = (campaignId, encounterId) => api.delete(`
 export const createTransition = (campaignId, body) => api.post(`/campaigns/${campaignId}/situation/transitions`, body);
 export const updateTransition = (campaignId, transitionId, body) => api.patch(`/campaigns/${campaignId}/situation/transitions/${transitionId}`, body);
 export const deleteTransition = (campaignId, transitionId) => api.delete(`/campaigns/${campaignId}/situation/transitions/${transitionId}`);
-export const arriveTransition = (campaignId, transitionId, reverse) => api.post(`/campaigns/${campaignId}/situation/transitions/${transitionId}/arrive`, reverse ? { reverse: true } : {});
+export const arriveTransition = (campaignId, transitionId, body) => api.post(`/campaigns/${campaignId}/situation/transitions/${transitionId}/arrive`, body || {});
+export const findTransition = (campaignId, transitionId) => api.post(`/campaigns/${campaignId}/situation/transitions/${transitionId}/found`);
+export const setTransitionAccess = (campaignId, transitionId, blocked) => api.post(`/campaigns/${campaignId}/situation/transitions/${transitionId}/access`, { blocked });
 export const addSituationLog = (campaignId, body) => api.post(`/campaigns/${campaignId}/situation/log`, body);
 export const endSituationSession = (campaignId) => api.post(`/campaigns/${campaignId}/situation/end`);
 export const concludeCampaign = (campaignId) => api.post(`/campaigns/${campaignId}/situation/conclude`);

@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import {
   addSituationLog,
   arriveTransition,
+  findTransition,
+  setTransitionAccess,
   createClue,
   createNpc,
   createObjective,
@@ -256,6 +258,8 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
   const [leadLocation, setLeadLocation] = useState('');
   const [leadReason, setLeadReason] = useState('');
   const [leadOneWay, setLeadOneWay] = useState(false);
+  const [leadSecret, setLeadSecret] = useState(false);
+  const [leadBlocked, setLeadBlocked] = useState(false);
   const [logKind, setLogKind] = useState('decision');
   const [logBody, setLogBody] = useState('');
 
@@ -330,6 +334,8 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
     setLeadLocation('');
     setLeadReason('');
     setLeadOneWay(false);
+    setLeadSecret(false);
+    setLeadBlocked(false);
     setLeadError(null);
   };
 
@@ -386,6 +392,8 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
     setLeadLocation('');
     setLeadReason('');
     setLeadOneWay(false);
+    setLeadSecret(false);
+    setLeadBlocked(false);
     setLeadError(null);
   };
 
@@ -566,6 +574,8 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
       to_location_id: Number(leadLocation),
       reason: leadReason,
       one_way: leadOneWay,
+      discovered: !leadSecret,
+      blocked: leadBlocked,
     };
     const action = leadEditId == null
       ? () => createTransition(campaignId, payload)
@@ -634,7 +644,7 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
         </>
       )}
       {!editing && pack.concluded && (
-        <p>This campaign is concluded. The playthrough was reset to its base lines. The log, hirelings, wander checks, room flags, and pending commands are already gone. Starting the session clears this flag and does not bring those rows back.</p>
+        <p>This campaign is concluded. The playthrough was reset to its base lines. Object facts return to their authored values. The log, hirelings, wander checks, room flags, and pending commands are already gone. Starting the session clears this flag and does not bring those rows back.</p>
       )}
       {!editing && !here && <p className="muted">Select a location.</p>}
       {!editing && here && (
@@ -938,12 +948,25 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
           {leads.map((row) => {
             const back = scopeId ? !sameId(row.from_location_id, scopeId) : false;
             const dest = back ? row.from_location_id : row.to_location_id;
+            const secret = row.discovered === false;
+            const shut = row.blocked === true;
             return (
               <li key={row.id} style={{ marginBottom: 6 }}>
                 <span>{locationName(locations, dest)}</span>
                 {row.reason ? <span className="muted"> · {row.reason}</span> : null}
                 {row.one_way ? <span className="muted"> · one way</span> : null}
-                <button type="button" className="btn btn-secondary" style={{ ...TINY, marginLeft: 8 }} disabled={busy} onClick={() => run(() => arriveTransition(campaignId, row.id, back))}>Go To</button>
+                {secret ? <span className="muted"> · secret</span> : null}
+                {shut ? <span className="muted"> · blocked</span> : null}
+                {!secret && !shut && (
+                  <button type="button" className="btn btn-secondary" style={{ ...TINY, marginLeft: 8 }} disabled={busy} onClick={() => run(() => arriveTransition(campaignId, row.id, { reverse: back }))}>Go To</button>
+                )}
+                {(secret || shut) && (
+                  <button type="button" className="btn btn-secondary" style={{ ...TINY, marginLeft: 8 }} disabled={busy} onClick={() => run(() => arriveTransition(campaignId, row.id, { reverse: back, override: true }))}>Go anyway</button>
+                )}
+                {secret && (
+                  <button type="button" className="btn btn-secondary" style={{ ...TINY, marginLeft: 8 }} disabled={busy} onClick={() => run(() => findTransition(campaignId, row.id))}>Mark found</button>
+                )}
+                <button type="button" className="btn btn-secondary" style={{ ...TINY, marginLeft: 8 }} disabled={busy} onClick={() => run(() => setTransitionAccess(campaignId, row.id, !shut))}>{shut ? 'Clear block' : 'Block'}</button>
               </li>
             );
           })}
@@ -967,6 +990,8 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
               setLeadLocation(row.to_location_id ? String(row.to_location_id) : '');
               setLeadReason(row.reason || '');
               setLeadOneWay(row.one_way === true);
+              setLeadSecret(row.discovered === false);
+              setLeadBlocked(row.blocked === true);
               setLeadError(null);
             }}
             onAskRemove={() => setConfirmLead(true)}
@@ -975,8 +1000,10 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
             optionLabel={(row) => {
               const ends = `${locationName(locations, row.from_location_id)} → ${locationName(locations, row.to_location_id)}`;
               const flag = row.one_way ? ' · one way' : '';
+              const secret = row.discovered === false ? ' · secret' : '';
+              const shut = row.blocked === true ? ' · blocked' : '';
               const reason = row.reason ? ` · ${row.reason}` : '';
-              return shortText(`${ends}${flag}${reason}`);
+              return shortText(`${ends}${flag}${secret}${shut}${reason}`);
             }}
             confirmLabel={(row) => locationName(locations, row.to_location_id)}
           />
@@ -1002,6 +1029,14 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
             <label>
               <input type="checkbox" checked={leadOneWay} onChange={(event) => setLeadOneWay(event.target.checked)} />
               {' '}One way
+            </label>
+            <label>
+              <input type="checkbox" checked={leadSecret} onChange={(event) => setLeadSecret(event.target.checked)} />
+              {' '}Secret
+            </label>
+            <label>
+              <input type="checkbox" checked={leadBlocked} onChange={(event) => setLeadBlocked(event.target.checked)} />
+              {' '}Blocked
             </label>
           </EditorFrame>
         </>

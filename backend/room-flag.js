@@ -3,6 +3,8 @@
  * Sprung, taken, and found are the states. A sentence secret stays a clue.
  */
 
+const { playerExits } = require('./pathWay');
+
 const FLAG_STATES = ['sprung', 'taken', 'found'];
 const NOTE_MAX = 80;
 
@@ -22,6 +24,7 @@ function playerHere(row) {
       body: item.body,
       status: item.status,
     })),
+    exits: playerExits(row?.paths, row?.location_id),
   };
 }
 

@@ -1,6 +1,6 @@
 export const CONCLUDE_CONFIRM = `Conclude this campaign and wipe the current playthrough? This cannot be undone.
 
-Restores creature hit points, disposition, and the open fight; encounter status; clues and objectives to their authored base lines; the clock, selected location, and visit; which places have been arrived at; and hunger, thirst, forced march, and hire penalty on characters in this campaign.
+Restores creature hit points, disposition, and the open fight; encounter status; clues and objectives to their authored base lines; object facts to their authored base lines; path discovery and whether a path is blocked; the clock, selected location, and visit; which places have been arrived at; and hunger, thirst, forced march, and hire penalty on characters in this campaign.
 
 Deletes wander checks, the log, clock marks, turn blocks, presence, room flags, pending commands, and hirelings.
 

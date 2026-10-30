@@ -17,7 +17,7 @@ const pagePath = path.join(__dirname, '..', 'frontend', 'src', 'pages', 'Adventu
 const confirmSource = fs.readFileSync(confirmPath, 'utf8');
 const pageSource = fs.readFileSync(pagePath, 'utf8');
 
-assert.equal(RESET_STEPS.length, 15);
+assert.equal(RESET_STEPS.length, 17);
 assert.deepEqual(RESET_STEPS.map((step) => step.table), [
   'campaign_creature',
   'campaign_encounter',
@@ -25,6 +25,8 @@ assert.deepEqual(RESET_STEPS.map((step) => step.table), [
   'campaign_objective',
   'campaign_board',
   'campaign_location',
+  'campaign_state_value',
+  'campaign_transition',
   'campaign_character',
   'campaign_wander',
   'campaign_log',
