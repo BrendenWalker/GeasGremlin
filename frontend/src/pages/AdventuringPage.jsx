@@ -49,6 +49,7 @@ import {
   concludeCampaign,
   endSituationSession,
 } from '../api/api';
+import { CONCLUDE_CONFIRM } from '../domain/concludeConfirm.mjs';
 import { clockToSeconds, effectEndSeconds, effectTurnsLeft, formatGameTime, markStatus, primaryStep, splitGameTime } from '../domain/gameTime.mjs';
 import SituationPanel from '../components/SituationPanel';
 
@@ -2121,6 +2122,7 @@ export default function AdventuringPage() {
 
       <div className="card">
         <h2>Session</h2>
+        <p className="muted">End session pauses and keeps this playthrough. Conclude wipes it.</p>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button
             type="button"
@@ -2132,9 +2134,12 @@ export default function AdventuringPage() {
           </button>
           <button
             type="button"
-            className="btn btn-secondary"
+            className="btn btn-danger"
             disabled={busy || !board}
-            onClick={() => leave(() => concludeCampaign(campaignId))}
+            onClick={() => {
+              if (!window.confirm(CONCLUDE_CONFIRM)) return;
+              leave(() => concludeCampaign(campaignId));
+            }}
           >
             Conclude campaign
           </button>

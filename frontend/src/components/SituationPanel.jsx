@@ -634,7 +634,7 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
         </>
       )}
       {!editing && pack.concluded && (
-        <p>This campaign is concluded. Starting the session runs it again from the base lines.</p>
+        <p>This campaign is concluded. The playthrough was reset to its base lines. The log, hirelings, wander checks, room flags, and pending commands are already gone. Starting the session clears this flag and does not bring those rows back.</p>
       )}
       {!editing && !here && <p className="muted">Select a location.</p>}
       {!editing && here && (

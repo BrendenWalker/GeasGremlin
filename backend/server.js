@@ -51,6 +51,11 @@ const { visitCheckDue, emptyCheckResult, currentVisitCheck } = require('./empty-
 const { TERRAINS, locationTerrain } = require('./terrain');
 const { objectiveKnownAfterClue } = require('./reveal');
 const {
+  START_SESSION_SQL,
+  endCampaignSession,
+  concludeCampaignRun,
+} = require('./campaignLifecycle');
+const {
   adjustedMiles,
   forcedMiles,
   airMiles,
@@ -425,7 +430,7 @@ app.post('/api/campaigns/:id/start', async (req, res) => {
     if (!member) return;
     if (member.role === 'gm') {
       const result = await pool.query(
-        'UPDATE campaign SET running = true, concluded = false, modified = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *',
+        START_SESSION_SQL,
         [req.params.id]
       );
       if (result.rows.length === 0) return res.status(404).json({ error: 'Campaign not found' });
@@ -6786,79 +6791,13 @@ app.post('/api/campaigns/:campaignId/situation/log', (req, res) => withSituation
   return { statusCode: 201, body: { id: Number(inserted.rows[0].id) } };
 }));
 
-app.post('/api/campaigns/:campaignId/situation/end', (req, res) => withSituation(req, res, 'Failed to end session', async (client, request) => {
-  const current = await client.query('SELECT id, concluded FROM campaign WHERE id = $1', [request.params.campaignId]);
-  if (current.rows.length === 0) throw storedError('Campaign not found', 404);
-  const updated = await client.query(
-    `UPDATE campaign SET running = false, modified = CURRENT_TIMESTAMP WHERE id = $1 RETURNING running, concluded`,
-    [request.params.campaignId]
-  );
-  return { running: updated.rows[0].running === true, concluded: updated.rows[0].concluded === true };
-}));
+app.post('/api/campaigns/:campaignId/situation/end', (req, res) => withSituation(req, res, 'Failed to end session', async (client, request) => (
+  endCampaignSession(client, request.params.campaignId)
+)));
 
-async function resetCampaignRun(client, campaignId) {
-  await client.query(
-    `UPDATE campaign_creature
-     SET hp = base_hp, disposition = base_disposition, in_fight = false
-     WHERE campaign_id = $1`,
-    [campaignId]
-  );
-  await client.query(
-    'UPDATE campaign_encounter SET status = base_status WHERE campaign_id = $1',
-    [campaignId]
-  );
-  await client.query(
-    'UPDATE campaign_clue SET discovered = base_discovered WHERE campaign_id = $1',
-    [campaignId]
-  );
-  await client.query(
-    'UPDATE campaign_objective SET known = base_known, status = base_status WHERE campaign_id = $1',
-    [campaignId]
-  );
-  await client.query(
-    `UPDATE campaign_board
-     SET game_seconds = 0, in_encounter = false, place = 'outside',
-         location_id = NULL, check_seconds = NULL, visit_seconds = NULL
-     WHERE campaign_id = $1`,
-    [campaignId]
-  );
-  await client.query(
-    'UPDATE campaign_location SET arrived_seconds = NULL WHERE campaign_id = $1',
-    [campaignId]
-  );
-  await client.query(
-    `UPDATE campaign_character
-     SET food_missed = 0, heal_food = false, heal_water = false,
-         march_days = 0, march_failed = false, hire_penalty = 0
-     WHERE campaign_id = $1`,
-    [campaignId]
-  );
-  await client.query('DELETE FROM campaign_wander WHERE campaign_id = $1', [campaignId]);
-  await client.query('DELETE FROM campaign_log WHERE campaign_id = $1', [campaignId]);
-  await client.query('DELETE FROM campaign_mark WHERE campaign_id = $1', [campaignId]);
-  await client.query('DELETE FROM campaign_turn_block WHERE campaign_id = $1', [campaignId]);
-  await client.query('DELETE FROM campaign_presence WHERE campaign_id = $1', [campaignId]);
-  await client.query(
-    `DELETE FROM campaign_location_flag f
-     USING campaign_location l
-     WHERE f.location_id = l.id AND l.campaign_id = $1`,
-    [campaignId]
-  );
-  await client.query('DELETE FROM campaign_command WHERE campaign_id = $1', [campaignId]);
-  await client.query('DELETE FROM campaign_hireling WHERE campaign_id = $1', [campaignId]);
-}
-
-app.post('/api/campaigns/:campaignId/situation/conclude', (req, res) => withSituation(req, res, 'Failed to conclude campaign', async (client, request) => {
-  const current = await client.query('SELECT id FROM campaign WHERE id = $1', [request.params.campaignId]);
-  if (current.rows.length === 0) throw storedError('Campaign not found', 404);
-  await resetCampaignRun(client, request.params.campaignId);
-  const updated = await client.query(
-    `UPDATE campaign SET concluded = true, running = false, modified = CURRENT_TIMESTAMP
-     WHERE id = $1 RETURNING running, concluded`,
-    [request.params.campaignId]
-  );
-  return { running: updated.rows[0].running === true, concluded: updated.rows[0].concluded === true };
-}));
+app.post('/api/campaigns/:campaignId/situation/conclude', (req, res) => withSituation(req, res, 'Failed to conclude campaign', async (client, request) => (
+  concludeCampaignRun(client, request.params.campaignId)
+)));
 
 app.get('/api/campaigns/:campaignId/here', async (req, res) => {
   try {

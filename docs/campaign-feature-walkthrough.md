@@ -50,6 +50,6 @@ Back in town, select Millbridge for the closing talk. The burial clue at the hea
 
 ## Stop
 
-End session pauses the campaign and keeps the dungeon. Conclude wipes hirelings and resets creatures, clues, and objectives to their base lines. Use Conclude only to start over. Starting the session clears that concluded flag.
+End session pauses the campaign and keeps the dungeon. Conclude asks for confirmation, then wipes the playthrough: creatures, encounters, clues, and objectives return to their base lines, and the log, hirelings, wander checks, room flags, clock marks, and pending commands are deleted. Character sheets stay. Use Conclude only to start over. Starting the session clears that concluded flag and does not bring the deleted rows back.
 
 When a control is missing, in the wrong place, or fights the table, write that down. That note is the point of the session.
