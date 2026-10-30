@@ -16,7 +16,9 @@ Source: `docs/plans/GeasGremlin_Cursor_Implementation_Plan_Revised.md`.
 | Phase 2 conditions and preview | done | One GM-confirmed preview. The wheel unblocked and Rising water still prepared asks to open that encounter. Apply uses the existing encounter open. Water flowing stays derived. No new rules table. `npm run test:play-state` passes. Stopped before Phase 3. |
 | Phase 3 connections and discovery | done | The chalk door is a one-way path on `campaign_transition`. It starts secret and open. Finding it does not block it. Players do not receive an undiscovered exit. `npm run test:path-way` passes. Stopped before Phase 4. |
 | Phase 4 stair hazard | done | One GM-confirmed damage on the existing Bad air encounter. Rising water stays the Phase 2 preview. `npm run test:bad-air` passes. Stopped before Phase 5. |
-| Phases 5–7 | todo | Not started. |
+| Phase 5 lifecycle gate | done | Inventory and proposal in `docs/plans/phase-5-lifecycle-gate.md`. The campaign stays the playthrough. The proposed slice is a log archive inside the existing conclude, then today's wipe. No `campaign_run_id`. Schema is not approved. |
+| Phase 5 log archive | done | `campaign_log_archive` is in `database/schema.sql` and on the live database. Conclude copies the log, then wipes. An empty log copies nothing. No `campaign_run_id`. No read route. `npm run test:lifecycle` rolls back its own campaigns. Stopped before Phases 6–7. |
+| Phases 6–7 | todo | Not started. |
 
 ### Phase 0 note (what is true)
 
@@ -47,6 +49,12 @@ On 2026-10-30, after this change, Feature Walk (id 21) was still running and not
 One question on the turn tick, not a rules table. `badAirPreview` in `backend/playState.js` proposes 1 damage when `POST /api/campaigns/:id/adventuring/tick` has `step` `turn`, the selected place is Cistern Stair, `in_encounter` is false, and the encounter titled Bad air is `opened`, kind `hazard`, with no members. A round, a watch, and a day do not propose it. Wander and the visit check on that tick still run once. Rising water stays the Phase 2 preview. The question is on the tick response and is held on the Location tab until apply or leave-it. A reload drops it and does not deal the damage. Apply is `POST /api/campaigns/:id/adventuring/bad-air/apply`. It checks the preview again at the current `game_seconds` and calls `writeCharacterHitPoints` with delta `-1` and note `bad air`, once for each character in the campaign whose current hit points are above 0. A consequence line at that clock makes a second apply change nothing. Reject is `POST /api/campaigns/:id/adventuring/bad-air/reject` and writes nothing. Opening the encounter does not deal the damage. Players do not receive the proposal. Conclude restores the encounter and deletes the log. It does not refund those hit points. `npm run test:bad-air` rolls back its own campaign. `npm run test:play-state`, `npm run test:path-way`, `npm run test:wander`, and `npm run test:overlay` pass.
 
 On 2026-10-30, after this change, Feature Walk (id 21) was still running and not concluded. Millbridge (location 62) was selected, outside. The clock was 0. Bad air (id 26) was hazard, prepared, and had no members, at Cistern Stair (location 65). Rising water was prepared. The log was empty. There were no wander rows. Hit points were unchanged. The feature-campaign seed was not run.
+
+### Phase 5 note (what is true)
+
+Conclude locks the campaign, copies `campaign_log` into `campaign_log_archive` with the next `play_no`, then runs the same wipe. An empty log copies nothing. The archive has no foreign key on `location_id` and no read route. Start, pause, and end session are unchanged. Character hit points are still not refunded. The campaign is still the playthrough. There is no `campaign_run_id`.
+
+On 2026-10-30, after this change, Feature Walk (id 21) was still running and not concluded. Cistern Stair (location 65) was selected, inside. The clock was 2400. The log still had two bad-air consequence lines, at 1200 and 1800. The archive had no rows. Campaigns `test` (id 9) and `Core` (id 10) were running and not concluded, with clocks 16200 and 119520 and no selected place. The feature-campaign seed was not run. Those rows were not wiped. The Phase 4 handoff below is the older snapshot.
 
 ### Next session — Phase 4 handoff
 

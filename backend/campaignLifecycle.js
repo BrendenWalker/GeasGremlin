@@ -1,7 +1,9 @@
 /**
- * Session end pauses a campaign. Conclude wipes the playthrough back to authored
- * base lines and sets concluded. There is no separate replay route: starting a
- * session only clears that flag. The statements below are the contract.
+ * Session end pauses a campaign. Conclude copies the log into
+ * campaign_log_archive, wipes the playthrough back to authored base lines, and
+ * sets concluded. An empty log copies nothing. There is no separate replay
+ * route: starting a session only clears that flag. The statements below are
+ * the contract.
  */
 
 const { RESTORE_FACTS_SQL } = require('./playState');
@@ -18,6 +20,16 @@ const END_SESSION_SQL = 'UPDATE campaign SET running = false, modified = CURRENT
 
 const CONCLUDE_CAMPAIGN_SQL = `UPDATE campaign SET concluded = true, running = false, modified = CURRENT_TIMESTAMP
      WHERE id = $1 RETURNING running, concluded`;
+
+const LOCK_CAMPAIGN_SQL = 'SELECT id FROM campaign WHERE id = $1 FOR UPDATE';
+
+const ARCHIVE_LOG_SQL = `INSERT INTO campaign_log_archive
+     (campaign_id, play_no, at_seconds, location_id, kind, body)
+     SELECT campaign_id,
+            (SELECT COALESCE(MAX(play_no), 0) + 1 FROM campaign_log_archive WHERE campaign_id = $1),
+            at_seconds, location_id, kind, body
+     FROM campaign_log
+     WHERE campaign_id = $1`;
 
 const RESET_STEPS = [
   {
@@ -153,6 +165,7 @@ const PRESERVED_TABLES = [
   'campaign_state_value',
   'campaign_location_shops',
   'campaign_location_shop_item_categories',
+  'campaign_log_archive',
   'encounter_table',
   'ruleset',
 ];
@@ -174,8 +187,9 @@ async function endCampaignSession(client, campaignId) {
 }
 
 async function concludeCampaignRun(client, campaignId) {
-  const current = await client.query('SELECT id FROM campaign WHERE id = $1', [campaignId]);
+  const current = await client.query(LOCK_CAMPAIGN_SQL, [campaignId]);
   if (current.rows.length === 0) throw missingCampaign();
+  await client.query(ARCHIVE_LOG_SQL, [campaignId]);
   await resetCampaignRun(client, campaignId);
   const updated = await client.query(CONCLUDE_CAMPAIGN_SQL, [campaignId]);
   return {
@@ -188,6 +202,8 @@ module.exports = {
   START_SESSION_SQL,
   END_SESSION_SQL,
   CONCLUDE_CAMPAIGN_SQL,
+  LOCK_CAMPAIGN_SQL,
+  ARCHIVE_LOG_SQL,
   RESET_STEPS,
   PRESERVED_TABLES,
   resetCampaignRun,

@@ -1487,6 +1487,25 @@ CREATE TABLE IF NOT EXISTS public.campaign_log (
 );
 CREATE INDEX IF NOT EXISTS idx_campaign_log_campaign ON public.campaign_log USING btree (campaign_id, id);
 
+-- One conclude copies the live log here, then the wipe deletes campaign_log.
+-- location_id is the place at that clock. It has no foreign key: deleting the place leaves the number.
+CREATE TABLE IF NOT EXISTS public.campaign_log_archive (
+	id serial4 NOT NULL,
+	campaign_id int4 NOT NULL,
+	play_no int4 NOT NULL,
+	at_seconds int4 NOT NULL DEFAULT 0,
+	location_id int4 NULL,
+	kind varchar(16) NOT NULL,
+	body text NOT NULL,
+	archived_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CONSTRAINT campaign_log_archive_pkey PRIMARY KEY (id),
+	CONSTRAINT campaign_log_archive_play_check CHECK (play_no >= 1),
+	CONSTRAINT campaign_log_archive_at_check CHECK (at_seconds >= 0),
+	CONSTRAINT campaign_log_archive_campaign_fkey FOREIGN KEY (campaign_id) REFERENCES public.campaign(id) ON DELETE CASCADE,
+	CONSTRAINT campaign_log_archive_kind_check CHECK (kind IN ('decision', 'consequence', 'discovery'))
+);
+CREATE INDEX IF NOT EXISTS idx_campaign_log_archive_campaign ON public.campaign_log_archive USING btree (campaign_id, play_no, id);
+
 -- Older campaigns stored a situation scene. Copy its place onto the rows, then drop it.
 ALTER TABLE public.campaign_transition ADD COLUMN IF NOT EXISTS from_location_id int4;
 ALTER TABLE public.campaign_transition ADD COLUMN IF NOT EXISTS one_way boolean NOT NULL DEFAULT false;

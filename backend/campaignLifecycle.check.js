@@ -1,10 +1,17 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const repoEnv = path.join(__dirname, '..', '.env');
+if (fs.existsSync(repoEnv)) require('dotenv').config({ path: repoEnv });
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+
+const { poolFromEnv } = require('./scripts/import-catalog');
 const {
   START_SESSION_SQL,
   END_SESSION_SQL,
   CONCLUDE_CAMPAIGN_SQL,
+  LOCK_CAMPAIGN_SQL,
+  ARCHIVE_LOG_SQL,
   RESET_STEPS,
   PRESERVED_TABLES,
   resetCampaignRun,
@@ -52,6 +59,27 @@ for (const table of PRESERVED_TABLES) {
 }
 assert.equal(deleted.includes('characters'), false);
 assert.equal(PRESERVED_TABLES.includes('campaign_transition'), true);
+assert.equal(PRESERVED_TABLES.includes('campaign_log_archive'), true);
+assert.equal(deleted.includes('campaign_log_archive'), false);
+assert.equal(ARCHIVE_LOG_SQL.includes('campaign_log_archive'), true);
+assert.equal(ARCHIVE_LOG_SQL.includes('location_id'), true);
+assert.equal(ARCHIVE_LOG_SQL.includes('FOREIGN KEY'), false);
+assert.match(LOCK_CAMPAIGN_SQL, /FOR UPDATE/);
+
+const lifecycleSource = fs.readFileSync(path.join(__dirname, 'campaignLifecycle.js'), 'utf8');
+const concludeAt = lifecycleSource.indexOf('async function concludeCampaignRun');
+const concludeFn = lifecycleSource.slice(concludeAt, lifecycleSource.indexOf('module.exports'));
+assert.ok(concludeFn.indexOf('ARCHIVE_LOG_SQL') < concludeFn.indexOf('resetCampaignRun'));
+assert.ok(concludeFn.indexOf('resetCampaignRun') < concludeFn.indexOf('CONCLUDE_CAMPAIGN_SQL'));
+
+const schema = fs.readFileSync(path.join(__dirname, '..', 'database', 'schema.sql'), 'utf8');
+const archiveAt = schema.indexOf('CREATE TABLE IF NOT EXISTS public.campaign_log_archive');
+const archiveEnd = schema.indexOf('CREATE INDEX IF NOT EXISTS idx_campaign_log_archive_campaign', archiveAt);
+assert.ok(archiveAt > 0 && archiveEnd > archiveAt);
+const archiveSql = schema.slice(archiveAt, archiveEnd);
+assert.equal(archiveSql.includes('campaign_run_id'), false);
+assert.equal(archiveSql.includes('location_id int4 NULL'), true);
+assert.equal(archiveSql.includes('REFERENCES public.campaign_location'), false);
 
 assert.match(END_SESSION_SQL, /running = false/);
 assert.equal(/concluded\s*=/.test(END_SESSION_SQL), false);
@@ -82,11 +110,24 @@ async function callsOf(run) {
   return { calls, result };
 }
 
+async function withRollback(run) {
+  const pool = poolFromEnv();
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await run(client);
+  } finally {
+    try { await client.query('ROLLBACK'); } catch (_) { /* already closed */ }
+    client.release();
+    await pool.end();
+  }
+}
+
 (async () => {
   const wiped = await callsOf((client) => concludeCampaignRun(client, 9));
   assert.deepEqual(
     wiped.calls.map((call) => call.sql),
-    ['SELECT id FROM campaign WHERE id = $1', ...RESET_STEPS.map((step) => step.sql), CONCLUDE_CAMPAIGN_SQL]
+    [LOCK_CAMPAIGN_SQL, ARCHIVE_LOG_SQL, ...RESET_STEPS.map((step) => step.sql), CONCLUDE_CAMPAIGN_SQL]
   );
   assert.ok(wiped.calls.every((call) => call.params.length === 1 && call.params[0] === 9));
   assert.deepEqual(wiped.result, { running: false, concluded: true });
@@ -111,7 +152,110 @@ async function callsOf(run) {
   await assert.rejects(() => concludeCampaignRun(missing, 3), (error) => error.status === 404);
   await assert.rejects(() => endCampaignSession(missing, 3), (error) => error.status === 404);
 
-  console.log('campaign lifecycle ok');
+  console.log('campaign lifecycle statements ok');
+
+  await withRollback(async (client) => {
+    const ruleset = await client.query('SELECT id FROM ruleset ORDER BY id LIMIT 1');
+    assert.ok(ruleset.rows.length === 1, 'ruleset');
+    const table = await client.query(
+      'SELECT id FROM encounter_table WHERE ruleset_id IS NOT NULL ORDER BY id LIMIT 1'
+    );
+    assert.ok(table.rows.length === 1, 'encounter table');
+    const rulesetId = ruleset.rows[0].id;
+    const tableId = table.rows[0].id;
+    const stamp = Date.now();
+
+    const inserted = await client.query(
+      `INSERT INTO campaign (name, ruleset_id, running, concluded)
+       VALUES ($1, $2, true, false) RETURNING id`,
+      [`zz-phase5-${stamp}`, rulesetId]
+    );
+    const id = Number(inserted.rows[0].id);
+    const other = await client.query(
+      `INSERT INTO campaign (name, ruleset_id, running, concluded)
+       VALUES ($1, $2, true, false) RETURNING id`,
+      [`zz-phase5-other-${stamp}`, rulesetId]
+    );
+    const otherId = Number(other.rows[0].id);
+    const place = await client.query(
+      `INSERT INTO campaign_location
+         (campaign_id, name, place, check_die, interval_seconds, encounter_table_id, ambient_light)
+       VALUES ($1, 'Stair', 'inside', 6, 1800, $2, 0)
+       RETURNING id`,
+      [id, tableId]
+    );
+    const locationId = Number(place.rows[0].id);
+    await client.query(
+      `INSERT INTO campaign_board (campaign_id, game_seconds, place, location_id)
+       VALUES ($1, 2400, 'inside', $2)`,
+      [id, locationId]
+    );
+    await client.query(
+      `INSERT INTO campaign_log (campaign_id, location_id, at_seconds, kind, body)
+       VALUES ($1, $2, 1200, 'consequence', 'Bad air costs 1 damage.')`,
+      [id, locationId]
+    );
+    await client.query(
+      `INSERT INTO campaign_log (campaign_id, at_seconds, kind, body)
+       VALUES ($1, 100, 'decision', 'Leave this one.')`,
+      [otherId]
+    );
+
+    const first = await concludeCampaignRun(client, id);
+    assert.deepEqual(first, { running: false, concluded: true });
+    const live = await client.query('SELECT id FROM campaign_log WHERE campaign_id = $1', [id]);
+    assert.equal(live.rows.length, 0);
+    const kept = await client.query('SELECT body FROM campaign_log WHERE campaign_id = $1', [otherId]);
+    assert.deepEqual(kept.rows.map((row) => row.body), ['Leave this one.']);
+    const archived = await client.query(
+      `SELECT play_no, at_seconds, location_id, kind, body
+       FROM campaign_log_archive WHERE campaign_id = $1 ORDER BY id`,
+      [id]
+    );
+    assert.equal(archived.rows.length, 1);
+    assert.equal(Number(archived.rows[0].play_no), 1);
+    assert.equal(Number(archived.rows[0].at_seconds), 1200);
+    assert.equal(Number(archived.rows[0].location_id), locationId);
+    assert.equal(archived.rows[0].kind, 'consequence');
+    assert.equal(archived.rows[0].body, 'Bad air costs 1 damage.');
+    const clock = await client.query(
+      'SELECT game_seconds, location_id FROM campaign_board WHERE campaign_id = $1',
+      [id]
+    );
+    assert.equal(Number(clock.rows[0].game_seconds), 0);
+    assert.equal(clock.rows[0].location_id, null);
+    const otherArchive = await client.query(
+      'SELECT id FROM campaign_log_archive WHERE campaign_id = $1',
+      [otherId]
+    );
+    assert.equal(otherArchive.rows.length, 0);
+
+    await client.query(
+      `INSERT INTO campaign_log (campaign_id, at_seconds, kind, body)
+       VALUES ($1, 600, 'discovery', 'The door was chalk.')`,
+      [id]
+    );
+    await concludeCampaignRun(client, id);
+    const plays = await client.query(
+      `SELECT play_no, body FROM campaign_log_archive
+       WHERE campaign_id = $1 ORDER BY play_no, id`,
+      [id]
+    );
+    assert.deepEqual(plays.rows.map((row) => [Number(row.play_no), row.body]), [
+      [1, 'Bad air costs 1 damage.'],
+      [2, 'The door was chalk.'],
+    ]);
+    const gone = await client.query('SELECT id FROM campaign_log WHERE campaign_id = $1', [id]);
+    assert.equal(gone.rows.length, 0);
+
+    await concludeCampaignRun(client, id);
+    const still = await client.query(
+      'SELECT play_no FROM campaign_log_archive WHERE campaign_id = $1 ORDER BY play_no',
+      [id]
+    );
+    assert.deepEqual(still.rows.map((row) => Number(row.play_no)), [1, 2]);
+  });
+  console.log('campaign lifecycle archive ok');
 })().catch((error) => {
   console.error(error);
   process.exit(1);
