@@ -134,7 +134,7 @@ assert.equal((stateRoutes.match(/requireCampaign\(req, res, req\.params\.campaig
 assert.equal(stateRoutes.includes('requireCampaign(req, res, req.params.campaignId, false)'), false);
 const previewApply = serverSource.indexOf("app.post('/api/campaigns/:campaignId/adventuring/preview/apply'");
 const previewReject = serverSource.indexOf("app.post('/api/campaigns/:campaignId/adventuring/preview/reject'");
-const previewEnd = serverSource.indexOf("app.post('/api/campaigns/:campaignId/adventuring/creatures/take'", previewReject);
+const previewEnd = serverSource.indexOf("app.post('/api/campaigns/:campaignId/adventuring/bad-air/apply'", previewReject);
 assert.ok(previewApply > 0 && previewReject > previewApply && previewEnd > previewReject);
 const previewRoutes = serverSource.slice(previewApply, previewEnd);
 assert.equal((previewRoutes.match(/requireCampaign\(req, res, req\.params\.campaignId, true\)/g) || []).length, 2);

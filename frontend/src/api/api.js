@@ -101,6 +101,8 @@ export const setLocationFlag = (campaignId, locationId, body) => api.post(`/camp
 export const setPlayFact = (campaignId, body) => api.post(`/campaigns/${campaignId}/adventuring/state`, body);
 export const applyRisingWater = (campaignId, body) => api.post(`/campaigns/${campaignId}/adventuring/preview/apply`, body);
 export const rejectRisingWater = (campaignId) => api.post(`/campaigns/${campaignId}/adventuring/preview/reject`);
+export const applyBadAir = (campaignId, body) => api.post(`/campaigns/${campaignId}/adventuring/bad-air/apply`, body);
+export const rejectBadAir = (campaignId) => api.post(`/campaigns/${campaignId}/adventuring/bad-air/reject`);
 export const clearLocationFlag = (campaignId, locationId, flagId) => api.delete(`/campaigns/${campaignId}/adventuring/locations/${locationId}/flags/${flagId}`);
 export const takeCreatures = (campaignId, body) => api.post(`/campaigns/${campaignId}/adventuring/creatures/take`, body);
 export const getCharacterShops = (campaignId, characterId) => api.get(`/campaigns/${campaignId}/characters/${characterId}/shops`);

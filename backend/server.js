@@ -55,6 +55,10 @@ const {
   readPreviewCommand,
   rejectRisingWater,
   applyRisingWater,
+  readBadAirCommand,
+  rejectBadAir,
+  badAirOnTurn,
+  applyBadAir,
 } = require('./playState');
 const { openPreparedEncounter } = require('./preparedEncounter');
 const { visitCheckDue, emptyCheckResult, currentVisitCheck } = require('./empty-check');
@@ -2762,6 +2766,10 @@ app.post('/api/campaigns/:campaignId/adventuring/tick', async (req, res) => {
       checks = await applyWander(client, req.params.campaignId, clock);
       visit = await applyVisitCheck(client, req.params.campaignId, clock);
     }
+    // The question lives on this response. It is not stored, so a reload does not ask again.
+    const badAir = req.body.step === 'turn'
+      ? await badAirOnTurn(client, req.params.campaignId, now)
+      : null;
     let queued = null;
     if (step.command === 'new_day') {
       await copyIntendToMemorized(client, req.params.campaignId, null);
@@ -2777,7 +2785,7 @@ app.post('/api/campaigns/:campaignId/adventuring/tick', async (req, res) => {
       queued = inserted.rowCount;
     }
     await client.query('COMMIT');
-    res.json({ game_seconds: now, queued, checks, visit });
+    res.json({ game_seconds: now, queued, checks, visit, bad_air: badAir });
   } catch (error) {
     try { await client.query('ROLLBACK'); } catch (_) { /* connection already failed */ }
     if (adventuringMissing(res, error)) return;
@@ -3842,6 +3850,45 @@ app.post('/api/campaigns/:campaignId/adventuring/preview/reject', async (req, re
     if (adventuringMissing(res, error)) return;
     console.error('Error rejecting rising water preview:', error);
     res.status(500).json({ error: error.message || 'Failed to leave Rising water' });
+  }
+});
+
+app.post('/api/campaigns/:campaignId/adventuring/bad-air/apply', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const command = readBadAirCommand(req.body || {});
+    if (command.error) return res.status(400).json({ error: command.error });
+    await client.query('BEGIN');
+    const saved = await applyBadAir(
+      client,
+      req.params.campaignId,
+      command.game_seconds,
+      writeCharacterHitPoints
+    );
+    await client.query('COMMIT');
+    res.json(saved);
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch (_) { /* connection already failed */ }
+    if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    console.error('Error applying bad air:', error);
+    res.status(500).json({ error: error.message || 'Failed to apply bad air' });
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/campaigns/:campaignId/adventuring/bad-air/reject', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    res.json(rejectBadAir());
+  } catch (error) {
+    if (adventuringMissing(res, error)) return;
+    console.error('Error rejecting bad air:', error);
+    res.status(500).json({ error: error.message || 'Failed to leave bad air' });
   }
 });
 
@@ -6969,5 +7016,5 @@ function startServer(portToUse = port) {
 if (require.main === module) {
   startServer();
 } else {
-  module.exports = { app, startServer };
+  module.exports = { app, startServer, writeCharacterHitPoints, pool };
 }

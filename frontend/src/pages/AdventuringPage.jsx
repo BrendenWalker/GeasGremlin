@@ -45,6 +45,8 @@ import {
   setPlayFact,
   applyRisingWater,
   rejectRisingWater,
+  applyBadAir,
+  rejectBadAir,
   clearLocationFlag,
   setAdventuringPlace,
   tickAdventuring,
@@ -376,6 +378,7 @@ export default function AdventuringPage() {
   const [eventDirty, setEventDirty] = useState(false);
   const [locationPick, setLocationPick] = useState('');
   const [risingDismissed, setRisingDismissed] = useState(false);
+  const [badAirAsk, setBadAirAsk] = useState(null);
 
   const load = useCallback((quiet) => {
     if (!quiet) setLoading(true);
@@ -1139,6 +1142,38 @@ export default function AdventuringPage() {
     </div>
   ) : null;
 
+  const badAirPrompt = badAirAsk ? (
+    <div style={{ margin: '8px 0 12px' }}>
+      <p style={{ marginTop: 0 }}>{badAirAsk.why}</p>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={busy}
+          onClick={() => {
+            run(() => applyBadAir(campaignId, { game_seconds: badAirAsk.game_seconds })).then((res) => {
+              if (res?.data?.changed) setBadAirAsk(null);
+            });
+          }}
+        >
+          Apply 1 damage
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          disabled={busy}
+          onClick={() => {
+            run(() => rejectBadAir(campaignId)).then((res) => {
+              if (res) setBadAirAsk(null);
+            });
+          }}
+        >
+          Leave it
+        </button>
+      </div>
+    </div>
+  ) : null;
+
   return (
     <div className="adventuring">
       <div>
@@ -1653,6 +1688,7 @@ export default function AdventuringPage() {
                 )}
               </p>
               {(!here || (here.facts || []).length === 0) && risingPrompt}
+              {(!here || (here.facts || []).length === 0) && badAirPrompt}
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -1780,6 +1816,7 @@ export default function AdventuringPage() {
                 <p className="muted">{board.water_flowing ? 'Water is flowing.' : 'Water is not flowing.'}</p>
               )}
               {risingPrompt}
+              {badAirPrompt}
             </div>
           )}
         </div>
@@ -2037,7 +2074,9 @@ export default function AdventuringPage() {
               type="button"
               className={button.step === primary ? 'btn clock-step' : 'btn btn-secondary'}
               disabled={busy || !board}
-              onClick={() => run(() => tickAdventuring(campaignId, button.step))}
+              onClick={() => run(() => tickAdventuring(campaignId, button.step)).then((res) => {
+                if (res?.data?.bad_air) setBadAirAsk(res.data.bad_air);
+              })}
             >
               {button.label}
             </button>

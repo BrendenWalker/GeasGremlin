@@ -4,6 +4,7 @@
  * The clock, clues, objectives, encounters, and room flags stay on their own tables.
  * Water flowing is derived from the wheel and the slab. It is not a row.
  * Opening Rising water is a preview over the existing encounter. It is not a row.
+ * Bad air damage is a second preview over that encounter and the hit-point write.
  */
 
 const FACTS = [
@@ -223,6 +224,120 @@ async function attachAuthoredFacts(client, campaignId) {
   return inserted;
 }
 
+const BAD_AIR_TITLE = 'Bad air';
+const BAD_AIR_PLACE = 'Cistern Stair';
+const BAD_AIR_LOG = 'Bad air costs 1 damage.';
+
+const BAD_AIR_BOARD_SQL = `SELECT b.game_seconds, b.in_encounter, b.location_id, l.name AS location_name
+     FROM campaign_board b
+     LEFT JOIN campaign_location l ON l.id = b.location_id AND l.campaign_id = b.campaign_id
+     WHERE b.campaign_id = $1`;
+
+const BAD_AIR_ENCOUNTERS_SQL = `SELECT e.id, e.title, e.kind, e.status,
+            (SELECT count(*)::int FROM campaign_encounter_member m WHERE m.encounter_id = e.id) AS member_count
+     FROM campaign_encounter e
+     WHERE e.campaign_id = $1 AND e.title = $2
+     ORDER BY e.id`;
+
+const BAD_AIR_LOG_SQL = `SELECT id FROM campaign_log
+     WHERE campaign_id = $1 AND at_seconds = $2 AND body = $3
+     LIMIT 1`;
+
+const BAD_AIR_CHARACTERS_SQL = `SELECT c.id,
+            CASE WHEN c.hp IS NULL THEN NULL
+            ELSE LEAST(GREATEST(c.hp + COALESCE((
+              SELECT SUM(e.value)
+              FROM character_effects e
+              JOIN stat s ON s.id = e.effect AND s.name = 'HP'
+              WHERE e.character_id = c.id
+            ), 0), 0), c.hp)
+            END AS current_hp
+     FROM characters c
+     INNER JOIN campaign_character cc ON cc.character_id = c.id AND cc.campaign_id = $1
+     ORDER BY c.id`;
+
+const BAD_AIR_MARK_SQL = `INSERT INTO campaign_log (campaign_id, location_id, at_seconds, kind, body)
+     VALUES ($1, $2, $3, 'consequence', $4)`;
+
+function badAirPreview(turn) {
+  if (!turn || turn.step !== 'turn' || turn.in_encounter === true || turn.already === true) return null;
+  if (turn.location_name !== BAD_AIR_PLACE) return null;
+  const game_seconds = Number(turn.game_seconds);
+  if (!Number.isInteger(game_seconds) || game_seconds < 0) return null;
+  const matches = (turn.encounters || []).filter((row) => (
+    row
+    && row.title === BAD_AIR_TITLE
+    && row.status === 'opened'
+    && row.kind === 'hazard'
+    && memberCount(row) === 0
+  ));
+  if (matches.length !== 1) return null;
+  return {
+    encounter_id: Number(matches[0].id),
+    title: BAD_AIR_TITLE,
+    why: 'A turn of searching costs 1 damage.',
+    change: 'damage',
+    delta: -1,
+    game_seconds,
+  };
+}
+
+function readBadAirCommand(body) {
+  const game_seconds = Number(body?.game_seconds);
+  if (!Number.isInteger(game_seconds) || game_seconds < 0) return { error: 'game_seconds is required' };
+  return { game_seconds };
+}
+
+function rejectBadAir() {
+  return { changed: false };
+}
+
+async function readBadAirTurn(client, campaignId, lock) {
+  const board = await client.query(
+    `${BAD_AIR_BOARD_SQL}${lock ? ' FOR UPDATE OF b' : ''}`,
+    [campaignId]
+  );
+  if (board.rows.length === 0) return null;
+  const row = board.rows[0];
+  const seconds = Number(row.game_seconds);
+  const encounters = await client.query(BAD_AIR_ENCOUNTERS_SQL, [campaignId, BAD_AIR_TITLE]);
+  const logged = await client.query(BAD_AIR_LOG_SQL, [campaignId, seconds, BAD_AIR_LOG]);
+  return {
+    in_encounter: row.in_encounter === true,
+    location_name: row.location_name,
+    location_id: row.location_id == null ? null : Number(row.location_id),
+    game_seconds: seconds,
+    already: logged.rows.length > 0,
+    encounters: encounters.rows,
+  };
+}
+
+async function badAirOnTurn(client, campaignId, gameSeconds) {
+  const turn = await readBadAirTurn(client, campaignId, false);
+  if (!turn || Number(turn.game_seconds) !== Number(gameSeconds)) return null;
+  return badAirPreview({ ...turn, step: 'turn' });
+}
+
+async function applyBadAir(client, campaignId, gameSeconds, writeHitPoints) {
+  const seconds = Number(gameSeconds);
+  if (!Number.isInteger(seconds) || seconds < 0) throw storedError('game_seconds is required', 400);
+  const turn = await readBadAirTurn(client, campaignId, true);
+  if (!turn || turn.game_seconds !== seconds) return { changed: false };
+  const preview = badAirPreview({ ...turn, step: 'turn' });
+  if (!preview) return { changed: false };
+  const people = await client.query(BAD_AIR_CHARACTERS_SQL, [campaignId]);
+  let damaged = 0;
+  for (const person of people.rows) {
+    if (person.current_hp == null) continue;
+    const current = Number(person.current_hp);
+    if (!Number.isInteger(current) || current <= 0) continue;
+    await writeHitPoints(client, Number(person.id), -1, 'bad air');
+    damaged += 1;
+  }
+  await client.query(BAD_AIR_MARK_SQL, [campaignId, turn.location_id, seconds, BAD_AIR_LOG]);
+  return { changed: true, damaged, game_seconds: seconds };
+}
+
 module.exports = {
   FACTS,
   LIST_FACTS_SQL,
@@ -240,6 +355,12 @@ module.exports = {
   readPreviewCommand,
   rejectRisingWater,
   applyRisingWater,
+  BAD_AIR_LOG,
+  badAirPreview,
+  readBadAirCommand,
+  rejectBadAir,
+  badAirOnTurn,
+  applyBadAir,
   listFacts,
   setFact,
   attachAuthoredFacts,

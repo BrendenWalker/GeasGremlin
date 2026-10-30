@@ -15,7 +15,7 @@ Source: `docs/plans/GeasGremlin_Cursor_Implementation_Plan_Revised.md`.
 | Ruleset assessment before Phase 2 | done | `docs/plans/ruleset-integration-assessment.md`. Enhanced stays one curated overlay on Core. Phase 2 may orchestrate campaign facts only. It must not reimplement book numbers or add a second parent. `npm run test:overlay` expects the four Enhanced spells and two abilities. |
 | Phase 2 conditions and preview | done | One GM-confirmed preview. The wheel unblocked and Rising water still prepared asks to open that encounter. Apply uses the existing encounter open. Water flowing stays derived. No new rules table. `npm run test:play-state` passes. Stopped before Phase 3. |
 | Phase 3 connections and discovery | done | The chalk door is a one-way path on `campaign_transition`. It starts secret and open. Finding it does not block it. Players do not receive an undiscovered exit. `npm run test:path-way` passes. Stopped before Phase 4. |
-| Phase 4 stair hazard | todo | Handoff is below. One GM-confirmed damage on the existing Bad air encounter. Not started. |
+| Phase 4 stair hazard | done | One GM-confirmed damage on the existing Bad air encounter. Rising water stays the Phase 2 preview. `npm run test:bad-air` passes. Stopped before Phase 5. |
 | Phases 5–7 | todo | Not started. |
 
 ### Phase 0 note (what is true)
@@ -42,9 +42,15 @@ The path row is the path. `discovered` and `base_discovered`, and `blocked` and 
 
 On 2026-10-30, after this change, Feature Walk (id 21) was still running and not concluded. Millbridge (location 62) was selected, outside. The chalk door (transition 13) was one way, undiscovered, and open, both base columns false. The other six paths were known and open. The log was empty. The wheel was blocked and the slab was in place. Rising water was prepared. The feature-campaign seed was not run.
 
+### Phase 4 note (what is true)
+
+One question on the turn tick, not a rules table. `badAirPreview` in `backend/playState.js` proposes 1 damage when `POST /api/campaigns/:id/adventuring/tick` has `step` `turn`, the selected place is Cistern Stair, `in_encounter` is false, and the encounter titled Bad air is `opened`, kind `hazard`, with no members. A round, a watch, and a day do not propose it. Wander and the visit check on that tick still run once. Rising water stays the Phase 2 preview. The question is on the tick response and is held on the Location tab until apply or leave-it. A reload drops it and does not deal the damage. Apply is `POST /api/campaigns/:id/adventuring/bad-air/apply`. It checks the preview again at the current `game_seconds` and calls `writeCharacterHitPoints` with delta `-1` and note `bad air`, once for each character in the campaign whose current hit points are above 0. A consequence line at that clock makes a second apply change nothing. Reject is `POST /api/campaigns/:id/adventuring/bad-air/reject` and writes nothing. Opening the encounter does not deal the damage. Players do not receive the proposal. Conclude restores the encounter and deletes the log. It does not refund those hit points. `npm run test:bad-air` rolls back its own campaign. `npm run test:play-state`, `npm run test:path-way`, `npm run test:wander`, and `npm run test:overlay` pass.
+
+On 2026-10-30, after this change, Feature Walk (id 21) was still running and not concluded. Millbridge (location 62) was selected, outside. The clock was 0. Bad air (id 26) was hazard, prepared, and had no members, at Cistern Stair (location 65). Rising water was prepared. The log was empty. There were no wander rows. Hit points were unchanged. The feature-campaign seed was not run.
+
 ### Next session — Phase 4 handoff
 
-Phase 3 is done. Do not start Phase 5 from this note.
+This handoff was followed. Phase 4 is done. Do not start Phase 5 from this note.
 
 Phase 4 is one GM-confirmed damage for a turn of searching the stair. The walkthrough is the rule. The plan's Situation model is not, and the matrix row that asks for a roll is not. `docs/campaign-feature-walkthrough.md` says open the existing Bad air encounter when they search the flight. The seed line on that encounter says each turn they search there costs 1 damage unless they retreat for a turn first, and it says not to roll and not to set a flag. Rising water stays the Phase 2 preview. Do not turn it into a situation.
 
