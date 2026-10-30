@@ -1,0 +1,86 @@
+name: Ruleset import/export round-trip
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  roundtrip:
+    name: Round-trip ${{ matrix.catalog }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        catalog:
+          - BasicFantasy_Core
+          - BasicFantasy_Enhanced
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: geasgremlin_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d geasgremlin_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_NAME: geasgremlin_ci
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      PGPASSWORD: postgres
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Install psql client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Apply schema
+        run: psql -h localhost -U postgres -d geasgremlin_ci -v ON_ERROR_STOP=1 -f database/schema.sql
+
+      - name: Ruleset overlay
+        working-directory: backend
+        run: npm run test:overlay
+
+      - name: Wander schedule
+        working-directory: backend
+        run: npm run test:wander
+
+      - name: Location terrain
+        working-directory: backend
+        run: npm run test:terrain
+
+      - name: Treasure draft
+        working-directory: backend
+        run: npm run test:treasure
+
+      - name: Play catalog import
+        working-directory: backend
+        run: npm run test:catalog-import
+
+      - name: Import → export → compare
+        working-directory: backend
+        run: npm run test:ruleset-roundtrip -- --dir ../GameSystems/${{ matrix.catalog }}

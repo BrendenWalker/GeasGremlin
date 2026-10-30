@@ -1,0 +1,178 @@
+{
+"RACE_ABILITIES": [
+	{
+		"RACE_ID" : 1,
+		"ABILITY_ID" : 1,
+		"INT_PARAM" : 60,
+		"STR_PARAM" : "",
+		"MODIFIED" : "2021-10-15 17:33:15.562"
+	},
+	{
+		"RACE_ID" : 1,
+		"ABILITY_ID" : 37,
+		"INT_PARAM" : "",
+		"STR_PARAM" : "",
+		"MODIFIED" : "2021-10-15 17:35:12.151"
+	},
+	{
+		"RACE_ID" : 1,
+		"ABILITY_ID" : 6,
+		"INT_PARAM" : -4,
+		"STR_PARAM" : "",
+		"MODIFIED" : "2021-10-15 17:33:15.562"
+	},
+	{
+		"RACE_ID" : 1,
+		"ABILITY_ID" : 7,
+		"INT_PARAM" : -4,
+		"STR_PARAM" : "",
+		"MODIFIED" : "2021-10-15 17:33:15.562"
+	},
+	{
+		"RACE_ID" : 1,
+		"ABILITY_ID" : 9,
+		"INT_PARAM" : -4,
+		"STR_PARAM" : "",
+		"MODIFIED" : "2021-10-15 17:33:15.562"
+	},
+	{
+		"RACE_ID" : 1,
+		"ABILITY_ID" : 5,
+		"INT_PARAM" : -4,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-10 12:50:44"
+	},
+	{
+		"RACE_ID" : 4,
+		"ABILITY_ID" : 5,
+		"INT_PARAM" : -4,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-10 12:50:44"
+	},
+	{
+		"RACE_ID" : 3,
+		"ABILITY_ID" : 6,
+		"INT_PARAM" : -2,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-10 12:50:44"
+	},
+	{
+		"RACE_ID" : 4,
+		"ABILITY_ID" : 6,
+		"INT_PARAM" : -4,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-10 12:50:44"
+	},
+	{
+		"RACE_ID" : 3,
+		"ABILITY_ID" : 7,
+		"INT_PARAM" : -1,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-10 12:50:44"
+	},
+	{
+		"RACE_ID" : 4,
+		"ABILITY_ID" : 7,
+		"INT_PARAM" : -4,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-10 12:50:44"
+	},
+	{
+		"RACE_ID" : 1,
+		"ABILITY_ID" : 8,
+		"INT_PARAM" : -3,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-10 12:50:44"
+	},
+	{
+		"RACE_ID" : 4,
+		"ABILITY_ID" : 8,
+		"INT_PARAM" : -3,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-10 12:50:44"
+	},
+	{
+		"RACE_ID" : 3,
+		"ABILITY_ID" : 9,
+		"INT_PARAM" : -2,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-10 12:50:44"
+	},
+	{
+		"RACE_ID" : 4,
+		"ABILITY_ID" : 9,
+		"INT_PARAM" : -4,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-10 12:50:44"
+	},
+	{
+		"RACE_ID" : 3,
+		"ABILITY_ID" : 17,
+		"INT_PARAM" : null,
+		"STR_PARAM" : "cursory",
+		"MODIFIED" : "2021-08-10 10:20:09.936"
+	},
+	{
+		"RACE_ID" : 3,
+		"ABILITY_ID" : 1,
+		"INT_PARAM" : 60,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-09-04 14:14:51.522"
+	},
+	{
+		"RACE_ID" : 3,
+		"ABILITY_ID" : 19,
+		"INT_PARAM" : null,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-09-04 14:15:33.474"
+	},
+	{
+		"RACE_ID" : 3,
+		"ABILITY_ID" : 18,
+		"INT_PARAM" : null,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-09-04 14:16:23.315"
+	},
+	{
+		"RACE_ID" : 4,
+		"ABILITY_ID" : 38,
+		"INT_PARAM" : 1,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2023-05-26 20:05:32"
+	},
+	{
+		"RACE_ID" : 4,
+		"ABILITY_ID" : 20,
+		"INT_PARAM" : null,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2023-05-26 20:06:44"
+	},
+	{
+		"RACE_ID" : 4,
+		"ABILITY_ID" : 22,
+		"INT_PARAM" : 90,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2023-05-26 20:06:44"
+	},
+	{
+		"RACE_ID" : 4,
+		"ABILITY_ID" : 31,
+		"INT_PARAM" : 70,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2023-05-26 20:06:44"
+	},
+	{
+		"RACE_ID" : 4,
+		"ABILITY_ID" : 21,
+		"INT_PARAM" : null,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2023-05-26 20:06:44"
+	},
+	{
+		"RACE_ID" : 5,
+		"ABILITY_ID" : 40,
+		"INT_PARAM" : 10,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	}
+]}

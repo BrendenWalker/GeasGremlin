@@ -1,0 +1,36 @@
+{
+	"SPELLS" : [
+		{
+			"ID" : 1001,
+			"Name" : "Take Animal Form",
+			"Range" : "Self",
+			"Duration" : "1 hour/level",
+			"Description" : "The caster changes its shape into that of a naturally-occurring animal, up to a number of hit dice equal to the caster's level. The caster can maintain this shape up to the duration of the spell. If the caster is slain, they change to their original form.\r\n\r\nThe caster's actions are limited by the physical abilities of the animal they have changed into, and they use the physical statistics of that animal. The caster retains their own mental abilities.",
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"ID" : 1002,
+			"Name" : "Tree Form",
+			"Range" : "Touch",
+			"Duration" : "1 turn/level",
+			"Description" : "The caster merges their form into a natural tree or similarly large plant. While in this plant, the caster is aware of their surroundings, but cannot speak or cast spells. Within the plant, the caster gains the benefits of a rest at an accelerated rate. Each turn spent resting in the plant's form counts as an hour's sleep. While merged in this way, the caster takes half the damage done to the plant. If the plant is destroyed, the caster is shunted into the nearest open space.",
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"ID" : 1003,
+			"Name" : "Summon Weather",
+			"Range" : "10 miles",
+			"Duration" : "5 turns/level",
+			"Description" : "The caster is able to summon nearby weather conditions. The spell only works while the caster is outdoors, or can see the outdoors.\r\n\r\nThe caster chooses up to three types of weather conditions. If none of those weather conditions can be found within range, the spell fails. The caster cannot control the weather and bend it to their wishes.",
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"ID" : 1004,
+			"Name" : "Animal Friendship",
+			"Range" : "30'",
+			"Duration" : "permanent",
+			"Description" : "The caster attempts to bind a natural animal into their service as an animal friend. The target creature must be present, and the caster must touch it to cast the spell. The animal is entitled to a save vs. Spells. On a success, the spell fails, but the animal does not become hostile.\r\n\r\nOn a failure, the animal will behave as if permanently charmed by the caster, and will perform tasks assigned to it to the best of its abilities. If the animal is mistreated, the GM may determine that it can attempt another save vs. Spells.\r\n\r\nA caster can have any number of animal friends, but the number of hit dice for all of them may not exceed twice the caster's level. For example, a 4th-level Druid is capped at 8 hit dice worth of animal friends.",
+			"MODIFIED" : "2026-10-11 00:00:00"
+		}
+	]
+}

@@ -1,0 +1,395 @@
+body:has(.print-sheet-page) {
+  background: #f3f0e8;
+  color: #111;
+}
+
+.app:has(.print-sheet-page) {
+  background: #f3f0e8;
+}
+
+.print-main {
+  max-width: none;
+  padding: 0;
+  background: transparent;
+}
+
+.print-sheet-page {
+  min-height: 100vh;
+  color: #111;
+}
+
+.print-toolbar {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: center;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 0.75rem 1rem;
+  background: #fff;
+  color: #111;
+  border-bottom: 1px solid #ccc;
+}
+
+.print-toolbar select {
+  margin-left: 0.4rem;
+  padding: 0.25rem 0.4rem;
+  color: #111;
+  background: #fff;
+  font: inherit;
+}
+
+.ps-status {
+  margin: 0;
+  color: #111;
+}
+
+.ps {
+  max-width: 8.5in;
+  margin: 1rem auto 2rem;
+  color: #111;
+}
+
+.ps-sheet {
+  background: #fff;
+  padding: 0.55in;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
+  font-family: Palatino Linotype, Palatino, "Book Antiqua", Palatino, serif;
+  font-size: 11pt;
+  line-height: 1.35;
+}
+
+.ps[data-style="simple"] .ps-sheet,
+.ps[data-style="accessible"] .ps-sheet,
+.ps[data-style="spells"] .ps-sheet {
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+.ps[data-style="accessible"] .ps-sheet,
+.ps[data-style="spells"] .ps-sheet {
+  font-size: 16px;
+}
+
+.ps[data-style="parchment"] .ps-sheet {
+  background: #f6f1e4;
+  color: #2a241c;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+.ps-name {
+  margin: 0;
+  font-size: 1.6rem;
+  line-height: 1.1;
+}
+
+.ps[data-style="accessible"] .ps-name {
+  font-size: 2rem;
+}
+
+.ps[data-style="parchment"] .ps-identity {
+  text-align: center;
+  margin-bottom: 0.75rem;
+}
+
+.ps[data-style="parchment"] .ps-name {
+  display: inline-block;
+  padding: 0.35rem 1.4rem;
+  border: 2px solid #2a241c;
+  border-radius: 2rem;
+  font-variant: small-caps;
+  letter-spacing: 0.06em;
+}
+
+.ps-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  margin: 0.45rem 0 0.75rem;
+}
+
+.ps-facts div {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.ps-facts dt {
+  font-weight: 700;
+}
+
+.ps-facts dd {
+  margin: 0;
+  min-width: 1.5rem;
+}
+
+.ps-facts dd:empty::before,
+.ps-note-text:empty::before,
+.ps-blank::before {
+  content: "\00a0";
+}
+
+.ps-stack {
+  flex-direction: column;
+  gap: 0.2rem;
+  margin: 0;
+}
+
+.ps h2 {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.ps[data-style="accessible"] h2,
+.ps[data-style="spells"] h2 {
+  font-size: 1.15rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.ps section {
+  border: 1px solid #111;
+  padding: 0.4rem 0.5rem;
+}
+
+.ps[data-style="simple"] .ps-sheet section {
+  border: none;
+  border-bottom: 1px solid #bbb;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.ps[data-style="accessible"] .ps-sheet section {
+  border: 2px solid #000;
+  margin-bottom: 0.75rem;
+}
+
+.ps[data-style="parchment"] .ps-sheet section {
+  border: 2px solid #2a241c;
+  border-radius: 2px 10px 3px 12px;
+  box-shadow: 1px 1px 0 #2a241c;
+}
+
+.ps-abilities { grid-area: abilities; }
+.ps-saves { grid-area: saves; }
+.ps-combat { grid-area: combat; }
+.ps-weapons { grid-area: weapons; }
+.ps-coins { grid-area: coins; }
+.ps-gear { grid-area: gear; }
+.ps-langs { grid-area: langs; }
+.ps-notes { grid-area: notes; }
+
+.ps[data-style="classic"] .ps-body,
+.ps[data-style="record"] .ps-body {
+  display: grid;
+  gap: 0.45rem;
+  width: 100%;
+  grid-template-columns: 13.5rem minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-areas:
+    "abilities combat weapons"
+    "abilities saves coins"
+    "abilities gear gear"
+    "langs langs notes";
+}
+
+.ps[data-style="parchment"] .ps-body {
+  display: grid;
+  gap: 0.55rem;
+  width: 100%;
+  grid-template-columns: 14.5rem minmax(0, 1fr) minmax(0, 1.2fr);
+  grid-template-areas:
+    "abilities combat weapons"
+    "abilities saves weapons"
+    "abilities coins notes"
+    "gear gear notes"
+    "langs langs notes";
+}
+
+.ps[data-style="simple"] .ps-body section,
+.ps[data-style="accessible"] .ps-body section {
+  margin-bottom: 0.35rem;
+}
+
+.ps[data-style="simple"] .ps-notes,
+.ps[data-style="simple"] .ps-gear,
+.ps[data-style="simple"] .ps-langs {
+  min-height: 2.75rem;
+}
+
+.ps[data-style="simple"] .ps-notes {
+  min-height: 6rem;
+}
+
+.ps[data-style="record"] .ps-gear h2,
+.ps[data-style="record"] .ps-langs h2,
+.ps[data-style="record"] .ps-notes h2 {
+  background: #fff;
+}
+
+.ps[data-style="parchment"] .ps-notes h2 {
+  display: inline-block;
+  background: #f6f1e4;
+}
+
+.ps[data-style="record"] .ps-gear,
+.ps[data-style="record"] .ps-langs,
+.ps[data-style="record"] .ps-notes {
+  line-height: 1.5rem;
+  min-height: 7.5rem;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(1.5rem - 1px),
+    #c8c8c8 calc(1.5rem - 1px),
+    #c8c8c8 1.5rem
+  );
+}
+
+.ps[data-style="parchment"] .ps-notes {
+  min-height: 4.2in;
+  background-image:
+    repeating-linear-gradient(to bottom, transparent 0, transparent 0.28in, rgba(42, 36, 28, 0.18) 0.28in, rgba(42, 36, 28, 0.18) calc(0.28in + 1px)),
+    repeating-linear-gradient(to right, transparent 0, transparent 0.28in, rgba(42, 36, 28, 0.18) 0.28in, rgba(42, 36, 28, 0.18) calc(0.28in + 1px));
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+.ps table {
+  width: 100%;
+  border-collapse: collapse;
+  font: inherit;
+}
+
+.ps th,
+.ps td {
+  text-align: left;
+  vertical-align: top;
+  padding: 0.12rem 0.35rem 0.12rem 0;
+  font-weight: 400;
+  overflow-wrap: break-word;
+}
+
+.ps th[scope="row"] {
+  font-weight: 700;
+}
+
+.ps-score,
+.ps-mod {
+  text-align: right;
+  width: 2.6rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ps-weapon-list,
+.ps-gear ul,
+.ps-langs ul,
+.ps-spell-list {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.ps-weapon-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+.ps-weapon-list li + li {
+  margin-top: 0.45rem;
+}
+
+.ps[data-style="record"] .ps-gear ul,
+.ps[data-style="record"] .ps-langs ul,
+.ps[data-style="accessible"] .ps-gear ul,
+.ps[data-style="accessible"] .ps-langs ul,
+.ps-spell-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+.ps-note-text {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.ps[data-style="spells"] .ps-body {
+  display: none;
+}
+
+.ps:not([data-style="spells"]) .ps-spells {
+  display: none;
+}
+
+.ps-spell-groups {
+  column-count: 2;
+  column-gap: 1.5rem;
+}
+
+.ps-spell-group {
+  break-inside: avoid;
+  margin-bottom: 0.75rem;
+}
+
+.ps-mark {
+  display: inline-block;
+  width: 0.75rem;
+  height: 0.75rem;
+  margin-right: 0.2rem;
+  border: 1px solid #111;
+  vertical-align: -0.05rem;
+}
+
+.ps-mark-on {
+  background: #111;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+.ps[data-style="parchment"] .ps-mark,
+.ps[data-style="parchment"] .ps-mark-on {
+  border-color: #2a241c;
+}
+
+.ps[data-style="parchment"] .ps-mark-on {
+  background: #2a241c;
+}
+
+@page {
+  size: letter;
+  margin: 0.5in;
+}
+
+@media print {
+  .print-toolbar,
+  .navbar,
+  .version-footer,
+  .notice-stack {
+    display: none !important;
+  }
+
+  body,
+  .app,
+  .print-sheet-page {
+    background: #fff !important;
+  }
+
+  .print-sheet-page {
+    min-height: 0;
+  }
+
+  .ps {
+    max-width: none;
+    margin: 0;
+  }
+
+  .ps-sheet {
+    box-shadow: none;
+    padding: 0;
+  }
+
+  .ps[data-style="parchment"] .ps-sheet {
+    background: #f6f1e4 !important;
+  }
+}

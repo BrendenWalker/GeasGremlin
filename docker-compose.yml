@@ -1,0 +1,43 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: geasgremlin-backend
+    ports:
+      - "8140:80"
+    env_file:
+      - .env
+    environment:
+      - PORT=80
+      - DB_HOST=${DB_HOST:-host.docker.internal}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_NAME=${DB_NAME:-geasgremlin}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      geasgremlin-network:
+        aliases:
+          - geasgremlin-backend
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: geasgremlin-frontend
+    ports:
+      - "8150:80"
+    depends_on:
+      - backend
+    networks:
+      geasgremlin-network:
+        aliases:
+          - geasgremlin-frontend
+    restart: unless-stopped
+
+networks:
+  geasgremlin-network:
+    driver: bridge

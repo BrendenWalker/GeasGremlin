@@ -1,0 +1,2704 @@
+{
+	"CLASS_LEVELING" : [
+		{
+			"CLASS_ID" : 6,
+			"LEVEL" : 1,
+			"XP" : 0,
+			"HD" : 1,
+			"HP" : null,
+			"AB" : 1,
+			"MODIFIED" : "2021-08-09 20:58:00"
+		},
+		{
+			"CLASS_ID" : 6,
+			"LEVEL" : 2,
+			"XP" : 1500,
+			"HD" : 2,
+			"HP" : null,
+			"AB" : 1,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 6,
+			"LEVEL" : 3,
+			"XP" : 3000,
+			"HD" : 3,
+			"HP" : null,
+			"AB" : 2,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 6,
+			"LEVEL" : 4,
+			"XP" : 6000,
+			"HD" : 4,
+			"HP" : null,
+			"AB" : 2,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 6,
+			"LEVEL" : 5,
+			"XP" : 12000,
+			"HD" : 5,
+			"HP" : null,
+			"AB" : 3,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 6,
+			"LEVEL" : 6,
+			"XP" : 24000,
+			"HD" : 6,
+			"HP" : null,
+			"AB" : 3,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 6,
+			"LEVEL" : 7,
+			"XP" : 48000,
+			"HD" : 7,
+			"HP" : null,
+			"AB" : 4,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 6,
+			"LEVEL" : 8,
+			"XP" : 90000,
+			"HD" : 8,
+			"HP" : null,
+			"AB" : 4,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 6,
+			"LEVEL" : 9,
+			"XP" : 180000,
+			"HD" : 9,
+			"HP" : null,
+			"AB" : 5,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 6,
+			"LEVEL" : 10,
+			"XP" : 270000,
+			"HD" : null,
+			"HP" : 1,
+			"AB" : 5,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 6,
+			"LEVEL" : 11,
+			"XP" : 360000,
+			"HD" : null,
+			"HP" : 2,
+			"AB" : 5,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 6,
+			"LEVEL" : 12,
+			"XP" : 450000,
+			"HD" : null,
+			"HP" : 3,
+			"AB" : 6,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 6,
+			"LEVEL" : 13,
+			"XP" : 540000,
+			"HD" : null,
+			"HP" : 4,
+			"AB" : 6,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 6,
+			"LEVEL" : 14,
+			"XP" : 630000,
+			"HD" : null,
+			"HP" : 5,
+			"AB" : 6,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 6,
+			"LEVEL" : 15,
+			"XP" : 720000,
+			"HD" : null,
+			"HP" : 6,
+			"AB" : 7,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 6,
+			"LEVEL" : 16,
+			"XP" : 810000,
+			"HD" : null,
+			"HP" : 7,
+			"AB" : 7,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 6,
+			"LEVEL" : 17,
+			"XP" : 900000,
+			"HD" : null,
+			"HP" : 8,
+			"AB" : 7,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 6,
+			"LEVEL" : 18,
+			"XP" : 990000,
+			"HD" : null,
+			"HP" : 9,
+			"AB" : 8,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 6,
+			"LEVEL" : 19,
+			"XP" : 1080000,
+			"HD" : null,
+			"HP" : 10,
+			"AB" : 8,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 6,
+			"LEVEL" : 20,
+			"XP" : 1170000,
+			"HD" : null,
+			"HP" : 11,
+			"AB" : 8,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 7,
+			"LEVEL" : 1,
+			"XP" : 0,
+			"HD" : 1,
+			"HP" : null,
+			"AB" : 1,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 7,
+			"LEVEL" : 2,
+			"XP" : 2500,
+			"HD" : 2,
+			"HP" : null,
+			"AB" : 1,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 7,
+			"LEVEL" : 3,
+			"XP" : 5000,
+			"HD" : 3,
+			"HP" : null,
+			"AB" : 1,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 7,
+			"LEVEL" : 4,
+			"XP" : 10000,
+			"HD" : 4,
+			"HP" : null,
+			"AB" : 2,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 7,
+			"LEVEL" : 5,
+			"XP" : 20000,
+			"HD" : 5,
+			"HP" : null,
+			"AB" : 2,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 7,
+			"LEVEL" : 6,
+			"XP" : 40000,
+			"HD" : 6,
+			"HP" : null,
+			"AB" : 3,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 7,
+			"LEVEL" : 7,
+			"XP" : 80000,
+			"HD" : 7,
+			"HP" : null,
+			"AB" : 3,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 7,
+			"LEVEL" : 8,
+			"XP" : 150000,
+			"HD" : 8,
+			"HP" : null,
+			"AB" : 3,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 7,
+			"LEVEL" : 9,
+			"XP" : 300000,
+			"HD" : 9,
+			"HP" : null,
+			"AB" : 4,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 7,
+			"LEVEL" : 10,
+			"XP" : 450000,
+			"HD" : null,
+			"HP" : 1,
+			"AB" : 4,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 7,
+			"LEVEL" : 11,
+			"XP" : 600000,
+			"HD" : null,
+			"HP" : 2,
+			"AB" : 4,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 7,
+			"LEVEL" : 12,
+			"XP" : 750000,
+			"HD" : null,
+			"HP" : 3,
+			"AB" : 4,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 7,
+			"LEVEL" : 13,
+			"XP" : 900000,
+			"HD" : null,
+			"HP" : 4,
+			"AB" : 5,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 7,
+			"LEVEL" : 14,
+			"XP" : 1050000,
+			"HD" : null,
+			"HP" : 5,
+			"AB" : 5,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 7,
+			"LEVEL" : 15,
+			"XP" : 1200000,
+			"HD" : null,
+			"HP" : 6,
+			"AB" : 5,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 7,
+			"LEVEL" : 16,
+			"XP" : 1350000,
+			"HD" : null,
+			"HP" : 7,
+			"AB" : 6,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 7,
+			"LEVEL" : 17,
+			"XP" : 1500000,
+			"HD" : null,
+			"HP" : 8,
+			"AB" : 6,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 7,
+			"LEVEL" : 18,
+			"XP" : 1650000,
+			"HD" : null,
+			"HP" : 9,
+			"AB" : 6,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 7,
+			"LEVEL" : 19,
+			"XP" : 1800000,
+			"HD" : null,
+			"HP" : 10,
+			"AB" : 7,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 7,
+			"LEVEL" : 20,
+			"XP" : 1950000,
+			"HD" : null,
+			"HP" : 11,
+			"AB" : 7,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 8,
+			"LEVEL" : 1,
+			"XP" : 0,
+			"HD" : 1,
+			"HP" : null,
+			"AB" : 1,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 8,
+			"LEVEL" : 2,
+			"XP" : 2500,
+			"HD" : 2,
+			"HP" : null,
+			"AB" : 1,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 8,
+			"LEVEL" : 3,
+			"XP" : 5000,
+			"HD" : 3,
+			"HP" : null,
+			"AB" : 1,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 8,
+			"LEVEL" : 4,
+			"XP" : 10000,
+			"HD" : 4,
+			"HP" : null,
+			"AB" : 2,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 8,
+			"LEVEL" : 5,
+			"XP" : 20000,
+			"HD" : 5,
+			"HP" : null,
+			"AB" : 2,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 8,
+			"LEVEL" : 6,
+			"XP" : 40000,
+			"HD" : 6,
+			"HP" : null,
+			"AB" : 3,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 8,
+			"LEVEL" : 7,
+			"XP" : 80000,
+			"HD" : 7,
+			"HP" : null,
+			"AB" : 3,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 8,
+			"LEVEL" : 8,
+			"XP" : 150000,
+			"HD" : 8,
+			"HP" : null,
+			"AB" : 3,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 8,
+			"LEVEL" : 9,
+			"XP" : 300000,
+			"HD" : 9,
+			"HP" : null,
+			"AB" : 4,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 8,
+			"LEVEL" : 10,
+			"XP" : 450000,
+			"HD" : null,
+			"HP" : 1,
+			"AB" : 4,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 8,
+			"LEVEL" : 11,
+			"XP" : 600000,
+			"HD" : null,
+			"HP" : 2,
+			"AB" : 4,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 8,
+			"LEVEL" : 12,
+			"XP" : 750000,
+			"HD" : null,
+			"HP" : 3,
+			"AB" : 4,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 8,
+			"LEVEL" : 13,
+			"XP" : 900000,
+			"HD" : null,
+			"HP" : 4,
+			"AB" : 5,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 8,
+			"LEVEL" : 14,
+			"XP" : 1050000,
+			"HD" : null,
+			"HP" : 5,
+			"AB" : 5,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 8,
+			"LEVEL" : 15,
+			"XP" : 1200000,
+			"HD" : null,
+			"HP" : 6,
+			"AB" : 5,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 8,
+			"LEVEL" : 16,
+			"XP" : 1350000,
+			"HD" : null,
+			"HP" : 7,
+			"AB" : 6,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 8,
+			"LEVEL" : 17,
+			"XP" : 1500000,
+			"HD" : null,
+			"HP" : 8,
+			"AB" : 6,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 8,
+			"LEVEL" : 18,
+			"XP" : 1650000,
+			"HD" : null,
+			"HP" : 9,
+			"AB" : 6,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 8,
+			"LEVEL" : 19,
+			"XP" : 1800000,
+			"HD" : null,
+			"HP" : 10,
+			"AB" : 7,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 8,
+			"LEVEL" : 20,
+			"XP" : 1950000,
+			"HD" : null,
+			"HP" : 11,
+			"AB" : 7,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 9,
+			"LEVEL" : 1,
+			"XP" : 0,
+			"HD" : 1,
+			"HP" : null,
+			"AB" : 1,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 9,
+			"LEVEL" : 2,
+			"XP" : 1500,
+			"HD" : 2,
+			"HP" : null,
+			"AB" : 1,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 9,
+			"LEVEL" : 3,
+			"XP" : 3000,
+			"HD" : 3,
+			"HP" : null,
+			"AB" : 2,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 9,
+			"LEVEL" : 4,
+			"XP" : 6000,
+			"HD" : 4,
+			"HP" : null,
+			"AB" : 2,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 9,
+			"LEVEL" : 5,
+			"XP" : 12000,
+			"HD" : 5,
+			"HP" : null,
+			"AB" : 3,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 9,
+			"LEVEL" : 6,
+			"XP" : 24000,
+			"HD" : 6,
+			"HP" : null,
+			"AB" : 3,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 9,
+			"LEVEL" : 7,
+			"XP" : 48000,
+			"HD" : 7,
+			"HP" : null,
+			"AB" : 4,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 9,
+			"LEVEL" : 8,
+			"XP" : 90000,
+			"HD" : 8,
+			"HP" : null,
+			"AB" : 4,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 9,
+			"LEVEL" : 9,
+			"XP" : 180000,
+			"HD" : 9,
+			"HP" : null,
+			"AB" : 5,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 9,
+			"LEVEL" : 10,
+			"XP" : 270000,
+			"HD" : null,
+			"HP" : 2,
+			"AB" : 5,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 9,
+			"LEVEL" : 11,
+			"XP" : 360000,
+			"HD" : null,
+			"HP" : 4,
+			"AB" : 5,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 9,
+			"LEVEL" : 12,
+			"XP" : 450000,
+			"HD" : null,
+			"HP" : 6,
+			"AB" : 6,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 9,
+			"LEVEL" : 13,
+			"XP" : 540000,
+			"HD" : null,
+			"HP" : 8,
+			"AB" : 6,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 9,
+			"LEVEL" : 14,
+			"XP" : 630000,
+			"HD" : null,
+			"HP" : 10,
+			"AB" : 6,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 9,
+			"LEVEL" : 15,
+			"XP" : 720000,
+			"HD" : null,
+			"HP" : 12,
+			"AB" : 7,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 9,
+			"LEVEL" : 16,
+			"XP" : 810000,
+			"HD" : null,
+			"HP" : 14,
+			"AB" : 7,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 9,
+			"LEVEL" : 17,
+			"XP" : 900000,
+			"HD" : null,
+			"HP" : 16,
+			"AB" : 7,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 9,
+			"LEVEL" : 18,
+			"XP" : 990000,
+			"HD" : null,
+			"HP" : 18,
+			"AB" : 8,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 9,
+			"LEVEL" : 19,
+			"XP" : 1080000,
+			"HD" : null,
+			"HP" : 20,
+			"AB" : 8,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 9,
+			"LEVEL" : 20,
+			"XP" : 1170000,
+			"HD" : null,
+			"HP" : 22,
+			"AB" : 8,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 10,
+			"LEVEL" : 1,
+			"XP" : 0,
+			"HD" : 1,
+			"HP" : null,
+			"AB" : 1,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 10,
+			"LEVEL" : 2,
+			"XP" : 2200,
+			"HD" : 2,
+			"HP" : null,
+			"AB" : 2,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 10,
+			"LEVEL" : 3,
+			"XP" : 4400,
+			"HD" : 3,
+			"HP" : null,
+			"AB" : 2,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 10,
+			"LEVEL" : 4,
+			"XP" : 8800,
+			"HD" : 4,
+			"HP" : null,
+			"AB" : 3,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 10,
+			"LEVEL" : 5,
+			"XP" : 17600,
+			"HD" : 5,
+			"HP" : null,
+			"AB" : 4,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 10,
+			"LEVEL" : 6,
+			"XP" : 35200,
+			"HD" : 6,
+			"HP" : null,
+			"AB" : 4,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 10,
+			"LEVEL" : 7,
+			"XP" : 70400,
+			"HD" : 7,
+			"HP" : null,
+			"AB" : 5,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 10,
+			"LEVEL" : 8,
+			"XP" : 132000,
+			"HD" : 8,
+			"HP" : null,
+			"AB" : 6,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 10,
+			"LEVEL" : 9,
+			"XP" : 264000,
+			"HD" : 9,
+			"HP" : null,
+			"AB" : 6,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 10,
+			"LEVEL" : 10,
+			"XP" : 396000,
+			"HD" : null,
+			"HP" : 2,
+			"AB" : 6,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 10,
+			"LEVEL" : 11,
+			"XP" : 528000,
+			"HD" : null,
+			"HP" : 4,
+			"AB" : 7,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 10,
+			"LEVEL" : 12,
+			"XP" : 660000,
+			"HD" : null,
+			"HP" : 6,
+			"AB" : 7,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 10,
+			"LEVEL" : 13,
+			"XP" : 792000,
+			"HD" : null,
+			"HP" : 8,
+			"AB" : 8,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 10,
+			"LEVEL" : 14,
+			"XP" : 924000,
+			"HD" : null,
+			"HP" : 10,
+			"AB" : 8,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 10,
+			"LEVEL" : 15,
+			"XP" : 1056000,
+			"HD" : null,
+			"HP" : 12,
+			"AB" : 8,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 10,
+			"LEVEL" : 16,
+			"XP" : 1188000,
+			"HD" : null,
+			"HP" : 14,
+			"AB" : 9,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 10,
+			"LEVEL" : 17,
+			"XP" : 1320000,
+			"HD" : null,
+			"HP" : 16,
+			"AB" : 9,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 10,
+			"LEVEL" : 18,
+			"XP" : 1452000,
+			"HD" : null,
+			"HP" : 18,
+			"AB" : 10,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 10,
+			"LEVEL" : 19,
+			"XP" : 1584000,
+			"HD" : null,
+			"HP" : 20,
+			"AB" : 10,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 10,
+			"LEVEL" : 20,
+			"XP" : 1716000,
+			"HD" : null,
+			"HP" : 22,
+			"AB" : 10,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 11,
+			"LEVEL" : 1,
+			"XP" : 0,
+			"HD" : 1,
+			"HP" : null,
+			"AB" : 1,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 11,
+			"LEVEL" : 2,
+			"XP" : 2500,
+			"HD" : 2,
+			"HP" : null,
+			"AB" : 2,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 11,
+			"LEVEL" : 3,
+			"XP" : 5000,
+			"HD" : 3,
+			"HP" : null,
+			"AB" : 2,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 11,
+			"LEVEL" : 4,
+			"XP" : 10000,
+			"HD" : 4,
+			"HP" : null,
+			"AB" : 3,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 11,
+			"LEVEL" : 5,
+			"XP" : 20000,
+			"HD" : 5,
+			"HP" : null,
+			"AB" : 4,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 11,
+			"LEVEL" : 6,
+			"XP" : 40000,
+			"HD" : 6,
+			"HP" : null,
+			"AB" : 4,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 11,
+			"LEVEL" : 7,
+			"XP" : 80000,
+			"HD" : 7,
+			"HP" : null,
+			"AB" : 5,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 11,
+			"LEVEL" : 8,
+			"XP" : 150000,
+			"HD" : 8,
+			"HP" : null,
+			"AB" : 6,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 11,
+			"LEVEL" : 9,
+			"XP" : 300000,
+			"HD" : 9,
+			"HP" : null,
+			"AB" : 6,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 11,
+			"LEVEL" : 10,
+			"XP" : 450000,
+			"HD" : null,
+			"HP" : 2,
+			"AB" : 6,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 11,
+			"LEVEL" : 11,
+			"XP" : 600000,
+			"HD" : null,
+			"HP" : 4,
+			"AB" : 7,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 11,
+			"LEVEL" : 12,
+			"XP" : 750000,
+			"HD" : null,
+			"HP" : 6,
+			"AB" : 7,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 11,
+			"LEVEL" : 13,
+			"XP" : 900000,
+			"HD" : null,
+			"HP" : 8,
+			"AB" : 8,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 11,
+			"LEVEL" : 14,
+			"XP" : 1050000,
+			"HD" : null,
+			"HP" : 10,
+			"AB" : 8,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 11,
+			"LEVEL" : 15,
+			"XP" : 1200000,
+			"HD" : null,
+			"HP" : 12,
+			"AB" : 8,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 11,
+			"LEVEL" : 16,
+			"XP" : 1350000,
+			"HD" : null,
+			"HP" : 14,
+			"AB" : 9,
+			"MODIFIED" : "2021-08-09 20:58:01"
+		},
+		{
+			"CLASS_ID" : 11,
+			"LEVEL" : 17,
+			"XP" : 1500000,
+			"HD" : null,
+			"HP" : 16,
+			"AB" : 9,
+			"MODIFIED" : "2021-08-09 20:58:02"
+		},
+		{
+			"CLASS_ID" : 11,
+			"LEVEL" : 18,
+			"XP" : 1650000,
+			"HD" : null,
+			"HP" : 18,
+			"AB" : 10,
+			"MODIFIED" : "2021-08-09 20:58:02"
+		},
+		{
+			"CLASS_ID" : 11,
+			"LEVEL" : 19,
+			"XP" : 1800000,
+			"HD" : null,
+			"HP" : 20,
+			"AB" : 10,
+			"MODIFIED" : "2021-08-09 20:58:02"
+		},
+		{
+			"CLASS_ID" : 11,
+			"LEVEL" : 20,
+			"XP" : 1950000,
+			"HD" : null,
+			"HP" : 22,
+			"AB" : 10,
+			"MODIFIED" : "2021-08-09 20:58:02"
+		},
+		{
+			"CLASS_ID" : 12,
+			"LEVEL" : 1,
+			"XP" : 0,
+			"HD" : 1,
+			"HP" : 0,
+			"AB" : 1,
+			"MODIFIED" : "2021-08-09 20:58:00"
+		},
+		{
+			"CLASS_ID" : 12,
+			"LEVEL" : 2,
+			"XP" : 1375,
+			"HD" : 2,
+			"HP" : 0,
+			"AB" : 1,
+			"MODIFIED" : "2021-08-09 20:58:00"
+		},
+		{
+			"CLASS_ID" : 12,
+			"LEVEL" : 3,
+			"XP" : 2750,
+			"HD" : 3,
+			"HP" : 0,
+			"AB" : 2,
+			"MODIFIED" : "2021-08-09 20:58:00"
+		},
+		{
+			"CLASS_ID" : 12,
+			"LEVEL" : 4,
+			"XP" : 5500,
+			"HD" : 4,
+			"HP" : 0,
+			"AB" : 2,
+			"MODIFIED" : "2021-08-09 20:58:00"
+		},
+		{
+			"CLASS_ID" : 12,
+			"LEVEL" : 5,
+			"XP" : 11000,
+			"HD" : 5,
+			"HP" : 0,
+			"AB" : 3,
+			"MODIFIED" : "2021-08-09 20:58:00"
+		},
+		{
+			"CLASS_ID" : 12,
+			"LEVEL" : 6,
+			"XP" : 22000,
+			"HD" : 6,
+			"HP" : 0,
+			"AB" : 3,
+			"MODIFIED" : "2021-08-09 20:58:00"
+		},
+		{
+			"CLASS_ID" : 12,
+			"LEVEL" : 7,
+			"XP" : 44000,
+			"HD" : 7,
+			"HP" : 0,
+			"AB" : 4,
+			"MODIFIED" : "2021-08-09 20:58:00"
+		},
+		{
+			"CLASS_ID" : 12,
+			"LEVEL" : 8,
+			"XP" : 82500,
+			"HD" : 8,
+			"HP" : 0,
+			"AB" : 4,
+			"MODIFIED" : "2021-08-09 20:58:00"
+		},
+		{
+			"CLASS_ID" : 12,
+			"LEVEL" : 9,
+			"XP" : 165000,
+			"HD" : 9,
+			"HP" : 0,
+			"AB" : 5,
+			"MODIFIED" : "2021-08-09 20:58:00"
+		},
+		{
+			"CLASS_ID" : 12,
+			"LEVEL" : 10,
+			"XP" : 247500,
+			"HD" : 0,
+			"HP" : 2,
+			"AB" : 5,
+			"MODIFIED" : "2021-08-09 20:58:00"
+		},
+		{
+			"CLASS_ID" : 12,
+			"LEVEL" : 11,
+			"XP" : 330000,
+			"HD" : 0,
+			"HP" : 4,
+			"AB" : 5,
+			"MODIFIED" : "2021-08-09 20:58:00"
+		},
+		{
+			"CLASS_ID" : 12,
+			"LEVEL" : 12,
+			"XP" : 412500,
+			"HD" : 0,
+			"HP" : 6,
+			"AB" : 6,
+			"MODIFIED" : "2021-08-09 20:58:00"
+		},
+		{
+			"CLASS_ID" : 12,
+			"LEVEL" : 13,
+			"XP" : 495000,
+			"HD" : 0,
+			"HP" : 8,
+			"AB" : 6,
+			"MODIFIED" : "2021-08-09 20:58:00"
+		},
+		{
+			"CLASS_ID" : 12,
+			"LEVEL" : 14,
+			"XP" : 577500,
+			"HD" : 0,
+			"HP" : 10,
+			"AB" : 6,
+			"MODIFIED" : "2021-08-09 20:58:00"
+		},
+		{
+			"CLASS_ID" : 12,
+			"LEVEL" : 15,
+			"XP" : 660000,
+			"HD" : 0,
+			"HP" : 12,
+			"AB" : 7,
+			"MODIFIED" : "2021-08-09 20:58:00"
+		},
+		{
+			"CLASS_ID" : 12,
+			"LEVEL" : 16,
+			"XP" : 742500,
+			"HD" : 0,
+			"HP" : 14,
+			"AB" : 7,
+			"MODIFIED" : "2021-08-09 20:58:00"
+		},
+		{
+			"CLASS_ID" : 12,
+			"LEVEL" : 17,
+			"XP" : 825000,
+			"HD" : 0,
+			"HP" : 16,
+			"AB" : 7,
+			"MODIFIED" : "2021-08-09 20:58:00"
+		},
+		{
+			"CLASS_ID" : 12,
+			"LEVEL" : 18,
+			"XP" : 907500,
+			"HD" : 0,
+			"HP" : 18,
+			"AB" : 8,
+			"MODIFIED" : "2021-08-09 20:58:00"
+		},
+		{
+			"CLASS_ID" : 12,
+			"LEVEL" : 19,
+			"XP" : 990000,
+			"HD" : 0,
+			"HP" : 20,
+			"AB" : 8,
+			"MODIFIED" : "2021-08-09 20:58:00"
+		},
+		{
+			"CLASS_ID" : 12,
+			"LEVEL" : 20,
+			"XP" : 1072500,
+			"HD" : 0,
+			"HP" : 22,
+			"AB" : 8,
+			"MODIFIED" : "2021-08-09 20:58:00"
+		},
+		{
+			"CLASS_ID" : 100,
+			"LEVEL" : 1,
+			"XP" : 0,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 100,
+			"LEVEL" : 2,
+			"XP" : 500,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 100,
+			"LEVEL" : 3,
+			"XP" : 1000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 100,
+			"LEVEL" : 4,
+			"XP" : 2000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 100,
+			"LEVEL" : 5,
+			"XP" : 4000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 100,
+			"LEVEL" : 6,
+			"XP" : 8000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 100,
+			"LEVEL" : 7,
+			"XP" : 16000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 100,
+			"LEVEL" : 8,
+			"XP" : 32000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 100,
+			"LEVEL" : 9,
+			"XP" : 64000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 100,
+			"LEVEL" : 10,
+			"XP" : 96000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 100,
+			"LEVEL" : 11,
+			"XP" : 125000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 100,
+			"LEVEL" : 12,
+			"XP" : 155000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 100,
+			"LEVEL" : 13,
+			"XP" : 185000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 100,
+			"LEVEL" : 14,
+			"XP" : 215000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 100,
+			"LEVEL" : 15,
+			"XP" : 250000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 100,
+			"LEVEL" : 16,
+			"XP" : 285000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 100,
+			"LEVEL" : 17,
+			"XP" : 320000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 100,
+			"LEVEL" : 18,
+			"XP" : 355000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 100,
+			"LEVEL" : 19,
+			"XP" : 390000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 100,
+			"LEVEL" : 20,
+			"XP" : 425000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 101,
+			"LEVEL" : 1,
+			"XP" : 0,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 101,
+			"LEVEL" : 2,
+			"XP" : 500,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 101,
+			"LEVEL" : 3,
+			"XP" : 1000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 101,
+			"LEVEL" : 4,
+			"XP" : 2000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 101,
+			"LEVEL" : 5,
+			"XP" : 4000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 101,
+			"LEVEL" : 6,
+			"XP" : 8000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 101,
+			"LEVEL" : 7,
+			"XP" : 16000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 101,
+			"LEVEL" : 8,
+			"XP" : 32000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 101,
+			"LEVEL" : 9,
+			"XP" : 64000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 101,
+			"LEVEL" : 10,
+			"XP" : 96000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 101,
+			"LEVEL" : 11,
+			"XP" : 125000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 101,
+			"LEVEL" : 12,
+			"XP" : 155000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 101,
+			"LEVEL" : 13,
+			"XP" : 185000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 101,
+			"LEVEL" : 14,
+			"XP" : 215000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 101,
+			"LEVEL" : 15,
+			"XP" : 250000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 101,
+			"LEVEL" : 16,
+			"XP" : 285000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 101,
+			"LEVEL" : 17,
+			"XP" : 320000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 101,
+			"LEVEL" : 18,
+			"XP" : 355000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 101,
+			"LEVEL" : 19,
+			"XP" : 390000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 101,
+			"LEVEL" : 20,
+			"XP" : 425000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 102,
+			"LEVEL" : 1,
+			"XP" : 0,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 102,
+			"LEVEL" : 2,
+			"XP" : 1000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 102,
+			"LEVEL" : 3,
+			"XP" : 2000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 102,
+			"LEVEL" : 4,
+			"XP" : 4000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 102,
+			"LEVEL" : 5,
+			"XP" : 8000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 102,
+			"LEVEL" : 6,
+			"XP" : 16000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 102,
+			"LEVEL" : 7,
+			"XP" : 32000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 102,
+			"LEVEL" : 8,
+			"XP" : 64000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 102,
+			"LEVEL" : 9,
+			"XP" : 128000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 102,
+			"LEVEL" : 10,
+			"XP" : 192000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 102,
+			"LEVEL" : 11,
+			"XP" : 250000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 102,
+			"LEVEL" : 12,
+			"XP" : 310000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 102,
+			"LEVEL" : 13,
+			"XP" : 370000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 102,
+			"LEVEL" : 14,
+			"XP" : 430000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 102,
+			"LEVEL" : 15,
+			"XP" : 500000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 102,
+			"LEVEL" : 16,
+			"XP" : 570000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 102,
+			"LEVEL" : 17,
+			"XP" : 640000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 102,
+			"LEVEL" : 18,
+			"XP" : 710000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 102,
+			"LEVEL" : 19,
+			"XP" : 780000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 102,
+			"LEVEL" : 20,
+			"XP" : 850000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 103,
+			"LEVEL" : 1,
+			"XP" : 0,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 103,
+			"LEVEL" : 2,
+			"XP" : 500,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 103,
+			"LEVEL" : 3,
+			"XP" : 1000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 103,
+			"LEVEL" : 4,
+			"XP" : 2000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 103,
+			"LEVEL" : 5,
+			"XP" : 4000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 103,
+			"LEVEL" : 6,
+			"XP" : 8000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 103,
+			"LEVEL" : 7,
+			"XP" : 16000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 103,
+			"LEVEL" : 8,
+			"XP" : 32000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 103,
+			"LEVEL" : 9,
+			"XP" : 64000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 103,
+			"LEVEL" : 10,
+			"XP" : 96000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 103,
+			"LEVEL" : 11,
+			"XP" : 125000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 103,
+			"LEVEL" : 12,
+			"XP" : 155000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 103,
+			"LEVEL" : 13,
+			"XP" : 185000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 103,
+			"LEVEL" : 14,
+			"XP" : 215000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 103,
+			"LEVEL" : 15,
+			"XP" : 250000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 103,
+			"LEVEL" : 16,
+			"XP" : 285000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 103,
+			"LEVEL" : 17,
+			"XP" : 320000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 103,
+			"LEVEL" : 18,
+			"XP" : 355000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 103,
+			"LEVEL" : 19,
+			"XP" : 390000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 103,
+			"LEVEL" : 20,
+			"XP" : 425000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 104,
+			"LEVEL" : 1,
+			"XP" : 0,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 104,
+			"LEVEL" : 2,
+			"XP" : 500,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 104,
+			"LEVEL" : 3,
+			"XP" : 1000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 104,
+			"LEVEL" : 4,
+			"XP" : 2000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 104,
+			"LEVEL" : 5,
+			"XP" : 4000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 104,
+			"LEVEL" : 6,
+			"XP" : 8000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 104,
+			"LEVEL" : 7,
+			"XP" : 16000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 104,
+			"LEVEL" : 8,
+			"XP" : 32000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 104,
+			"LEVEL" : 9,
+			"XP" : 64000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 104,
+			"LEVEL" : 10,
+			"XP" : 96000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 104,
+			"LEVEL" : 11,
+			"XP" : 125000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 104,
+			"LEVEL" : 12,
+			"XP" : 155000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 104,
+			"LEVEL" : 13,
+			"XP" : 185000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 104,
+			"LEVEL" : 14,
+			"XP" : 215000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 104,
+			"LEVEL" : 15,
+			"XP" : 250000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 104,
+			"LEVEL" : 16,
+			"XP" : 285000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 104,
+			"LEVEL" : 17,
+			"XP" : 320000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 104,
+			"LEVEL" : 18,
+			"XP" : 355000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 104,
+			"LEVEL" : 19,
+			"XP" : 390000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 104,
+			"LEVEL" : 20,
+			"XP" : 425000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 105,
+			"LEVEL" : 1,
+			"XP" : 0,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 105,
+			"LEVEL" : 2,
+			"XP" : 500,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 105,
+			"LEVEL" : 3,
+			"XP" : 1000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 105,
+			"LEVEL" : 4,
+			"XP" : 2000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 105,
+			"LEVEL" : 5,
+			"XP" : 4000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 105,
+			"LEVEL" : 6,
+			"XP" : 8000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 105,
+			"LEVEL" : 7,
+			"XP" : 16000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 105,
+			"LEVEL" : 8,
+			"XP" : 32000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 105,
+			"LEVEL" : 9,
+			"XP" : 64000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 105,
+			"LEVEL" : 10,
+			"XP" : 96000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 105,
+			"LEVEL" : 11,
+			"XP" : 125000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 105,
+			"LEVEL" : 12,
+			"XP" : 155000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 105,
+			"LEVEL" : 13,
+			"XP" : 185000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 105,
+			"LEVEL" : 14,
+			"XP" : 215000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 105,
+			"LEVEL" : 15,
+			"XP" : 250000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 105,
+			"LEVEL" : 16,
+			"XP" : 285000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 105,
+			"LEVEL" : 17,
+			"XP" : 320000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 105,
+			"LEVEL" : 18,
+			"XP" : 355000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 105,
+			"LEVEL" : 19,
+			"XP" : 390000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 105,
+			"LEVEL" : 20,
+			"XP" : 425000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 106,
+			"LEVEL" : 1,
+			"XP" : 0,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 106,
+			"LEVEL" : 2,
+			"XP" : 500,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 106,
+			"LEVEL" : 3,
+			"XP" : 1000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 106,
+			"LEVEL" : 4,
+			"XP" : 2000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 106,
+			"LEVEL" : 5,
+			"XP" : 4000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 106,
+			"LEVEL" : 6,
+			"XP" : 8000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 106,
+			"LEVEL" : 7,
+			"XP" : 16000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 106,
+			"LEVEL" : 8,
+			"XP" : 32000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 106,
+			"LEVEL" : 9,
+			"XP" : 64000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 106,
+			"LEVEL" : 10,
+			"XP" : 96000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 106,
+			"LEVEL" : 11,
+			"XP" : 125000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 106,
+			"LEVEL" : 12,
+			"XP" : 155000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 106,
+			"LEVEL" : 13,
+			"XP" : 185000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 106,
+			"LEVEL" : 14,
+			"XP" : 215000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 106,
+			"LEVEL" : 15,
+			"XP" : 250000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 106,
+			"LEVEL" : 16,
+			"XP" : 285000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 106,
+			"LEVEL" : 17,
+			"XP" : 320000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 106,
+			"LEVEL" : 18,
+			"XP" : 355000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 106,
+			"LEVEL" : 19,
+			"XP" : 390000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 106,
+			"LEVEL" : 20,
+			"XP" : 425000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 107,
+			"LEVEL" : 1,
+			"XP" : 0,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 107,
+			"LEVEL" : 2,
+			"XP" : 1000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 107,
+			"LEVEL" : 3,
+			"XP" : 2000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 107,
+			"LEVEL" : 4,
+			"XP" : 4000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 107,
+			"LEVEL" : 5,
+			"XP" : 8000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 107,
+			"LEVEL" : 6,
+			"XP" : 16000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 107,
+			"LEVEL" : 7,
+			"XP" : 32000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 107,
+			"LEVEL" : 8,
+			"XP" : 64000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 107,
+			"LEVEL" : 9,
+			"XP" : 128000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 107,
+			"LEVEL" : 10,
+			"XP" : 192000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 107,
+			"LEVEL" : 11,
+			"XP" : 250000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 107,
+			"LEVEL" : 12,
+			"XP" : 310000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 107,
+			"LEVEL" : 13,
+			"XP" : 370000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 107,
+			"LEVEL" : 14,
+			"XP" : 430000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 107,
+			"LEVEL" : 15,
+			"XP" : 500000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 107,
+			"LEVEL" : 16,
+			"XP" : 570000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 107,
+			"LEVEL" : 17,
+			"XP" : 640000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 107,
+			"LEVEL" : 18,
+			"XP" : 710000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 107,
+			"LEVEL" : 19,
+			"XP" : 780000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		},
+		{
+			"CLASS_ID" : 107,
+			"LEVEL" : 20,
+			"XP" : 850000,
+			"HD" : null,
+			"HP" : null,
+			"AB" : null,
+			"MODIFIED" : "2026-10-11 00:00:00"
+		}
+	]
+}

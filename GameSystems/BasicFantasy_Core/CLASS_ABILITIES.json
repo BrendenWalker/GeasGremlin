@@ -1,0 +1,2915 @@
+{
+"CLASS_ABILITIES": [
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 1,
+		"INT_PARAM" : 11,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 2,
+		"INT_PARAM" : 10,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 4,
+		"INT_PARAM" : 9,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 6,
+		"INT_PARAM" : 9,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 8,
+		"INT_PARAM" : 8,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 10,
+		"INT_PARAM" : 8,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 12,
+		"INT_PARAM" : 7,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 14,
+		"INT_PARAM" : 7,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 16,
+		"INT_PARAM" : 6,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 18,
+		"INT_PARAM" : 6,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 20,
+		"INT_PARAM" : 5,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 1,
+		"INT_PARAM" : 12,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 2,
+		"INT_PARAM" : 11,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 4,
+		"INT_PARAM" : 10,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 6,
+		"INT_PARAM" : 10,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 8,
+		"INT_PARAM" : 9,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 10,
+		"INT_PARAM" : 9,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 12,
+		"INT_PARAM" : 8,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 14,
+		"INT_PARAM" : 8,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 16,
+		"INT_PARAM" : 7,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 18,
+		"INT_PARAM" : 7,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 20,
+		"INT_PARAM" : 6,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 1,
+		"INT_PARAM" : 14,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 2,
+		"INT_PARAM" : 13,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 4,
+		"INT_PARAM" : 13,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 6,
+		"INT_PARAM" : 12,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 8,
+		"INT_PARAM" : 12,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 10,
+		"INT_PARAM" : 11,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 12,
+		"INT_PARAM" : 11,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 14,
+		"INT_PARAM" : 10,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 16,
+		"INT_PARAM" : 10,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 18,
+		"INT_PARAM" : 9,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 20,
+		"INT_PARAM" : 9,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 1,
+		"INT_PARAM" : 16,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 2,
+		"INT_PARAM" : 15,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 4,
+		"INT_PARAM" : 15,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 6,
+		"INT_PARAM" : 14,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 8,
+		"INT_PARAM" : 14,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 10,
+		"INT_PARAM" : 13,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 12,
+		"INT_PARAM" : 13,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 14,
+		"INT_PARAM" : 12,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 16,
+		"INT_PARAM" : 12,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 18,
+		"INT_PARAM" : 11,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 20,
+		"INT_PARAM" : 11,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 1,
+		"INT_PARAM" : 15,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 2,
+		"INT_PARAM" : 14,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 4,
+		"INT_PARAM" : 14,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 6,
+		"INT_PARAM" : 13,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 8,
+		"INT_PARAM" : 13,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 10,
+		"INT_PARAM" : 12,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 12,
+		"INT_PARAM" : 12,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 14,
+		"INT_PARAM" : 11,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 16,
+		"INT_PARAM" : 11,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 18,
+		"INT_PARAM" : 10,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 20,
+		"INT_PARAM" : 10,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:26:34"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 0,
+		"INT_PARAM" : 12,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 2,
+		"INT_PARAM" : 11,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 4,
+		"INT_PARAM" : 11,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 6,
+		"INT_PARAM" : 10,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 8,
+		"INT_PARAM" : 9,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 10,
+		"INT_PARAM" : 9,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 12,
+		"INT_PARAM" : 8,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 14,
+		"INT_PARAM" : 7,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 16,
+		"INT_PARAM" : 7,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 18,
+		"INT_PARAM" : 6,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 20,
+		"INT_PARAM" : 5,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 0,
+		"INT_PARAM" : 13,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 2,
+		"INT_PARAM" : 12,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 4,
+		"INT_PARAM" : 11,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 6,
+		"INT_PARAM" : 11,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 8,
+		"INT_PARAM" : 10,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 10,
+		"INT_PARAM" : 9,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 12,
+		"INT_PARAM" : 9,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 14,
+		"INT_PARAM" : 8,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 16,
+		"INT_PARAM" : 7,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 18,
+		"INT_PARAM" : 7,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 20,
+		"INT_PARAM" : 6,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 0,
+		"INT_PARAM" : 14,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 2,
+		"INT_PARAM" : 14,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 4,
+		"INT_PARAM" : 13,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 6,
+		"INT_PARAM" : 12,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 8,
+		"INT_PARAM" : 12,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 10,
+		"INT_PARAM" : 11,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 12,
+		"INT_PARAM" : 10,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 14,
+		"INT_PARAM" : 10,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 16,
+		"INT_PARAM" : 9,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 18,
+		"INT_PARAM" : 8,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 20,
+		"INT_PARAM" : 8,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 0,
+		"INT_PARAM" : 15,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 2,
+		"INT_PARAM" : 15,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 4,
+		"INT_PARAM" : 14,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 6,
+		"INT_PARAM" : 14,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 8,
+		"INT_PARAM" : 13,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 10,
+		"INT_PARAM" : 12,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 12,
+		"INT_PARAM" : 12,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 14,
+		"INT_PARAM" : 11,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 16,
+		"INT_PARAM" : 10,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 18,
+		"INT_PARAM" : 10,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 20,
+		"INT_PARAM" : 9,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 0,
+		"INT_PARAM" : 17,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 2,
+		"INT_PARAM" : 16,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 4,
+		"INT_PARAM" : 15,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 6,
+		"INT_PARAM" : 15,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 8,
+		"INT_PARAM" : 14,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 10,
+		"INT_PARAM" : 13,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 12,
+		"INT_PARAM" : 13,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 14,
+		"INT_PARAM" : 12,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 16,
+		"INT_PARAM" : 11,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 18,
+		"INT_PARAM" : 11,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 20,
+		"INT_PARAM" : 10,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:31:56"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 1,
+		"INT_PARAM" : 13,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:32"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 2,
+		"INT_PARAM" : 13,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:32"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 4,
+		"INT_PARAM" : 12,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:32"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 6,
+		"INT_PARAM" : 12,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:32"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 8,
+		"INT_PARAM" : 11,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:32"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 10,
+		"INT_PARAM" : 11,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:32"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 12,
+		"INT_PARAM" : 10,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:32"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 14,
+		"INT_PARAM" : 10,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:32"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 16,
+		"INT_PARAM" : 9,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:32"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 18,
+		"INT_PARAM" : 9,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:32"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 20,
+		"INT_PARAM" : 8,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:32"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 1,
+		"INT_PARAM" : 14,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:32"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 2,
+		"INT_PARAM" : 14,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:32"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 4,
+		"INT_PARAM" : 13,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:32"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 6,
+		"INT_PARAM" : 12,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:32"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 8,
+		"INT_PARAM" : 11,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:32"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 10,
+		"INT_PARAM" : 10,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:32"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 12,
+		"INT_PARAM" : 10,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:32"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 14,
+		"INT_PARAM" : 9,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:32"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 16,
+		"INT_PARAM" : 8,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:32"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 18,
+		"INT_PARAM" : 7,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:32"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 20,
+		"INT_PARAM" : 6,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:32"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 1,
+		"INT_PARAM" : 13,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:32"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 2,
+		"INT_PARAM" : 13,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:32"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 4,
+		"INT_PARAM" : 12,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:32"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 6,
+		"INT_PARAM" : 11,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:32"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 8,
+		"INT_PARAM" : 10,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:32"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 10,
+		"INT_PARAM" : 9,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:32"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 12,
+		"INT_PARAM" : 9,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:32"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 14,
+		"INT_PARAM" : 8,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:32"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 16,
+		"INT_PARAM" : 7,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:32"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 18,
+		"INT_PARAM" : 6,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:32"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 20,
+		"INT_PARAM" : 5,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:32"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 1,
+		"INT_PARAM" : 16,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:32"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 2,
+		"INT_PARAM" : 15,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:32"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 4,
+		"INT_PARAM" : 15,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:32"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 6,
+		"INT_PARAM" : 14,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:33"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 8,
+		"INT_PARAM" : 14,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:33"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 10,
+		"INT_PARAM" : 13,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:33"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 12,
+		"INT_PARAM" : 13,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:33"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 14,
+		"INT_PARAM" : 12,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:33"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 16,
+		"INT_PARAM" : 12,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:33"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 18,
+		"INT_PARAM" : 11,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:33"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 20,
+		"INT_PARAM" : 11,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:33"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 1,
+		"INT_PARAM" : 15,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:33"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 2,
+		"INT_PARAM" : 14,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:33"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 4,
+		"INT_PARAM" : 13,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:33"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 6,
+		"INT_PARAM" : 13,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:33"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 8,
+		"INT_PARAM" : 12,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:33"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 10,
+		"INT_PARAM" : 11,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:33"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 12,
+		"INT_PARAM" : 11,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:33"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 14,
+		"INT_PARAM" : 10,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:33"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 16,
+		"INT_PARAM" : 9,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:33"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 18,
+		"INT_PARAM" : 9,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:33"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 20,
+		"INT_PARAM" : 8,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:32:33"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 1,
+		"INT_PARAM" : 13,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 2,
+		"INT_PARAM" : 12,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 4,
+		"INT_PARAM" : 11,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 6,
+		"INT_PARAM" : 11,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 8,
+		"INT_PARAM" : 10,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 10,
+		"INT_PARAM" : 9,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 12,
+		"INT_PARAM" : 9,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 14,
+		"INT_PARAM" : 8,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 16,
+		"INT_PARAM" : 7,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 18,
+		"INT_PARAM" : 7,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 5,
+		"LEVEL" : 20,
+		"INT_PARAM" : 6,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 1,
+		"INT_PARAM" : 14,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 2,
+		"INT_PARAM" : 14,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 4,
+		"INT_PARAM" : 13,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 6,
+		"INT_PARAM" : 13,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 8,
+		"INT_PARAM" : 12,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 10,
+		"INT_PARAM" : 12,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 12,
+		"INT_PARAM" : 10,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 14,
+		"INT_PARAM" : 10,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 16,
+		"INT_PARAM" : 9,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 18,
+		"INT_PARAM" : 9,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 6,
+		"LEVEL" : 20,
+		"INT_PARAM" : 8,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 1,
+		"INT_PARAM" : 13,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 2,
+		"INT_PARAM" : 12,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 4,
+		"INT_PARAM" : 12,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 6,
+		"INT_PARAM" : 11,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 8,
+		"INT_PARAM" : 11,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 10,
+		"INT_PARAM" : 10,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 12,
+		"INT_PARAM" : 10,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 14,
+		"INT_PARAM" : 9,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 16,
+		"INT_PARAM" : 9,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 18,
+		"INT_PARAM" : 8,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 7,
+		"LEVEL" : 20,
+		"INT_PARAM" : 8,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 1,
+		"INT_PARAM" : 16,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 2,
+		"INT_PARAM" : 15,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 4,
+		"INT_PARAM" : 14,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 6,
+		"INT_PARAM" : 13,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 8,
+		"INT_PARAM" : 12,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 10,
+		"INT_PARAM" : 11,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 12,
+		"INT_PARAM" : 10,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 14,
+		"INT_PARAM" : 9,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 16,
+		"INT_PARAM" : 8,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 18,
+		"INT_PARAM" : 7,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 8,
+		"LEVEL" : 20,
+		"INT_PARAM" : 6,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 1,
+		"INT_PARAM" : 15,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 2,
+		"INT_PARAM" : 14,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 4,
+		"INT_PARAM" : 13,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 6,
+		"INT_PARAM" : 13,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 8,
+		"INT_PARAM" : 12,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 10,
+		"INT_PARAM" : 11,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 12,
+		"INT_PARAM" : 11,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 14,
+		"INT_PARAM" : 10,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 16,
+		"INT_PARAM" : 9,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 18,
+		"INT_PARAM" : 9,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 9,
+		"LEVEL" : 20,
+		"INT_PARAM" : 8,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-09 19:33:27"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 10,
+		"LEVEL" : 1,
+		"INT_PARAM" : 25,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 10,
+		"LEVEL" : 2,
+		"INT_PARAM" : 30,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 10,
+		"LEVEL" : 3,
+		"INT_PARAM" : 35,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 10,
+		"LEVEL" : 4,
+		"INT_PARAM" : 40,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 10,
+		"LEVEL" : 5,
+		"INT_PARAM" : 45,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 10,
+		"LEVEL" : 6,
+		"INT_PARAM" : 50,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 10,
+		"LEVEL" : 7,
+		"INT_PARAM" : 55,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 10,
+		"LEVEL" : 8,
+		"INT_PARAM" : 60,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 10,
+		"LEVEL" : 9,
+		"INT_PARAM" : 65,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 10,
+		"LEVEL" : 10,
+		"INT_PARAM" : 68,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 10,
+		"LEVEL" : 11,
+		"INT_PARAM" : 71,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 10,
+		"LEVEL" : 12,
+		"INT_PARAM" : 74,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 10,
+		"LEVEL" : 13,
+		"INT_PARAM" : 77,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 10,
+		"LEVEL" : 14,
+		"INT_PARAM" : 80,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 10,
+		"LEVEL" : 15,
+		"INT_PARAM" : 83,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 10,
+		"LEVEL" : 16,
+		"INT_PARAM" : 84,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 10,
+		"LEVEL" : 17,
+		"INT_PARAM" : 85,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 10,
+		"LEVEL" : 18,
+		"INT_PARAM" : 86,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 10,
+		"LEVEL" : 19,
+		"INT_PARAM" : 87,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 10,
+		"LEVEL" : 20,
+		"INT_PARAM" : 88,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 11,
+		"LEVEL" : 1,
+		"INT_PARAM" : 20,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 11,
+		"LEVEL" : 2,
+		"INT_PARAM" : 25,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 11,
+		"LEVEL" : 3,
+		"INT_PARAM" : 30,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 11,
+		"LEVEL" : 4,
+		"INT_PARAM" : 35,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 11,
+		"LEVEL" : 5,
+		"INT_PARAM" : 40,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 11,
+		"LEVEL" : 6,
+		"INT_PARAM" : 45,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 11,
+		"LEVEL" : 7,
+		"INT_PARAM" : 50,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 11,
+		"LEVEL" : 8,
+		"INT_PARAM" : 55,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 11,
+		"LEVEL" : 9,
+		"INT_PARAM" : 60,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 11,
+		"LEVEL" : 10,
+		"INT_PARAM" : 63,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 11,
+		"LEVEL" : 11,
+		"INT_PARAM" : 66,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 11,
+		"LEVEL" : 12,
+		"INT_PARAM" : 69,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 11,
+		"LEVEL" : 13,
+		"INT_PARAM" : 72,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 11,
+		"LEVEL" : 14,
+		"INT_PARAM" : 75,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 11,
+		"LEVEL" : 15,
+		"INT_PARAM" : 78,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 11,
+		"LEVEL" : 16,
+		"INT_PARAM" : 79,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 11,
+		"LEVEL" : 17,
+		"INT_PARAM" : 80,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 11,
+		"LEVEL" : 18,
+		"INT_PARAM" : 81,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 11,
+		"LEVEL" : 19,
+		"INT_PARAM" : 82,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 11,
+		"LEVEL" : 20,
+		"INT_PARAM" : 83,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 12,
+		"LEVEL" : 1,
+		"INT_PARAM" : 30,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 12,
+		"LEVEL" : 2,
+		"INT_PARAM" : 35,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 12,
+		"LEVEL" : 3,
+		"INT_PARAM" : 40,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 12,
+		"LEVEL" : 4,
+		"INT_PARAM" : 45,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 12,
+		"LEVEL" : 5,
+		"INT_PARAM" : 50,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 12,
+		"LEVEL" : 6,
+		"INT_PARAM" : 55,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 12,
+		"LEVEL" : 7,
+		"INT_PARAM" : 60,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 12,
+		"LEVEL" : 8,
+		"INT_PARAM" : 65,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 12,
+		"LEVEL" : 9,
+		"INT_PARAM" : 70,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 12,
+		"LEVEL" : 10,
+		"INT_PARAM" : 74,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 12,
+		"LEVEL" : 11,
+		"INT_PARAM" : 78,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 12,
+		"LEVEL" : 12,
+		"INT_PARAM" : 82,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 12,
+		"LEVEL" : 13,
+		"INT_PARAM" : 86,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 12,
+		"LEVEL" : 14,
+		"INT_PARAM" : 90,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 12,
+		"LEVEL" : 15,
+		"INT_PARAM" : 94,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 12,
+		"LEVEL" : 16,
+		"INT_PARAM" : 95,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 12,
+		"LEVEL" : 17,
+		"INT_PARAM" : 96,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 12,
+		"LEVEL" : 18,
+		"INT_PARAM" : 97,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 12,
+		"LEVEL" : 19,
+		"INT_PARAM" : 98,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 12,
+		"LEVEL" : 20,
+		"INT_PARAM" : 99,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 13,
+		"LEVEL" : 1,
+		"INT_PARAM" : 25,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 13,
+		"LEVEL" : 2,
+		"INT_PARAM" : 30,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 13,
+		"LEVEL" : 3,
+		"INT_PARAM" : 35,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 13,
+		"LEVEL" : 4,
+		"INT_PARAM" : 40,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 13,
+		"LEVEL" : 5,
+		"INT_PARAM" : 45,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 13,
+		"LEVEL" : 6,
+		"INT_PARAM" : 50,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 13,
+		"LEVEL" : 7,
+		"INT_PARAM" : 55,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 13,
+		"LEVEL" : 8,
+		"INT_PARAM" : 60,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 13,
+		"LEVEL" : 9,
+		"INT_PARAM" : 65,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 13,
+		"LEVEL" : 10,
+		"INT_PARAM" : 68,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 13,
+		"LEVEL" : 11,
+		"INT_PARAM" : 71,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 13,
+		"LEVEL" : 12,
+		"INT_PARAM" : 74,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 13,
+		"LEVEL" : 13,
+		"INT_PARAM" : 77,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 13,
+		"LEVEL" : 14,
+		"INT_PARAM" : 80,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 13,
+		"LEVEL" : 15,
+		"INT_PARAM" : 83,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 13,
+		"LEVEL" : 16,
+		"INT_PARAM" : 85,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 13,
+		"LEVEL" : 17,
+		"INT_PARAM" : 87,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 13,
+		"LEVEL" : 18,
+		"INT_PARAM" : 89,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 13,
+		"LEVEL" : 19,
+		"INT_PARAM" : 91,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 13,
+		"LEVEL" : 20,
+		"INT_PARAM" : 93,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 14,
+		"LEVEL" : 1,
+		"INT_PARAM" : 80,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 14,
+		"LEVEL" : 2,
+		"INT_PARAM" : 81,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 14,
+		"LEVEL" : 3,
+		"INT_PARAM" : 82,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 14,
+		"LEVEL" : 4,
+		"INT_PARAM" : 83,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 14,
+		"LEVEL" : 5,
+		"INT_PARAM" : 84,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 14,
+		"LEVEL" : 6,
+		"INT_PARAM" : 85,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 14,
+		"LEVEL" : 7,
+		"INT_PARAM" : 86,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 14,
+		"LEVEL" : 8,
+		"INT_PARAM" : 87,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 14,
+		"LEVEL" : 9,
+		"INT_PARAM" : 88,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 14,
+		"LEVEL" : 10,
+		"INT_PARAM" : 89,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 14,
+		"LEVEL" : 11,
+		"INT_PARAM" : 90,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 14,
+		"LEVEL" : 12,
+		"INT_PARAM" : 91,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 14,
+		"LEVEL" : 13,
+		"INT_PARAM" : 92,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 14,
+		"LEVEL" : 14,
+		"INT_PARAM" : 93,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 14,
+		"LEVEL" : 15,
+		"INT_PARAM" : 94,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 14,
+		"LEVEL" : 16,
+		"INT_PARAM" : 95,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 14,
+		"LEVEL" : 17,
+		"INT_PARAM" : 96,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 14,
+		"LEVEL" : 18,
+		"INT_PARAM" : 97,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 14,
+		"LEVEL" : 19,
+		"INT_PARAM" : 98,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 14,
+		"LEVEL" : 20,
+		"INT_PARAM" : 99,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 15,
+		"LEVEL" : 1,
+		"INT_PARAM" : 10,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 15,
+		"LEVEL" : 2,
+		"INT_PARAM" : 15,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 15,
+		"LEVEL" : 3,
+		"INT_PARAM" : 20,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 15,
+		"LEVEL" : 4,
+		"INT_PARAM" : 25,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 15,
+		"LEVEL" : 5,
+		"INT_PARAM" : 30,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 15,
+		"LEVEL" : 6,
+		"INT_PARAM" : 35,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 15,
+		"LEVEL" : 7,
+		"INT_PARAM" : 40,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 15,
+		"LEVEL" : 8,
+		"INT_PARAM" : 45,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 15,
+		"LEVEL" : 9,
+		"INT_PARAM" : 50,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 15,
+		"LEVEL" : 10,
+		"INT_PARAM" : 53,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 15,
+		"LEVEL" : 11,
+		"INT_PARAM" : 56,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 15,
+		"LEVEL" : 12,
+		"INT_PARAM" : 59,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 15,
+		"LEVEL" : 13,
+		"INT_PARAM" : 62,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 15,
+		"LEVEL" : 14,
+		"INT_PARAM" : 65,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 15,
+		"LEVEL" : 15,
+		"INT_PARAM" : 68,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 15,
+		"LEVEL" : 16,
+		"INT_PARAM" : 69,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 15,
+		"LEVEL" : 17,
+		"INT_PARAM" : 70,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 15,
+		"LEVEL" : 18,
+		"INT_PARAM" : 71,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 15,
+		"LEVEL" : 19,
+		"INT_PARAM" : 72,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 15,
+		"LEVEL" : 20,
+		"INT_PARAM" : 73,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 16,
+		"LEVEL" : 1,
+		"INT_PARAM" : 30,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 16,
+		"LEVEL" : 2,
+		"INT_PARAM" : 34,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 16,
+		"LEVEL" : 3,
+		"INT_PARAM" : 38,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 16,
+		"LEVEL" : 4,
+		"INT_PARAM" : 42,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 16,
+		"LEVEL" : 5,
+		"INT_PARAM" : 46,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 16,
+		"LEVEL" : 6,
+		"INT_PARAM" : 50,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 16,
+		"LEVEL" : 7,
+		"INT_PARAM" : 54,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 16,
+		"LEVEL" : 8,
+		"INT_PARAM" : 58,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 16,
+		"LEVEL" : 9,
+		"INT_PARAM" : 62,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 16,
+		"LEVEL" : 10,
+		"INT_PARAM" : 65,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 16,
+		"LEVEL" : 11,
+		"INT_PARAM" : 68,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 16,
+		"LEVEL" : 12,
+		"INT_PARAM" : 71,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 16,
+		"LEVEL" : 13,
+		"INT_PARAM" : 74,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 16,
+		"LEVEL" : 14,
+		"INT_PARAM" : 77,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 16,
+		"LEVEL" : 15,
+		"INT_PARAM" : 80,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 16,
+		"LEVEL" : 16,
+		"INT_PARAM" : 83,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 16,
+		"LEVEL" : 17,
+		"INT_PARAM" : 86,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 16,
+		"LEVEL" : 18,
+		"INT_PARAM" : 89,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 16,
+		"LEVEL" : 19,
+		"INT_PARAM" : 92,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 16,
+		"LEVEL" : 20,
+		"INT_PARAM" : 95,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2021-08-11 23:48:42"
+	},
+	{
+		"CLASS_ID" : 1,
+		"ABILITY_ID" : 39,
+		"LEVEL" : 1,
+		"INT_PARAM" : 6,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"CLASS_ID" : 2,
+		"ABILITY_ID" : 39,
+		"LEVEL" : 1,
+		"INT_PARAM" : 8,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"CLASS_ID" : 3,
+		"ABILITY_ID" : 39,
+		"LEVEL" : 1,
+		"INT_PARAM" : 4,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	},
+	{
+		"CLASS_ID" : 4,
+		"ABILITY_ID" : 39,
+		"LEVEL" : 1,
+		"INT_PARAM" : 4,
+		"STR_PARAM" : null,
+		"MODIFIED" : "2026-10-06 00:00:00"
+	}
+]}

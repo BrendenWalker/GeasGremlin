@@ -1,0 +1,18 @@
+{
+	"ABILITIES" : [
+		{
+			"ID" : 101,
+			"DESCRIPTION" : "%d%% Detect Traps",
+			"MODIFIED" : "2026-10-11 00:00:00",
+			"STAT_ID" : null,
+			"STAT_MODIFIER" : null
+		},
+		{
+			"ID" : 102,
+			"DESCRIPTION" : "Control Animals - consult GM",
+			"MODIFIED" : "2026-10-11 00:00:00",
+			"STAT_ID" : null,
+			"STAT_MODIFIER" : null
+		}
+	]
+}

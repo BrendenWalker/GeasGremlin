@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+.DS_Store
+
+# Local-only DB scripts (not checked in)
+database/local/
+
+# Local scratch: research dumps, extracts, and one-off diffs
+.tmp*
+
+# Python bytecode
+__pycache__/
+*.py[cod]

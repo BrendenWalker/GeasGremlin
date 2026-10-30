@@ -1,0 +1,15 @@
+---
+description: Read the shared GeasGremlin instructions in ai/ before changing the app, schema, or a ruleset
+alwaysApply: true
+---
+
+# GeasGremlin
+
+The project instructions are in `ai/`. Read them before changing the app, the schema, or a ruleset. Do not copy them into this rule.
+
+- `ai/README.md`
+- `ai/repository.md`
+- `ai/rulesets.md`
+- `ai/work.md`
+
+Resume play-loop work from `docs/plans/TRACKER.md`.

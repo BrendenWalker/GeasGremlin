@@ -1,0 +1,1102 @@
+{
+"SPELL_CLASS": [
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 1,
+		"LEVEL" : 4,
+		"MODIFIED" : "2021-08-08 17:56:52.959"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 1,
+		"LEVEL" : 5,
+		"MODIFIED" : "2021-08-08 17:56:52.960"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 2,
+		"LEVEL" : 6,
+		"MODIFIED" : "2021-08-08 17:56:52.960"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 3,
+		"LEVEL" : 6,
+		"MODIFIED" : "2021-08-08 17:56:52.960"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 4,
+		"LEVEL" : 6,
+		"MODIFIED" : "2021-08-08 17:56:52.961"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 5,
+		"LEVEL" : 2,
+		"MODIFIED" : "2021-08-08 17:56:52.961"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 6,
+		"LEVEL" : 2,
+		"MODIFIED" : "2021-08-08 17:56:52.962"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 7,
+		"LEVEL" : 4,
+		"MODIFIED" : "2021-08-08 17:56:52.962"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 8,
+		"LEVEL" : 1,
+		"MODIFIED" : "2021-08-08 17:56:52.962"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 9,
+		"LEVEL" : 3,
+		"MODIFIED" : "2021-08-08 17:56:52.963"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 10,
+		"LEVEL" : 5,
+		"MODIFIED" : "2021-08-08 17:56:52.963"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 11,
+		"LEVEL" : 5,
+		"MODIFIED" : "2021-08-08 17:56:52.964"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 12,
+		"LEVEL" : 4,
+		"MODIFIED" : "2021-08-08 17:56:52.964"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 13,
+		"LEVEL" : 5,
+		"MODIFIED" : "2021-08-08 17:56:52.964"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 14,
+		"LEVEL" : 3,
+		"MODIFIED" : "2021-08-08 17:56:52.965"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 14,
+		"LEVEL" : 2,
+		"MODIFIED" : "2021-08-08 17:56:52.965"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 15,
+		"LEVEL" : 5,
+		"MODIFIED" : "2021-08-08 17:56:52.965"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 16,
+		"LEVEL" : 4,
+		"MODIFIED" : "2021-08-08 17:56:52.966"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 17,
+		"LEVEL" : 3,
+		"MODIFIED" : "2021-08-08 17:56:52.966"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 18,
+		"LEVEL" : 3,
+		"MODIFIED" : "2021-08-08 17:56:52.966"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 19,
+		"LEVEL" : 3,
+		"MODIFIED" : "2021-08-08 17:56:52.967"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 20,
+		"LEVEL" : 6,
+		"MODIFIED" : "2021-08-08 17:56:52.967"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 21,
+		"LEVEL" : 1,
+		"MODIFIED" : "2021-08-08 17:56:52.967"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 21,
+		"LEVEL" : 2,
+		"MODIFIED" : "2021-08-08 17:56:52.968"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 22,
+		"LEVEL" : 2,
+		"MODIFIED" : "2021-08-08 17:56:52.968"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 23,
+		"LEVEL" : 1,
+		"MODIFIED" : "2021-08-08 17:56:52.968"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 23,
+		"LEVEL" : 1,
+		"MODIFIED" : "2021-08-08 17:56:52.968"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 24,
+		"LEVEL" : 4,
+		"MODIFIED" : "2021-08-08 17:56:52.969"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 25,
+		"LEVEL" : 6,
+		"MODIFIED" : "2021-08-08 17:56:52.969"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 26,
+		"LEVEL" : 5,
+		"MODIFIED" : "2021-08-08 17:56:52.969"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 27,
+		"LEVEL" : 4,
+		"MODIFIED" : "2021-08-08 17:56:52.970"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 27,
+		"LEVEL" : 3,
+		"MODIFIED" : "2021-08-08 17:56:52.970"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 28,
+		"LEVEL" : 2,
+		"MODIFIED" : "2021-08-08 17:56:52.970"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 29,
+		"LEVEL" : 5,
+		"MODIFIED" : "2021-08-08 17:56:52.971"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 30,
+		"LEVEL" : 2,
+		"MODIFIED" : "2021-08-08 17:56:52.971"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 31,
+		"LEVEL" : 6,
+		"MODIFIED" : "2021-08-08 17:56:52.971"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 32,
+		"LEVEL" : 3,
+		"MODIFIED" : "2021-08-08 17:56:52.972"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 33,
+		"LEVEL" : 6,
+		"MODIFIED" : "2021-08-08 17:56:52.972"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 34,
+		"LEVEL" : 1,
+		"MODIFIED" : "2021-08-08 17:56:52.973"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 35,
+		"LEVEL" : 3,
+		"MODIFIED" : "2021-08-08 17:56:52.973"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 36,
+		"LEVEL" : 6,
+		"MODIFIED" : "2021-08-08 17:56:52.973"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 37,
+		"LEVEL" : 3,
+		"MODIFIED" : "2021-08-08 17:56:52.974"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 38,
+		"LEVEL" : 4,
+		"MODIFIED" : "2021-08-08 17:56:52.974"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 39,
+		"LEVEL" : 4,
+		"MODIFIED" : "2021-08-08 17:56:52.974"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 40,
+		"LEVEL" : 3,
+		"MODIFIED" : "2021-08-08 17:56:52.975"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 41,
+		"LEVEL" : 6,
+		"MODIFIED" : "2021-08-08 17:56:52.975"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 42,
+		"LEVEL" : 5,
+		"MODIFIED" : "2021-08-08 17:56:52.975"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 43,
+		"LEVEL" : 2,
+		"MODIFIED" : "2021-08-08 17:56:52.976"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 43,
+		"LEVEL" : 3,
+		"MODIFIED" : "2021-08-08 17:56:52.976"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 44,
+		"LEVEL" : 1,
+		"MODIFIED" : "2021-08-08 17:56:52.976"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 45,
+		"LEVEL" : 4,
+		"MODIFIED" : "2021-08-08 17:56:52.976"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 46,
+		"LEVEL" : 5,
+		"MODIFIED" : "2021-08-08 17:56:52.976"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 47,
+		"LEVEL" : 2,
+		"MODIFIED" : "2021-08-08 17:56:52.977"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 48,
+		"LEVEL" : 3,
+		"MODIFIED" : "2021-08-08 17:56:52.977"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 49,
+		"LEVEL" : 6,
+		"MODIFIED" : "2021-08-08 17:56:52.977"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 50,
+		"LEVEL" : 2,
+		"MODIFIED" : "2021-08-08 17:56:52.978"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 51,
+		"LEVEL" : 2,
+		"MODIFIED" : "2021-08-08 17:56:52.978"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 52,
+		"LEVEL" : 1,
+		"MODIFIED" : "2021-08-08 17:56:52.978"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 52,
+		"LEVEL" : 1,
+		"MODIFIED" : "2021-08-08 17:56:52.978"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 53,
+		"LEVEL" : 3,
+		"MODIFIED" : "2021-08-08 17:56:52.979"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 54,
+		"LEVEL" : 3,
+		"MODIFIED" : "2021-08-08 17:56:52.979"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 54,
+		"LEVEL" : 2,
+		"MODIFIED" : "2021-08-08 17:56:52.979"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 55,
+		"LEVEL" : 6,
+		"MODIFIED" : "2021-08-08 17:56:52.979"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 56,
+		"LEVEL" : 5,
+		"MODIFIED" : "2021-08-08 17:56:52.980"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 57,
+		"LEVEL" : 1,
+		"MODIFIED" : "2021-08-08 17:56:52.980"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 58,
+		"LEVEL" : 1,
+		"MODIFIED" : "2021-08-08 17:56:52.980"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 59,
+		"LEVEL" : 4,
+		"MODIFIED" : "2021-08-08 17:56:52.981"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 60,
+		"LEVEL" : 2,
+		"MODIFIED" : "2021-08-08 17:56:52.981"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 61,
+		"LEVEL" : 4,
+		"MODIFIED" : "2021-08-08 17:56:52.981"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 62,
+		"LEVEL" : 5,
+		"MODIFIED" : "2021-08-08 17:56:52.982"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 63,
+		"LEVEL" : 2,
+		"MODIFIED" : "2021-08-08 17:56:52.982"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 64,
+		"LEVEL" : 4,
+		"MODIFIED" : "2021-08-08 17:56:52.982"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 65,
+		"LEVEL" : 4,
+		"MODIFIED" : "2021-08-08 17:56:52.983"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 66,
+		"LEVEL" : 6,
+		"MODIFIED" : "2021-08-08 17:56:52.983"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 67,
+		"LEVEL" : 1,
+		"MODIFIED" : "2021-08-08 17:56:52.983"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 67,
+		"LEVEL" : 1,
+		"MODIFIED" : "2021-08-08 17:56:52.983"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 68,
+		"LEVEL" : 4,
+		"MODIFIED" : "2021-08-08 17:56:52.984"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 68,
+		"LEVEL" : 3,
+		"MODIFIED" : "2021-08-08 17:56:52.984"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 69,
+		"LEVEL" : 3,
+		"MODIFIED" : "2021-08-08 17:56:52.984"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 70,
+		"LEVEL" : 1,
+		"MODIFIED" : "2021-08-08 17:56:52.984"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 71,
+		"LEVEL" : 5,
+		"MODIFIED" : "2021-08-08 17:56:52.985"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 72,
+		"LEVEL" : 5,
+		"MODIFIED" : "2021-08-08 17:56:52.985"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 73,
+		"LEVEL" : 1,
+		"MODIFIED" : "2021-08-08 17:56:52.985"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 74,
+		"LEVEL" : 1,
+		"MODIFIED" : "2021-08-08 17:56:52.985"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 75,
+		"LEVEL" : 6,
+		"MODIFIED" : "2021-08-08 17:56:52.986"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 76,
+		"LEVEL" : 6,
+		"MODIFIED" : "2021-08-08 17:56:52.986"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 77,
+		"LEVEL" : 3,
+		"MODIFIED" : "2021-08-08 17:56:52.987"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 78,
+		"LEVEL" : 1,
+		"MODIFIED" : "2021-08-08 17:56:52.987"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 79,
+		"LEVEL" : 2,
+		"MODIFIED" : "2021-08-08 17:56:52.987"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 80,
+		"LEVEL" : 6,
+		"MODIFIED" : "2021-08-08 17:56:52.987"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 81,
+		"LEVEL" : 1,
+		"MODIFIED" : "2021-08-08 17:56:52.988"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 82,
+		"LEVEL" : 2,
+		"MODIFIED" : "2021-08-08 17:56:52.988"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 83,
+		"LEVEL" : 1,
+		"MODIFIED" : "2021-08-08 17:56:52.988"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 84,
+		"LEVEL" : 2,
+		"MODIFIED" : "2021-08-08 17:56:52.989"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 85,
+		"LEVEL" : 6,
+		"MODIFIED" : "2021-08-08 17:56:52.989"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 86,
+		"LEVEL" : 4,
+		"MODIFIED" : "2021-08-08 17:56:52.990"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 87,
+		"LEVEL" : 3,
+		"MODIFIED" : "2021-08-08 17:56:52.990"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 88,
+		"LEVEL" : 2,
+		"MODIFIED" : "2021-08-08 17:56:52.990"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 89,
+		"LEVEL" : 4,
+		"MODIFIED" : "2021-08-08 17:56:52.991"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 90,
+		"LEVEL" : 3,
+		"MODIFIED" : "2021-08-08 17:56:52.991"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 91,
+		"LEVEL" : 5,
+		"MODIFIED" : "2021-08-08 17:56:52.991"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 92,
+		"LEVEL" : 5,
+		"MODIFIED" : "2021-08-08 17:56:52.992"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 93,
+		"LEVEL" : 5,
+		"MODIFIED" : "2021-08-08 17:56:52.992"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 94,
+		"LEVEL" : 1,
+		"MODIFIED" : "2021-08-08 17:56:52.992"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 95,
+		"LEVEL" : 5,
+		"MODIFIED" : "2021-08-08 17:56:52.993"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 95,
+		"LEVEL" : 4,
+		"MODIFIED" : "2021-08-08 17:56:52.993"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 96,
+		"LEVEL" : 6,
+		"MODIFIED" : "2021-08-08 17:56:52.993"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 97,
+		"LEVEL" : 5,
+		"MODIFIED" : "2021-08-08 17:56:52.993"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 98,
+		"LEVEL" : 3,
+		"MODIFIED" : "2021-08-08 17:56:52.994"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 99,
+		"LEVEL" : 2,
+		"MODIFIED" : "2021-08-08 17:56:52.994"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 100,
+		"LEVEL" : 4,
+		"MODIFIED" : "2021-08-08 17:56:52.994"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 101,
+		"LEVEL" : 2,
+		"MODIFIED" : "2021-08-08 17:56:52.995"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 102,
+		"LEVEL" : 6,
+		"MODIFIED" : "2021-08-08 17:56:52.995"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 150,
+		"LEVEL" : 7,
+		"MODIFIED" : "2021-08-08 17:56:53.010"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 163,
+		"LEVEL" : 7,
+		"MODIFIED" : "2021-08-09 23:21:41"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 209,
+		"LEVEL" : 6,
+		"MODIFIED" : "2021-08-09 23:24:09"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 213,
+		"LEVEL" : 1,
+		"MODIFIED" : "2021-08-09 17:15:09.197"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 214,
+		"LEVEL" : 2,
+		"MODIFIED" : "2021-08-09 17:15:09.203"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 215,
+		"LEVEL" : 7,
+		"MODIFIED" : "2021-08-09 17:15:09.211"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 215,
+		"LEVEL" : 7,
+		"MODIFIED" : "2021-08-09 17:15:09.212"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 218,
+		"LEVEL" : 1,
+		"MODIFIED" : "2021-08-09 17:15:09.246"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 220,
+		"LEVEL" : 3,
+		"MODIFIED" : "2021-08-09 17:15:09.269"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 221,
+		"LEVEL" : 1,
+		"MODIFIED" : "2021-08-09 17:15:09.281"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 222,
+		"LEVEL" : 7,
+		"MODIFIED" : "2021-08-09 17:15:09.291"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 224,
+		"LEVEL" : 3,
+		"MODIFIED" : "2021-08-09 17:15:09.313"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 224,
+		"LEVEL" : 7,
+		"MODIFIED" : "2021-08-09 17:15:09.315"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 228,
+		"LEVEL" : 7,
+		"MODIFIED" : "2021-08-09 17:15:09.355"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 229,
+		"LEVEL" : 2,
+		"MODIFIED" : "2021-08-09 17:15:09.367"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 231,
+		"LEVEL" : 7,
+		"MODIFIED" : "2021-08-09 17:15:09.390"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 232,
+		"LEVEL" : 3,
+		"MODIFIED" : "2021-08-09 17:15:09.402"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 233,
+		"LEVEL" : 7,
+		"MODIFIED" : "2021-08-09 17:15:09.413"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 233,
+		"LEVEL" : 7,
+		"MODIFIED" : "2021-08-09 17:15:09.415"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 234,
+		"LEVEL" : 2,
+		"MODIFIED" : "2021-08-09 17:15:09.424"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 236,
+		"LEVEL" : 7,
+		"MODIFIED" : "2021-08-09 17:15:09.448"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 237,
+		"LEVEL" : 7,
+		"MODIFIED" : "2021-08-09 17:15:09.459"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 238,
+		"LEVEL" : 3,
+		"MODIFIED" : "2021-08-09 17:15:09.469"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 240,
+		"LEVEL" : 7,
+		"MODIFIED" : "2021-08-09 17:15:09.489"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 241,
+		"LEVEL" : 1,
+		"MODIFIED" : "2021-08-09 17:15:09.504"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 244,
+		"LEVEL" : 1,
+		"MODIFIED" : "2021-08-09 17:15:09.530"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 245,
+		"LEVEL" : 5,
+		"MODIFIED" : "2021-08-09 17:15:09.542"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 246,
+		"LEVEL" : 7,
+		"MODIFIED" : "2021-08-09 17:15:09.552"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 248,
+		"LEVEL" : 5,
+		"MODIFIED" : "2021-08-09 17:15:09.578"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 250,
+		"LEVEL" : 2,
+		"MODIFIED" : "2021-08-09 17:15:09.600"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 252,
+		"LEVEL" : 2,
+		"MODIFIED" : "2021-08-09 17:15:09.622"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 253,
+		"LEVEL" : 7,
+		"MODIFIED" : "2021-08-09 17:15:09.637"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 254,
+		"LEVEL" : 7,
+		"MODIFIED" : "2021-08-09 17:15:09.647"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 254,
+		"LEVEL" : 6,
+		"MODIFIED" : "2021-08-09 17:15:09.649"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 255,
+		"LEVEL" : 5,
+		"MODIFIED" : "2021-08-09 17:15:09.662"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 256,
+		"LEVEL" : 1,
+		"MODIFIED" : "2021-08-09 17:15:09.673"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 260,
+		"LEVEL" : 4,
+		"MODIFIED" : "2021-08-09 17:15:09.716"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 261,
+		"LEVEL" : 5,
+		"MODIFIED" : "2021-08-09 17:15:09.726"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 262,
+		"LEVEL" : 7,
+		"MODIFIED" : "2021-08-09 17:15:09.740"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 263,
+		"LEVEL" : 3,
+		"MODIFIED" : "2021-08-09 17:15:09.750"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 263,
+		"LEVEL" : 3,
+		"MODIFIED" : "2021-08-09 17:15:09.752"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 266,
+		"LEVEL" : 1,
+		"MODIFIED" : "2021-08-09 17:15:09.789"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 269,
+		"LEVEL" : 7,
+		"MODIFIED" : "2021-08-09 17:15:09.821"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 270,
+		"LEVEL" : 7,
+		"MODIFIED" : "2021-08-09 17:15:09.834"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 242,
+		"LEVEL" : 4,
+		"MODIFIED" : "2021-08-23 23:29:46"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 242,
+		"LEVEL" : 4,
+		"MODIFIED" : "2021-08-23 23:29:46"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 271,
+		"LEVEL" : 0,
+		"MODIFIED" : "2021-08-23 23:49:04"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 272,
+		"LEVEL" : 0,
+		"MODIFIED" : "2021-08-23 23:49:04"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 273,
+		"LEVEL" : 0,
+		"MODIFIED" : "2021-08-23 23:49:04"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 274,
+		"LEVEL" : 0,
+		"MODIFIED" : "2021-08-23 23:49:04"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 275,
+		"LEVEL" : 0,
+		"MODIFIED" : "2021-08-23 23:49:04"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 276,
+		"LEVEL" : 0,
+		"MODIFIED" : "2021-08-23 23:49:04"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 277,
+		"LEVEL" : 0,
+		"MODIFIED" : "2021-08-23 23:49:04"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 278,
+		"LEVEL" : 0,
+		"MODIFIED" : "2021-08-23 23:49:04"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 279,
+		"LEVEL" : 0,
+		"MODIFIED" : "2021-08-23 23:49:04"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 280,
+		"LEVEL" : 0,
+		"MODIFIED" : "2021-08-23 23:52:28"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 281,
+		"LEVEL" : 0,
+		"MODIFIED" : "2021-08-23 23:52:28"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 282,
+		"LEVEL" : 0,
+		"MODIFIED" : "2021-08-23 23:52:28"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 283,
+		"LEVEL" : 0,
+		"MODIFIED" : "2021-08-23 23:52:28"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 284,
+		"LEVEL" : 0,
+		"MODIFIED" : "2021-08-23 23:52:28"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 285,
+		"LEVEL" : 0,
+		"MODIFIED" : "2021-08-23 23:52:28"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 286,
+		"LEVEL" : 0,
+		"MODIFIED" : "2021-08-23 23:52:28"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 287,
+		"LEVEL" : 0,
+		"MODIFIED" : "2021-08-23 23:52:28"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 288,
+		"LEVEL" : 0,
+		"MODIFIED" : "2021-08-23 23:52:28"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 289,
+		"LEVEL" : 0,
+		"MODIFIED" : "2021-08-23 23:52:28"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 290,
+		"LEVEL" : 0,
+		"MODIFIED" : "2021-08-23 23:52:28"
+	},
+	{
+		"CLASS_ID" : 3,
+		"SPELL_ID" : 77,
+		"LEVEL" : 4,
+		"MODIFIED" : "2026-10-10 00:00:00"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 294,
+		"LEVEL" : 1,
+		"MODIFIED" : "2026-10-10 00:00:00"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 295,
+		"LEVEL" : 4,
+		"MODIFIED" : "2026-10-10 00:00:00"
+	},
+	{
+		"CLASS_ID" : 1,
+		"SPELL_ID" : 296,
+		"LEVEL" : 1,
+		"MODIFIED" : "2026-10-10 00:00:00"
+	}
+]
+}
