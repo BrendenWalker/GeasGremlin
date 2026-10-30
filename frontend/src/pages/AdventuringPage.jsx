@@ -288,6 +288,7 @@ export default function AdventuringPage() {
   const [loading, setLoading] = useState(true);
   const [homeTab, setHomeTab] = useState('location');
   const [busy, setBusy] = useState(false);
+  const [concludeArmed, setConcludeArmed] = useState(false);
   const [marchNote, setMarchNote] = useState(null);
   const [lostNote, setLostNote] = useState(null);
   const [weatherNote, setWeatherNote] = useState(null);
@@ -2132,18 +2133,40 @@ export default function AdventuringPage() {
           >
             End session
           </button>
-          <button
-            type="button"
-            className="btn btn-danger"
-            disabled={busy || !board}
-            onClick={() => {
-              if (!window.confirm(CONCLUDE_CONFIRM)) return;
-              leave(() => concludeCampaign(campaignId));
-            }}
-          >
-            Conclude campaign
-          </button>
+          {!concludeArmed && (
+            <button
+              type="button"
+              className="btn btn-danger"
+              disabled={busy || !board}
+              onClick={() => setConcludeArmed(true)}
+            >
+              Conclude campaign
+            </button>
+          )}
         </div>
+        {concludeArmed && (
+          <div style={{ marginTop: 12 }}>
+            <p style={{ whiteSpace: 'pre-wrap' }}>{CONCLUDE_CONFIRM}</p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn btn-danger"
+                disabled={busy || !board}
+                onClick={() => leave(() => concludeCampaign(campaignId))}
+              >
+                Wipe this playthrough
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={busy}
+                onClick={() => setConcludeArmed(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
       </div>
     </div>

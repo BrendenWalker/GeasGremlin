@@ -60,7 +60,10 @@ assert.match(START_SESSION_SQL, /running = true/);
 assert.equal(START_SESSION_SQL.includes('DELETE'), false);
 assert.equal(confirmSource.includes('Character sheets'), true);
 assert.equal(confirmSource.includes('End session'), true);
-assert.equal(pageSource.includes('window.confirm(CONCLUDE_CONFIRM)'), true);
+assert.equal(pageSource.includes('window.confirm'), false);
+assert.equal(pageSource.includes('setConcludeArmed(true)'), true);
+assert.equal(pageSource.includes('{CONCLUDE_CONFIRM}'), true);
+assert.equal(pageSource.includes('Wipe this playthrough'), true);
 assert.equal(pageSource.includes('btn-danger'), true);
 assert.equal(pageSource.includes('concludeCampaign(campaignId)'), true);
 

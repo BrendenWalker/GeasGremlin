@@ -10,8 +10,8 @@ Source: `docs/plans/GeasGremlin_Cursor_Implementation_Plan_Revised.md`.
 
 | Item | Status | Note |
 |---|---|---|
-| Phase 0 baseline and lifecycle guard | done | Conclude still wipes the playthrough. The route and body are unchanged. The GM button confirms first. `npm run test:lifecycle` locks the statements. |
-| Phase 1 state and run ownership | todo | Waiting for approval. Proposal is below. Do not add tables until then. |
+| Phase 0 baseline and lifecycle guard | done | Conclude still wipes the playthrough. The route and body are unchanged. The Session card confirms on the page (`Conclude campaign`, then `Wipe this playthrough`). `window.confirm` does not show in the embedded browser. `npm run test:lifecycle` locks the statements. |
+| Phase 1 state and run ownership | todo | Approved. Next session implements Phase 1 only, using the ownership note below. Stop before Phase 2. |
 | Ruleset assessment before Phase 2 | todo | Not started. `npm run test:overlay` already fails on this checkout. |
 | Phases 2–7 | todo | Not started. |
 
@@ -23,7 +23,11 @@ Schema is `database/schema.sql` applied in place. No migration-version table. On
 
 Pre-existing check failure left as-is: `npm run test:overlay` expects Enhanced to keep 0 spells and 0 abilities; this tree keeps 4 spells (Take Animal Form, Tree Form, Summon Weather, Animal Friendship) and 2 abilities.
 
-### Phase 1 proposal (not implemented)
+### Next session
+
+Start at Phase 1 in `docs/plans/GeasGremlin_Cursor_Implementation_Plan_Revised.md`. Branch `feature/review_feedback_changes`. The WIP stack is `docker compose` from the repo root: http://localhost:8150 and http://192.168.20.146:8150. It uses the existing `geasgremlin` database. Accepting **Wipe this playthrough** deletes that campaign's live playthrough. A frontend change needs `docker compose up -d --build frontend` and a browser refresh.
+
+### Phase 1 ownership (approved, not implemented)
 
 Keep `campaign_id` as the only playthrough owner. A campaign row is both the authored definition and the single run. Do not add `campaign_run_id` until Phase 5. New runtime rows, if approved, use `campaign_id` plus a uniqueness key that can later gain `campaign_run_id` without sharing state across campaigns.
 
