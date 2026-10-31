@@ -23,6 +23,7 @@ const {
   readPreviewCommand,
   rejectRisingWater,
   applyRisingWater,
+  waterStory,
   listFacts,
   setFact,
   attachAuthoredFacts,
@@ -89,6 +90,87 @@ assert.deepEqual(rejectRisingWater(), { changed: false });
 assert.equal(readPreviewCommand({}).error, 'encounter_id is required');
 assert.equal(readPreviewCommand({ encounter_id: 7 }).encounter_id, 7);
 
+const storyPlaces = [
+  { id: 1, name: 'Cistern Well' },
+  { id: 2, name: 'Cistern Heart' },
+  { id: 3, name: 'Cistern Deep' },
+];
+const storyFacts = [
+  { subject_key: 'waterwheel', state_key: 'blocked', value: true, location_id: 1 },
+  { subject_key: 'burial_slab', state_key: 'removed', value: false, location_id: 2 },
+];
+const risingAtDeep = [{
+  id: 7, title: 'Rising water', status: 'prepared', kind: 'environment', member_count: 0, location_id: 3,
+}];
+assert.equal(waterStory(null, [], []), null);
+assert.equal(waterStory([storyFacts[0]], risingAtDeep, storyPlaces), null);
+const storyBefore = JSON.stringify(storyFacts);
+const authoredStory = waterStory(storyFacts, risingAtDeep, storyPlaces);
+assert.equal(JSON.stringify(storyFacts), storyBefore);
+assert.equal(authoredStory.title, 'Water crisis');
+assert.equal(authoredStory.now, 'Water is not flowing.');
+assert.deepEqual(authoredStory.places.map((place) => [place.name, place.line]), [
+  ['Cistern Well', 'The wheel is blocked.'],
+  ['Cistern Heart', 'The slab is in place.'],
+  ['Cistern Deep', 'Rising water is prepared.'],
+]);
+assert.deepEqual(authoredStory.links.map((link) => link.relation), ['requires', 'causes', 'relates to']);
+assert.deepEqual(authoredStory.would, [
+  'Clearing the wheel asks to open Rising water, and water stays still.',
+  'Removing the slab does not ask to open Rising water, and water stays still.',
+]);
+const wheelFreeStory = waterStory([
+  { subject_key: 'waterwheel', state_key: 'blocked', value: false, location_id: 1 },
+  { subject_key: 'burial_slab', state_key: 'removed', value: false, location_id: 2 },
+], risingAtDeep, storyPlaces);
+assert.equal(wheelFreeStory.now, 'Water is not flowing. The wheel is free. Open Rising water.');
+assert.deepEqual(wheelFreeStory.would, [
+  'Blocking the wheel again drops the Rising water question, and water stays still.',
+  'Removing the slab still asks to open Rising water, and water flows.',
+]);
+const flowingStory = waterStory([
+  { subject_key: 'waterwheel', state_key: 'blocked', value: false, location_id: 1 },
+  { subject_key: 'burial_slab', state_key: 'removed', value: true, location_id: 2 },
+], risingAtDeep, storyPlaces);
+assert.equal(flowingStory.now, 'Water is flowing. The wheel is free. Open Rising water.');
+assert.deepEqual(flowingStory.would, [
+  'Blocking the wheel again drops the Rising water question, and water stops.',
+  'Putting the slab back leaves Rising water as it is, and water stops.',
+]);
+const openedStory = waterStory([
+  { subject_key: 'waterwheel', state_key: 'blocked', value: false, location_id: 1 },
+  { subject_key: 'burial_slab', state_key: 'removed', value: true, location_id: 2 },
+], [{ ...risingAtDeep[0], status: 'opened' }], storyPlaces);
+assert.equal(openedStory.now, 'Water is flowing.');
+assert.equal(openedStory.places[2].line, 'Rising water is opened.');
+assert.deepEqual(openedStory.would, [
+  'Blocking the wheel again leaves Rising water as it is, and water stops.',
+  'Putting the slab back leaves Rising water as it is, and water stops.',
+]);
+const slabFirstStory = waterStory([
+  { subject_key: 'waterwheel', state_key: 'blocked', value: true, location_id: 1 },
+  { subject_key: 'burial_slab', state_key: 'removed', value: true, location_id: 2 },
+], risingAtDeep, storyPlaces);
+assert.deepEqual(slabFirstStory.would, [
+  'Clearing the wheel asks to open Rising water, and water flows.',
+  'Putting the slab back leaves Rising water as it is, and water stays still.',
+]);
+const missingStory = waterStory(storyFacts, [], storyPlaces);
+assert.equal(missingStory.places[2].line, 'That encounter is not on this campaign.');
+assert.equal(missingStory.would[0], 'Clearing the wheel does not ask to open Rising water, and water stays still.');
+const twoStory = waterStory(storyFacts, [
+  risingAtDeep[0],
+  { ...risingAtDeep[0], id: 8, location_id: 1 },
+], storyPlaces);
+assert.equal(twoStory.places.length, 4);
+assert.equal(twoStory.would[0], 'Clearing the wheel does not ask to open Rising water, and water stays still.');
+const namelessStory = waterStory([
+  { subject_key: 'waterwheel', state_key: 'blocked', value: true },
+  { subject_key: 'burial_slab', state_key: 'removed', value: false },
+], [{ id: 7, title: 'Rising water', status: 'prepared', kind: 'environment', members: [] }], []);
+assert.deepEqual(namelessStory.places.map((place) => place.name), ['Cistern Well', 'Cistern Heart', 'Rising water']);
+assert.equal(namelessStory.would[0], 'Clearing the wheel asks to open Rising water, and water stays still.');
+
 const wheel = readStateCommand({
   subject_type: 'object', subject_key: 'waterwheel', state_key: 'blocked', value: false, version: 1,
 });
@@ -146,7 +228,18 @@ assert.equal(rejectRoute.includes('INSERT'), false);
 assert.equal(rejectRoute.includes('UPDATE'), false);
 assert.equal(rejectRoute.includes('DELETE'), false);
 assert.equal(hereSource.includes('rising_water'), false);
+assert.equal(hereSource.includes('water_story'), false);
 assert.equal(serverSource.includes('rising_water: risingWaterPreview'), true);
+assert.equal(serverSource.includes('water_story: waterStory'), true);
+const pageSource = fs.readFileSync(path.join(__dirname, '..', 'frontend', 'src', 'pages', 'AdventuringPage.jsx'), 'utf8');
+assert.equal(pageSource.includes('board?.water_story'), true);
+assert.equal(pageSource.includes('What would change'), true);
+const storyFn = fs.readFileSync(path.join(__dirname, 'playState.js'), 'utf8');
+const storyBody = storyFn.slice(storyFn.indexOf('function waterStory'), storyFn.indexOf('async function applyBadAir'));
+assert.equal(storyBody.includes('INSERT'), false);
+assert.equal(storyBody.includes('UPDATE'), false);
+assert.equal(storyBody.includes('DELETE'), false);
+assert.equal(storyFn.includes('campaign_thread'), false);
 const playSource = fs.readFileSync(path.join(__dirname, 'playState.js'), 'utf8');
 const previewFn = playSource.slice(
   playSource.indexOf('function risingWaterPreview'),

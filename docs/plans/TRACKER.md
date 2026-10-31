@@ -18,7 +18,14 @@ Source: `docs/plans/GeasGremlin_Cursor_Implementation_Plan_Revised.md`.
 | Phase 4 stair hazard | done | One GM-confirmed damage on the existing Bad air encounter. Rising water stays the Phase 2 preview. `npm run test:bad-air` passes. Stopped before Phase 5. |
 | Phase 5 lifecycle gate | done | Inventory and proposal in `docs/plans/phase-5-lifecycle-gate.md`. The campaign stays the playthrough. The proposed slice is a log archive inside the existing conclude, then today's wipe. No `campaign_run_id`. Schema is not approved. |
 | Phase 5 log archive | done | `campaign_log_archive` is in `database/schema.sql` and on the live database. Conclude copies the log, then wipes. An empty log copies nothing. No `campaign_run_id`. No read route. `npm run test:lifecycle` rolls back its own campaigns. Stopped before Phases 6–7. |
-| Phases 6–7 | todo | Not started. |
+| Phase 6 story view | done | Read-only water crisis on the GM Location tab when both facts exist. It names the places, the requires, causes, and relates-to lines, and what toggling each fact would change. It is computed. It is not stored. Players do not receive it. `npm run test:play-state` passes. Stopped before Phase 7. |
+| Phase 7 threads | todo | Optional. Not started. |
+
+### Phase 6 note (what is true)
+
+One read on the GM board, not a thread table and not a graph. `waterStory` in `backend/playState.js` returns null unless both object facts exist. The Location tab shows that read: the wheel place, the slab place, Rising water's place and status, the requires / causes / relates-to lines, and what toggling each fact would change. Those sentences call `waterFlowing` and `risingWaterPreview`. They do not write. A campaign with neither fact shows nothing. Players do not receive it. `GET /api/campaigns/:id/here` is unchanged. No `campaign_thread`. Phase 7 stays optional.
+
+On 2026-10-30, after this change, Feature Walk (id 21) was still running and not concluded. Cistern Stair (location 65) was selected, inside. The clock was 2400. The wheel was blocked and the slab was in place, both at version 1. Rising water was prepared at Cistern Deep. Bad air was opened. The log still had two bad-air consequence lines. Campaigns `test` (id 9) and `Core` (id 10) were running, not concluded, and had no fact rows, so they have no story. The feature-campaign seed was not run. Those rows were not wiped.
 
 ### Phase 0 note (what is true)
 

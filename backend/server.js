@@ -59,6 +59,7 @@ const {
   rejectBadAir,
   badAirOnTurn,
   applyBadAir,
+  waterStory,
 } = require('./playState');
 const { openPreparedEncounter } = require('./preparedEncounter');
 const { visitCheckDue, emptyCheckResult, currentVisitCheck } = require('./empty-check');
@@ -2694,6 +2695,7 @@ async function loadAdventuring(campaignId) {
     turn_blocks: turnBlocks.rows,
     water_flowing: playState.water_flowing,
     rising_water: risingWaterPreview(playState.facts, situation.encounters),
+    water_story: waterStory(playState.facts, situation.encounters, locations.rows),
     situation,
   };
 }

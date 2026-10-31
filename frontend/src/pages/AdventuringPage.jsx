@@ -1667,6 +1667,34 @@ export default function AdventuringPage() {
 
           {homeTab === 'location' && (
           <>
+          {board?.water_story && (
+            <div className="card">
+              <h2 style={{ marginTop: 0 }}>{board.water_story.title}</h2>
+              <p style={{ marginTop: 0 }}>{board.water_story.now}</p>
+              <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 12px' }}>
+                {(board.water_story.places || []).map((place, index) => (
+                  <li key={`${place.name}-${index}`}>
+                    <strong>{place.name}</strong>
+                    <span className="muted">{` · ${place.line}`}</span>
+                  </li>
+                ))}
+              </ul>
+              <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 12px' }}>
+                {(board.water_story.links || []).map((link) => (
+                  <li key={link.relation}>
+                    <span className="muted">{link.relation}</span>
+                    {` ${link.text}`}
+                  </li>
+                ))}
+              </ul>
+              <h3 style={{ marginBottom: 6 }}>What would change</h3>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                {(board.water_story.would || []).map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            </div>
+          )}
           <SituationPanel campaignId={campaignId} board={board} busy={busy} run={run} mode="play" bare />
 
         <div className="card">
