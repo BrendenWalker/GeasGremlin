@@ -19,7 +19,7 @@ function readFlag(note, state) {
 function playerHere(row) {
   return {
     location_name: row?.location_name ?? null,
-    objectives: (row?.objectives || []).map((item) => ({
+    objectives: (row?.objectives || []).filter((item) => item && item.known !== false).map((item) => ({
       id: Number(item.id),
       body: item.body,
       status: item.status,

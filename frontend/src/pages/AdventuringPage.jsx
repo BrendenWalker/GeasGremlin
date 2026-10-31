@@ -1670,6 +1670,7 @@ export default function AdventuringPage() {
           {board?.water_story && (
             <div className="card">
               <h2 style={{ marginTop: 0 }}>{board.water_story.title}</h2>
+              {board.thread?.premise && <p style={{ marginTop: 0 }}>{board.thread.premise}</p>}
               <p style={{ marginTop: 0 }}>{board.water_story.now}</p>
               <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 12px' }}>
                 {(board.water_story.places || []).map((place, index) => (
@@ -1687,12 +1688,38 @@ export default function AdventuringPage() {
                   </li>
                 ))}
               </ul>
+              {board.thread && (
+                <>
+                  <h3 style={{ marginBottom: 6 }}>Open questions</h3>
+                  {(board.thread.questions || []).length === 0
+                    ? <p className="muted">None.</p>
+                    : (
+                      <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 12px' }}>
+                        {(board.thread.questions || []).map((line) => (
+                          <li key={line}>{line}</li>
+                        ))}
+                      </ul>
+                    )}
+                  <h3 style={{ marginBottom: 6 }}>What the party knows</h3>
+                  <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 12px' }}>
+                    {(board.thread.knowledge || []).map((item, index) => (
+                      <li key={`${item.kind}-${index}`}>
+                        {item.text ? <strong>{item.text}</strong> : null}
+                        <span className="muted">{`${item.text ? ' · ' : ''}${item.line}`}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
               <h3 style={{ marginBottom: 6 }}>What would change</h3>
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+              <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 12px' }}>
                 {(board.water_story.would || []).map((line) => (
                   <li key={line}>{line}</li>
                 ))}
               </ul>
+              {board.thread && (
+                <p className="muted" style={{ marginBottom: 0 }}>Possible outcomes. This thread does not require an order.</p>
+              )}
             </div>
           )}
           <SituationPanel campaignId={campaignId} board={board} busy={busy} run={run} mode="play" bare />

@@ -24,6 +24,7 @@ const {
   rejectRisingWater,
   applyRisingWater,
   waterStory,
+  waterThread,
   listFacts,
   setFact,
   attachAuthoredFacts,
@@ -171,6 +172,61 @@ const namelessStory = waterStory([
 assert.deepEqual(namelessStory.places.map((place) => place.name), ['Cistern Well', 'Cistern Heart', 'Rising water']);
 assert.equal(namelessStory.would[0], 'Clearing the wheel asks to open Rising water, and water stays still.');
 
+const burialClue = {
+  id: 4, location_id: 2, body: 'The slab is a burial.', discovered: false, objective_id: 9,
+};
+const boneClue = {
+  id: 5, location_id: 1, body: 'A thigh bone is jammed in the wheel.', discovered: false, objective_id: null,
+};
+const chalkClue = {
+  id: 6, location_id: 8, body: 'Chalk marks a secret door on the landing.', discovered: false,
+};
+const tombGoal = { id: 9, location_id: 2, body: 'The cistern is a tomb', known: false, status: 'open' };
+const millGoal = { id: 10, location_id: 1, body: 'Get the mill turning', known: true, status: 'open' };
+const threadBefore = JSON.stringify([storyFacts, burialClue, tombGoal]);
+const hiddenThread = waterThread(storyFacts, risingAtDeep, storyPlaces, [burialClue, boneClue, chalkClue], [tombGoal, millGoal]);
+assert.equal(JSON.stringify([storyFacts, burialClue, tombGoal]), threadBefore);
+assert.equal(hiddenThread.title, 'Water crisis');
+assert.match(hiddenThread.premise, /Neither step has to come first/);
+assert.equal(Object.hasOwn(hiddenThread, 'next'), false);
+assert.equal(Object.hasOwn(hiddenThread, 'steps'), false);
+assert.equal(Object.hasOwn(hiddenThread, 'faction'), false);
+assert.deepEqual(hiddenThread.resources.map((place) => place.name), ['Cistern Well', 'Cistern Heart', 'Cistern Deep']);
+assert.deepEqual(hiddenThread.outcomes, authoredStory.would);
+assert.deepEqual(hiddenThread.knowledge.map((item) => [item.kind, item.text, item.party_known]), [
+  ['clue', 'The slab is a burial.', false],
+  ['clue', 'A thigh bone is jammed in the wheel.', false],
+  ['objective', 'The cistern is a tomb', false],
+]);
+assert.equal(JSON.stringify(hiddenThread).includes('Chalk marks'), false);
+assert.equal(JSON.stringify(hiddenThread).includes('Get the mill turning'), false);
+assert.deepEqual(hiddenThread.questions, [
+  'Has the wheel been cleared?',
+  'Has the slab been removed?',
+  'Has Rising water been opened?',
+  'Has the party learned: The slab is a burial.?',
+  'Has the party learned: A thigh bone is jammed in the wheel.?',
+  'Does the party know: The cistern is a tomb?',
+]);
+const learnedThread = waterThread([
+  { subject_key: 'waterwheel', state_key: 'blocked', value: false, location_id: 1 },
+  { subject_key: 'burial_slab', state_key: 'removed', value: true, location_id: 2 },
+], [{ ...risingAtDeep[0], status: 'opened' }], storyPlaces, [
+  { ...boneClue, discovered: true },
+  { ...burialClue, discovered: true },
+], [{ ...tombGoal, known: true }]);
+assert.deepEqual(learnedThread.questions, []);
+assert.equal(learnedThread.knowledge[1].line, 'The party has learned it.');
+assert.equal(learnedThread.knowledge[2].line, 'The party knows this goal.');
+assert.deepEqual(learnedThread.outcomes, openedStory.would);
+const quietThread = waterThread(storyFacts, [], storyPlaces, [], []);
+assert.equal(quietThread.knowledge[0].line, 'No clue is recorded at the wheel or the slab.');
+assert.equal(quietThread.questions.includes('Has Rising water been opened?'), false);
+assert.equal(waterThread([storyFacts[0]], risingAtDeep, storyPlaces, [burialClue], [tombGoal]), null);
+const knownGoalHiddenClue = waterThread(storyFacts, risingAtDeep, storyPlaces, [burialClue], [{ ...tombGoal, known: true }]);
+assert.equal(knownGoalHiddenClue.questions.includes('Does the party know: The cistern is a tomb?'), false);
+assert.equal(knownGoalHiddenClue.questions.includes('Has the party learned: The slab is a burial.?'), true);
+
 const wheel = readStateCommand({
   subject_type: 'object', subject_key: 'waterwheel', state_key: 'blocked', value: false, version: 1,
 });
@@ -240,6 +296,40 @@ assert.equal(storyBody.includes('INSERT'), false);
 assert.equal(storyBody.includes('UPDATE'), false);
 assert.equal(storyBody.includes('DELETE'), false);
 assert.equal(storyFn.includes('campaign_thread'), false);
+const threadBody = storyFn.slice(storyFn.indexOf('function waterThread'), storyFn.indexOf('async function applyBadAir'));
+assert.equal(threadBody.includes('INSERT'), false);
+assert.equal(threadBody.includes('UPDATE'), false);
+assert.equal(threadBody.includes('DELETE'), false);
+assert.equal((serverSource.match(/waterThread/g) || []).length, 2);
+assert.equal(serverSource.includes('thread: waterThread'), true);
+const playerMarkers = [
+  "app.get('/api/campaigns/:campaignId/characters'",
+  "app.delete('/api/campaigns/:campaignId/characters/:characterId'",
+  "app.get('/api/campaigns/:campaignId/party'",
+  "app.post('/api/campaigns/:campaignId/presence'",
+  "app.get('/api/campaigns/:campaignId/here'",
+  "app.get('/api/characters/:id'",
+  "app.get('/api/characters/:characterId/transfers'",
+];
+for (const marker of playerMarkers) {
+  const at = serverSource.indexOf(marker);
+  assert.ok(at > 0, marker);
+  const rest = serverSource.slice(at + marker.length);
+  const end = rest.search(/\n(?:app\.|function |async function |const )/);
+  assert.ok(end > 0, marker);
+  const body = serverSource.slice(at, at + marker.length + end);
+  for (const banned of ['campaign_clue', 'campaign_npc', 'campaign_state_value', 'water_story', 'waterThread', 'gm_text']) {
+    assert.equal(body.includes(banned), false, `${marker} ${banned}`);
+  }
+}
+assert.equal(hereSource.includes('known = true'), true);
+assert.equal(hereSource.includes('thread'), false);
+assert.equal(pageSource.includes('board.thread'), true);
+assert.equal(pageSource.includes('What the party knows'), true);
+assert.equal(pageSource.includes('does not require an order'), true);
+const sheetSource = fs.readFileSync(path.join(__dirname, '..', 'frontend', 'src', 'pages', 'CharacterDetailPage.jsx'), 'utf8');
+assert.equal(sheetSource.includes('water_story'), false);
+assert.equal(sheetSource.includes('board?.thread'), false);
 const playSource = fs.readFileSync(path.join(__dirname, 'playState.js'), 'utf8');
 const previewFn = playSource.slice(
   playSource.indexOf('function risingWaterPreview'),
@@ -267,6 +357,7 @@ assert.equal(tableSql.includes('waterwheel'), true);
 assert.equal(tableSql.includes('burial_slab'), true);
 assert.equal(tableSql.includes('water_flowing'), false);
 assert.equal(schema.includes('CREATE TABLE IF NOT EXISTS public.campaign_automation_rule'), false);
+assert.equal(schema.includes('campaign_thread'), false);
 
 async function withRollback(run) {
   const pool = poolFromEnv();

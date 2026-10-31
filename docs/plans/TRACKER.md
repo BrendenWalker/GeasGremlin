@@ -19,13 +19,19 @@ Source: `docs/plans/GeasGremlin_Cursor_Implementation_Plan_Revised.md`.
 | Phase 5 lifecycle gate | done | Inventory and proposal in `docs/plans/phase-5-lifecycle-gate.md`. The campaign stays the playthrough. The proposed slice is a log archive inside the existing conclude, then today's wipe. No `campaign_run_id`. Schema is not approved. |
 | Phase 5 log archive | done | `campaign_log_archive` is in `database/schema.sql` and on the live database. Conclude copies the log, then wipes. An empty log copies nothing. No `campaign_run_id`. No read route. `npm run test:lifecycle` rolls back its own campaigns. Stopped before Phases 6–7. |
 | Phase 6 story view | done | Read-only water crisis on the GM Location tab when both facts exist. It names the places, the requires, causes, and relates-to lines, and what toggling each fact would change. It is computed. It is not stored. Players do not receive it. `npm run test:play-state` passes. Stopped before Phase 7. |
-| Phase 7 threads | todo | Optional. Not started. |
+| Phase 7 threads | done | GM-only water-crisis thread on the Location tab when both facts exist. Premise, places, open questions, party knowledge versus the clue text, and possible outcomes. It does not write and it does not require an order. No `campaign_thread`. Players do not receive it. `npm run test:play-state` passes. |
 
 ### Phase 6 note (what is true)
 
 One read on the GM board, not a thread table and not a graph. `waterStory` in `backend/playState.js` returns null unless both object facts exist. The Location tab shows that read: the wheel place, the slab place, Rising water's place and status, the requires / causes / relates-to lines, and what toggling each fact would change. Those sentences call `waterFlowing` and `risingWaterPreview`. They do not write. A campaign with neither fact shows nothing. Players do not receive it. `GET /api/campaigns/:id/here` is unchanged. No `campaign_thread`. Phase 7 stays optional.
 
 On 2026-10-30, after this change, Feature Walk (id 21) was still running and not concluded. Cistern Stair (location 65) was selected, inside. The clock was 2400. The wheel was blocked and the slab was in place, both at version 1. Rising water was prepared at Cistern Deep. Bad air was opened. The log still had two bad-air consequence lines. Campaigns `test` (id 9) and `Core` (id 10) were running, not concluded, and had no fact rows, so they have no story. The feature-campaign seed was not run. Those rows were not wiped.
+
+### Phase 7 note (what is true)
+
+The thread is that same read, plus the burial knowledge already on the clue and the objective. `waterThread` in `backend/playState.js` returns null unless both object facts exist. It names the premise, the places, the open questions, and the possible outcomes. Clues at the wheel and the slab are included. The clue text is the world truth. Party knowledge is `discovered` on the clue and `known` on the objective that clue names. A clue at another place stays off the thread. The thread does not write those flags, and it does not require an order. There is no `campaign_thread` table. A campaign with neither fact shows nothing. Players do not receive it. `GET /api/campaigns/:id/here` still returns the place name, known objectives, and found exits. An objective with `known` false is left out. `npm run test:play-state` rolls back its own campaigns. Stopped. The plan has no phase 8.
+
+On 2026-10-30, after this change, Feature Walk (id 21) was still running and not concluded. Cistern Stair (location 65) was selected, inside. The clock was 2400. The wheel was blocked at Cistern Well and the slab was in place at Cistern Heart, both at version 1. Rising water was prepared at Cistern Deep. The bone clue and the burial clue were undiscovered. The tomb goal was unknown. The chalk clue stayed off the thread. The log still had two bad-air consequence lines. Campaigns `test` (id 9) and `Core` (id 10) were running, not concluded, and had no fact rows, so they have no thread. The feature-campaign seed was not run. Those rows were not wiped.
 
 ### Phase 0 note (what is true)
 

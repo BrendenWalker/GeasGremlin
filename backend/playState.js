@@ -425,6 +425,85 @@ function waterStory(facts, encounters, locations) {
   };
 }
 
+function sameId(left, right) {
+  if (left == null || right == null) return false;
+  return String(left) === String(right);
+}
+
+function cluesAtFacts(facts, clues) {
+  const places = [];
+  for (const fact of [oneFact(facts, 'waterwheel', 'blocked'), oneFact(facts, 'burial_slab', 'removed')]) {
+    if (fact && fact.location_id != null && !places.some((id) => sameId(id, fact.location_id))) {
+      places.push(fact.location_id);
+    }
+  }
+  return (clues || []).filter((clue) => clue && places.some((id) => sameId(id, clue.location_id)));
+}
+
+function goalsNamedBy(clues, objectives) {
+  const ids = [];
+  for (const clue of clues) {
+    if (clue.objective_id != null && !ids.some((id) => sameId(id, clue.objective_id))) ids.push(clue.objective_id);
+  }
+  return (objectives || []).filter((goal) => goal && ids.some((id) => sameId(id, goal.id)));
+}
+
+function waterThread(facts, encounters, locations, clues, objectives) {
+  const story = waterStory(facts, encounters, locations);
+  if (!story) return null;
+  const wheel = oneFact(facts, 'waterwheel', 'blocked');
+  const slab = oneFact(facts, 'burial_slab', 'removed');
+  const atFacts = cluesAtFacts(facts, clues);
+  const goals = goalsNamedBy(atFacts, objectives);
+  const knowledge = [];
+  if (atFacts.length === 0) {
+    knowledge.push({
+      kind: 'clue',
+      text: null,
+      party_known: false,
+      line: 'No clue is recorded at the wheel or the slab.',
+    });
+  }
+  for (const clue of atFacts) {
+    const learned = clue.discovered === true;
+    knowledge.push({
+      kind: 'clue',
+      text: clue.body,
+      party_known: learned,
+      line: learned ? 'The party has learned it.' : 'The party has not learned it.',
+    });
+  }
+  for (const goal of goals) {
+    const known = goal.known === true;
+    knowledge.push({
+      kind: 'objective',
+      text: goal.body,
+      party_known: known,
+      line: known ? 'The party knows this goal.' : 'The party does not know this goal.',
+    });
+  }
+  const questions = [];
+  if (wheel.value === true) questions.push('Has the wheel been cleared?');
+  if (slab.value !== true) questions.push('Has the slab been removed?');
+  if ((encounters || []).some((row) => row && row.title === RISING_WATER_TITLE && row.status === 'prepared')) {
+    questions.push('Has Rising water been opened?');
+  }
+  for (const item of knowledge) {
+    if (!item.text || item.party_known === true) continue;
+    questions.push(item.kind === 'clue'
+      ? `Has the party learned: ${item.text}?`
+      : `Does the party know: ${item.text}?`);
+  }
+  return {
+    title: story.title,
+    premise: 'Water reaches the town only after the wheel is free and the slab is removed. Neither step has to come first.',
+    resources: story.places,
+    knowledge,
+    questions,
+    outcomes: story.would,
+  };
+}
+
 async function applyBadAir(client, campaignId, gameSeconds, writeHitPoints) {
   const seconds = Number(gameSeconds);
   if (!Number.isInteger(seconds) || seconds < 0) throw storedError('game_seconds is required', 400);
@@ -469,6 +548,7 @@ module.exports = {
   badAirOnTurn,
   applyBadAir,
   waterStory,
+  waterThread,
   listFacts,
   setFact,
   attachAuthoredFacts,

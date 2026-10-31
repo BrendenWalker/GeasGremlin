@@ -31,6 +31,19 @@ assert.equal(Object.hasOwn(shown, 'flags'), false);
 assert.equal(Object.hasOwn(shown, 'summary'), false);
 assert.equal(Object.hasOwn(shown, 'gm_text'), false);
 assert.deepEqual(shown.objectives, [{ id: 3, body: 'Find the chest', status: 'open' }]);
+const hiddenGoal = playerHere({
+  location_name: 'Cistern Heart',
+  objectives: [
+    { id: 1, body: 'The cistern is a tomb', status: 'open', known: false },
+    { id: 2, body: 'Get the mill turning', status: 'open', known: true },
+  ],
+  clues: [{ body: 'The slab is a burial.' }],
+  thread: { title: 'Water crisis', premise: 'Neither step has to come first.' },
+});
+assert.equal(JSON.stringify(hiddenGoal).includes('tomb'), false);
+assert.equal(JSON.stringify(hiddenGoal).includes('burial'), false);
+assert.equal(JSON.stringify(hiddenGoal).includes('Water crisis'), false);
+assert.deepEqual(hiddenGoal.objectives, [{ id: 2, body: 'Get the mill turning', status: 'open' }]);
 assert.equal(playerHere({}).location_name, null);
 assert.deepEqual(playerHere({}).objectives, []);
 assert.deepEqual(playerHere({}).exits, []);
