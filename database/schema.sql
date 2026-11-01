@@ -1385,6 +1385,31 @@ BEGIN
 	END IF;
 END $$;
 
+-- Damage is the only environmental effect. Acid on metal is a new allowed value and its own apply branch.
+ALTER TABLE public.campaign_encounter ADD COLUMN IF NOT EXISTS environmental_effect varchar(16);
+ALTER TABLE public.campaign_encounter ADD COLUMN IF NOT EXISTS environmental_amount int4;
+DO $$
+BEGIN
+	IF NOT EXISTS (
+		SELECT 1 FROM pg_constraint WHERE conname = 'campaign_encounter_environmental_effect_check'
+	) THEN
+		ALTER TABLE public.campaign_encounter
+			ADD CONSTRAINT campaign_encounter_environmental_effect_check
+			CHECK (
+				environmental_effect IS NULL
+				OR (
+					kind = 'hazard'
+					AND environmental_effect = 'damage'
+					AND environmental_amount BETWEEN 1 AND 100
+				)
+			);
+	END IF;
+END $$;
+-- The stair hazard that existed before the column. A row that already has the effect is left alone.
+UPDATE public.campaign_encounter
+SET environmental_effect = 'damage', environmental_amount = 1
+WHERE title = 'Bad air' AND kind = 'hazard' AND environmental_effect IS NULL;
+
 -- Older membership stored a name. Each of those becomes a creature, then the link.
 DO $$
 DECLARE

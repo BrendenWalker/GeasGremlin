@@ -55,10 +55,11 @@ const {
   readPreviewCommand,
   rejectRisingWater,
   applyRisingWater,
-  readBadAirCommand,
-  rejectBadAir,
-  badAirOnTurn,
-  applyBadAir,
+  readEnvironmentalDamage,
+  readEnvironmentalEffectCommand,
+  rejectEnvironmentalEffect,
+  environmentalEffectOnTurn,
+  applyEnvironmentalEffect,
   waterStory,
   waterThread,
 } = require('./playState');
@@ -2777,8 +2778,8 @@ app.post('/api/campaigns/:campaignId/adventuring/tick', async (req, res) => {
       visit = await applyVisitCheck(client, req.params.campaignId, clock);
     }
     // The question lives on this response. It is not stored, so a reload does not ask again.
-    const badAir = req.body.step === 'turn'
-      ? await badAirOnTurn(client, req.params.campaignId, now)
+    const environmentalEffect = req.body.step === 'turn'
+      ? await environmentalEffectOnTurn(client, req.params.campaignId, now)
       : null;
     let queued = null;
     if (step.command === 'new_day') {
@@ -2795,7 +2796,7 @@ app.post('/api/campaigns/:campaignId/adventuring/tick', async (req, res) => {
       queued = inserted.rowCount;
     }
     await client.query('COMMIT');
-    res.json({ game_seconds: now, queued, checks, visit, bad_air: badAir });
+    res.json({ game_seconds: now, queued, checks, visit, environmental_effect: environmentalEffect });
   } catch (error) {
     try { await client.query('ROLLBACK'); } catch (_) { /* connection already failed */ }
     if (adventuringMissing(res, error)) return;
@@ -3863,18 +3864,18 @@ app.post('/api/campaigns/:campaignId/adventuring/preview/reject', async (req, re
   }
 });
 
-app.post('/api/campaigns/:campaignId/adventuring/bad-air/apply', async (req, res) => {
+app.post('/api/campaigns/:campaignId/adventuring/environmental-effect/apply', async (req, res) => {
   const client = await pool.connect();
   try {
     const member = await requireCampaign(req, res, req.params.campaignId, true);
     if (!member) return;
-    const command = readBadAirCommand(req.body || {});
+    const command = readEnvironmentalEffectCommand(req.body || {});
     if (command.error) return res.status(400).json({ error: command.error });
     await client.query('BEGIN');
-    const saved = await applyBadAir(
+    const saved = await applyEnvironmentalEffect(
       client,
       req.params.campaignId,
-      command.game_seconds,
+      command,
       writeCharacterHitPoints
     );
     await client.query('COMMIT');
@@ -3883,22 +3884,22 @@ app.post('/api/campaigns/:campaignId/adventuring/bad-air/apply', async (req, res
     try { await client.query('ROLLBACK'); } catch (_) { /* connection already failed */ }
     if (adventuringMissing(res, error)) return;
     if (error.status) return res.status(error.status).json({ error: error.message });
-    console.error('Error applying bad air:', error);
-    res.status(500).json({ error: error.message || 'Failed to apply bad air' });
+    console.error('Error applying environmental effect:', error);
+    res.status(500).json({ error: error.message || 'Failed to apply environmental effect' });
   } finally {
     client.release();
   }
 });
 
-app.post('/api/campaigns/:campaignId/adventuring/bad-air/reject', async (req, res) => {
+app.post('/api/campaigns/:campaignId/adventuring/environmental-effect/reject', async (req, res) => {
   try {
     const member = await requireCampaign(req, res, req.params.campaignId, true);
     if (!member) return;
-    res.json(rejectBadAir());
+    res.json(rejectEnvironmentalEffect());
   } catch (error) {
     if (adventuringMissing(res, error)) return;
-    console.error('Error rejecting bad air:', error);
-    res.status(500).json({ error: error.message || 'Failed to leave bad air' });
+    console.error('Error rejecting environmental effect:', error);
+    res.status(500).json({ error: error.message || 'Failed to leave environmental effect' });
   }
 });
 
@@ -6339,7 +6340,8 @@ async function loadSituation(campaignId, concluded) {
       [campaignId]
     ),
     pool.query(
-      `SELECT id, location_id, title, kind, purpose, notes, status
+      `SELECT id, location_id, title, kind, purpose, notes, status,
+              environmental_effect, environmental_amount
        FROM campaign_encounter WHERE campaign_id = $1 ORDER BY id`,
       [campaignId]
     ),
@@ -6413,6 +6415,8 @@ async function loadSituation(campaignId, concluded) {
       purpose: row.purpose,
       notes: row.notes,
       status: row.status,
+      environmental_effect: row.environmental_effect,
+      environmental_amount: row.environmental_amount == null ? null : Number(row.environmental_amount),
       members: membersByEncounter.get(Number(row.id)) || [],
     })),
     transitions: transitions.rows.map((row) => ({
@@ -6634,13 +6638,25 @@ app.post('/api/campaigns/:campaignId/situation/encounters', (req, res) => withSi
   const kind = oneOf(request.body?.kind, ENCOUNTER_KINDS, 'kind');
   const purpose = optionalText(request.body?.purpose, 'purpose', PROSE_MAX);
   const notes = optionalText(request.body?.notes, 'notes', PROSE_MAX);
+  const damage = readEnvironmentalDamage(kind, request.body || {});
+  if (damage.error) throw storedError(damage.error, 400);
   const loc = await ownedLocation(client, request.params.campaignId, request.body?.location_id);
   const inserted = await client.query(
     `INSERT INTO campaign_encounter
-       (campaign_id, location_id, title, kind, purpose, notes, status, base_status)
-     VALUES ($1, $2, $3, $4, $5, $6, 'prepared', 'prepared')
+       (campaign_id, location_id, title, kind, purpose, notes, status, base_status,
+        environmental_effect, environmental_amount)
+     VALUES ($1, $2, $3, $4, $5, $6, 'prepared', 'prepared', $7, $8)
      RETURNING id`,
-    [request.params.campaignId, loc ? loc.id : null, title, kind, purpose, notes]
+    [
+      request.params.campaignId,
+      loc ? loc.id : null,
+      title,
+      kind,
+      purpose,
+      notes,
+      damage.environmental_effect,
+      damage.environmental_amount,
+    ]
   );
   return { statusCode: 201, body: { id: Number(inserted.rows[0].id) } };
 }));
@@ -6670,6 +6686,20 @@ app.patch('/api/campaigns/:campaignId/situation/encounters/:encounterId', (req, 
     const loc = await ownedLocation(client, request.params.campaignId, body.location_id);
     values.push(loc ? loc.id : null);
     sets.push(`location_id = $${values.length}`);
+  }
+  const nextKind = Object.prototype.hasOwnProperty.call(body, 'kind')
+    ? oneOf(body.kind, ENCOUNTER_KINDS, 'kind')
+    : encounter.kind;
+  const touchesEffect = Object.prototype.hasOwnProperty.call(body, 'environmental_effect')
+    || Object.prototype.hasOwnProperty.call(body, 'environmental_amount')
+    || nextKind !== 'hazard';
+  if (touchesEffect) {
+    const damage = readEnvironmentalDamage(nextKind, body);
+    if (damage.error) throw storedError(damage.error, 400);
+    values.push(damage.environmental_effect);
+    sets.push(`environmental_effect = $${values.length}`);
+    values.push(damage.environmental_amount);
+    sets.push(`environmental_amount = $${values.length}`);
   }
   if (sets.length === 0) throw storedError('Nothing to change', 400);
   values.push(encounter.id, request.params.campaignId);
@@ -6980,7 +7010,8 @@ app.get('/api/campaigns/:campaignId/here', async (req, res) => {
     );
     const paths = await pool.query(
       `SELECT t.id, t.from_location_id, t.to_location_id, t.reason, t.one_way, t.discovered, t.blocked,
-              f.name AS from_name, d.name AS to_name
+              f.name AS from_name, d.name AS to_name,
+              f.arrived_seconds AS from_arrived, d.arrived_seconds AS to_arrived
        FROM campaign_transition t
        LEFT JOIN campaign_location f ON f.id = t.from_location_id
        JOIN campaign_location d ON d.id = t.to_location_id

@@ -61,8 +61,13 @@ const heart = [chalk, passage];
 assert.deepEqual(pathsAt(heart, 5).map((row) => row.id), [4, 5]);
 assert.deepEqual(pathsAt(heart, 9).map((row) => row.id), []);
 assert.equal(JSON.stringify(playerExits(heart, 5)).includes('Cistern Gate'), false);
+assert.equal(JSON.stringify(playerExits(heart, 5)).includes('Cistern Deep'), false);
 assert.equal(JSON.stringify(playerExits(heart, 5)).includes('chalk'), false);
 assert.deepEqual(playerExits(heart, 5), [{
+  reason: 'The passage on.',
+  blocked: false,
+}]);
+assert.deepEqual(playerExits([{ ...passage, from_arrived: 0 }], 5), [{
   destination_name: 'Cistern Deep',
   reason: 'The passage on.',
   blocked: false,
@@ -70,14 +75,20 @@ assert.deepEqual(playerExits(heart, 5), [{
 assert.deepEqual(playerExits(heart, 9), []);
 
 const found = { ...chalk, discovered: true };
+assert.equal(JSON.stringify(playerExits([found], 5)).includes('Cistern Gate'), false);
 assert.deepEqual(playerExits([found], 5), [{
+  reason: chalk.reason,
+  blocked: false,
+}]);
+assert.deepEqual(playerExits([{ ...found, to_arrived: 0 }], 5), [{
   destination_name: 'Cistern Gate',
   reason: chalk.reason,
   blocked: false,
 }]);
 const shut = { ...found, blocked: true };
 assert.equal(playerExits([shut], 5)[0].blocked, true);
-assert.equal(playerExits([shut], 5)[0].destination_name, 'Cistern Gate');
+assert.equal(Object.hasOwn(playerExits([shut], 5)[0], 'destination_name'), false);
+assert.equal(playerExits([{ ...shut, to_arrived: 0 }], 5)[0].destination_name, 'Cistern Gate');
 assert.deepEqual(playerExits([shut], 9), []);
 
 const both = {
@@ -125,6 +136,8 @@ const hereEnd = serverSource.indexOf('// ==================== HEALTH', hereAt);
 const hereSource = serverSource.slice(hereAt, hereEnd);
 assert.equal(hereSource.includes('playerHere'), true);
 assert.equal(hereSource.includes('to_name'), true);
+assert.equal(hereSource.includes('from_arrived'), true);
+assert.equal(hereSource.includes('to_arrived'), true);
 const arriveAt = serverSource.indexOf("app.post('/api/campaigns/:campaignId/situation/transitions/:transitionId/arrive'");
 const foundAt = serverSource.indexOf("app.post('/api/campaigns/:campaignId/situation/transitions/:transitionId/found'");
 const accessAt = serverSource.indexOf("app.post('/api/campaigns/:campaignId/situation/transitions/:transitionId/access'");

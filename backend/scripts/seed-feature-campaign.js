@@ -374,13 +374,23 @@ async function main() {
     await clue('Cistern Gate', 'Chalk marks a secret door on the landing.', null);
     await clue('Cistern Heart', 'The slab is a burial.', tomb);
 
-    async function scene(locationName, title, kind, purpose, notes, members) {
+    async function scene(locationName, title, kind, purpose, notes, members, effect) {
       const inserted = await one(
         client,
         `INSERT INTO campaign_encounter
-           (campaign_id, location_id, title, kind, purpose, notes, status, base_status)
-         VALUES ($1, $2, $3, $4, $5, $6, 'prepared', 'prepared') RETURNING id`,
-        [campaignId, locationIds[locationName], title, kind, purpose, notes]
+           (campaign_id, location_id, title, kind, purpose, notes, status, base_status,
+            environmental_effect, environmental_amount)
+         VALUES ($1, $2, $3, $4, $5, $6, 'prepared', 'prepared', $7, $8) RETURNING id`,
+        [
+          campaignId,
+          locationIds[locationName],
+          title,
+          kind,
+          purpose,
+          notes,
+          effect ? effect.effect : null,
+          effect ? effect.amount : null,
+        ]
       );
       for (const creatureId of members) {
         await client.query(
@@ -423,7 +433,8 @@ async function main() {
       'Cistern Stair', 'Bad air', 'hazard',
       'A turn of searching costs 1 damage.',
       'The air is bad on this flight. Each turn they search here costs 1 damage unless they retreat for a turn first. Do not roll for the damage. No flag.',
-      []
+      [],
+      { effect: 'damage', amount: 1 }
     );
     await scene(
       'Cistern Crypt', 'Niche skeleton', 'combat',

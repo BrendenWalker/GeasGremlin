@@ -272,7 +272,7 @@ assert.equal((stateRoutes.match(/requireCampaign\(req, res, req\.params\.campaig
 assert.equal(stateRoutes.includes('requireCampaign(req, res, req.params.campaignId, false)'), false);
 const previewApply = serverSource.indexOf("app.post('/api/campaigns/:campaignId/adventuring/preview/apply'");
 const previewReject = serverSource.indexOf("app.post('/api/campaigns/:campaignId/adventuring/preview/reject'");
-const previewEnd = serverSource.indexOf("app.post('/api/campaigns/:campaignId/adventuring/bad-air/apply'", previewReject);
+const previewEnd = serverSource.indexOf("app.post('/api/campaigns/:campaignId/adventuring/environmental-effect/apply'", previewReject);
 assert.ok(previewApply > 0 && previewReject > previewApply && previewEnd > previewReject);
 const previewRoutes = serverSource.slice(previewApply, previewEnd);
 assert.equal((previewRoutes.match(/requireCampaign\(req, res, req\.params\.campaignId, true\)/g) || []).length, 2);
@@ -291,12 +291,12 @@ const pageSource = fs.readFileSync(path.join(__dirname, '..', 'frontend', 'src',
 assert.equal(pageSource.includes('board?.water_story'), true);
 assert.equal(pageSource.includes('What would change'), true);
 const storyFn = fs.readFileSync(path.join(__dirname, 'playState.js'), 'utf8');
-const storyBody = storyFn.slice(storyFn.indexOf('function waterStory'), storyFn.indexOf('async function applyBadAir'));
+const storyBody = storyFn.slice(storyFn.indexOf('function waterStory'), storyFn.indexOf('async function applyEnvironmentalEffect'));
 assert.equal(storyBody.includes('INSERT'), false);
 assert.equal(storyBody.includes('UPDATE'), false);
 assert.equal(storyBody.includes('DELETE'), false);
 assert.equal(storyFn.includes('campaign_thread'), false);
-const threadBody = storyFn.slice(storyFn.indexOf('function waterThread'), storyFn.indexOf('async function applyBadAir'));
+const threadBody = storyFn.slice(storyFn.indexOf('function waterThread'), storyFn.indexOf('async function applyEnvironmentalEffect'));
 assert.equal(threadBody.includes('INSERT'), false);
 assert.equal(threadBody.includes('UPDATE'), false);
 assert.equal(threadBody.includes('DELETE'), false);

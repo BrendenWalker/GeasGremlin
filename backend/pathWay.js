@@ -63,16 +63,22 @@ function pathTravel(row, reverse, override) {
   return { locationId: way.locationId };
 }
 
+function beenThere(stamp) {
+  return stamp != null && stamp !== '';
+}
+
 function playerExits(rows, hereId) {
   return pathsAt(rows, hereId)
     .filter((row) => row.discovered !== false)
     .map((row) => {
       const back = !samePlace(row.from_location_id, hereId);
-      return {
-        destination_name: back ? (row.from_name || 'location') : (row.to_name || 'location'),
+      const exit = {
         reason: row.reason || null,
         blocked: row.blocked === true,
       };
+      if (!beenThere(back ? row.from_arrived : row.to_arrived)) return exit;
+      exit.destination_name = back ? (row.from_name || 'location') : (row.to_name || 'location');
+      return exit;
     });
 }
 

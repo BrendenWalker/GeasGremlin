@@ -225,26 +225,30 @@ async function attachAuthoredFacts(client, campaignId) {
   return inserted;
 }
 
-const BAD_AIR_TITLE = 'Bad air';
-const BAD_AIR_PLACE = 'Cistern Stair';
-const BAD_AIR_LOG = 'Bad air costs 1 damage.';
+// ponytail: damage is the only effect that applies. Ceiling is one hit-point delta per character on that turn. Acid on metal is a new allowed value and its own apply branch, not a second table.
+const ENVIRONMENTAL_EFFECT_DAMAGE = 'damage';
 
-const BAD_AIR_BOARD_SQL = `SELECT b.game_seconds, b.in_encounter, b.location_id, l.name AS location_name
+const EFFECT_BOARD_SQL = `SELECT b.game_seconds, b.in_encounter, b.location_id
      FROM campaign_board b
-     LEFT JOIN campaign_location l ON l.id = b.location_id AND l.campaign_id = b.campaign_id
      WHERE b.campaign_id = $1`;
 
-const BAD_AIR_ENCOUNTERS_SQL = `SELECT e.id, e.title, e.kind, e.status,
-            (SELECT count(*)::int FROM campaign_encounter_member m WHERE m.encounter_id = e.id) AS member_count
+const EFFECT_ROWS_SQL = `SELECT e.id, e.title, e.kind, e.status, e.location_id,
+            e.environmental_effect, e.environmental_amount,
+            (SELECT count(*)::int FROM campaign_encounter_member m WHERE m.encounter_id = e.id) AS member_count,
+            EXISTS (
+              SELECT 1 FROM campaign_log l
+              WHERE l.campaign_id = e.campaign_id
+                AND l.at_seconds = $2
+                AND l.kind = 'consequence'
+                AND l.body = e.title || ' costs ' || e.environmental_amount::text || ' damage.'
+            ) AS already
      FROM campaign_encounter e
-     WHERE e.campaign_id = $1 AND e.title = $2
+     WHERE e.campaign_id = $1
+       AND e.location_id = $3
+       AND e.environmental_effect = 'damage'
      ORDER BY e.id`;
 
-const BAD_AIR_LOG_SQL = `SELECT id FROM campaign_log
-     WHERE campaign_id = $1 AND at_seconds = $2 AND body = $3
-     LIMIT 1`;
-
-const BAD_AIR_CHARACTERS_SQL = `SELECT c.id,
+const EFFECT_CHARACTERS_SQL = `SELECT c.id,
             CASE WHEN c.hp IS NULL THEN NULL
             ELSE LEAST(GREATEST(c.hp + COALESCE((
               SELECT SUM(e.value)
@@ -257,66 +261,104 @@ const BAD_AIR_CHARACTERS_SQL = `SELECT c.id,
      INNER JOIN campaign_character cc ON cc.character_id = c.id AND cc.campaign_id = $1
      ORDER BY c.id`;
 
-const BAD_AIR_MARK_SQL = `INSERT INTO campaign_log (campaign_id, location_id, at_seconds, kind, body)
+const EFFECT_MARK_SQL = `INSERT INTO campaign_log (campaign_id, location_id, at_seconds, kind, body)
      VALUES ($1, $2, $3, 'consequence', $4)`;
 
-function badAirPreview(turn) {
-  if (!turn || turn.step !== 'turn' || turn.in_encounter === true || turn.already === true) return null;
-  if (turn.location_name !== BAD_AIR_PLACE) return null;
+function damageAmount(row) {
+  if (!row || row.environmental_effect !== ENVIRONMENTAL_EFFECT_DAMAGE) return null;
+  const amount = Number(row.environmental_amount);
+  if (!Number.isInteger(amount) || amount < 1 || amount > 100) return null;
+  return amount;
+}
+
+function effectNote(title) {
+  return String(title || '').trim().toLowerCase().slice(0, 100);
+}
+
+function effectLog(title, amount) {
+  return `${title} costs ${amount} damage.`;
+}
+
+function environmentalEffectPreview(turn) {
+  if (!turn || turn.step !== 'turn' || turn.in_encounter === true) return null;
   const game_seconds = Number(turn.game_seconds);
   if (!Number.isInteger(game_seconds) || game_seconds < 0) return null;
-  const matches = (turn.encounters || []).filter((row) => (
-    row
-    && row.title === BAD_AIR_TITLE
-    && row.status === 'opened'
-    && row.kind === 'hazard'
-    && memberCount(row) === 0
-  ));
+  const here = Number(turn.location_id);
+  if (!Number.isInteger(here) || here < 1) return null;
+  const matches = (turn.encounters || []).filter((row) => {
+    const amount = damageAmount(row);
+    return row
+      && Number(row.location_id) === here
+      && row.status === 'opened'
+      && row.kind === 'hazard'
+      && amount != null
+      && memberCount(row) === 0
+      && row.already !== true;
+  });
   if (matches.length !== 1) return null;
+  const row = matches[0];
+  const amount = damageAmount(row);
   return {
-    encounter_id: Number(matches[0].id),
-    title: BAD_AIR_TITLE,
-    why: 'A turn of searching costs 1 damage.',
+    encounter_id: Number(row.id),
+    title: row.title,
+    effect: ENVIRONMENTAL_EFFECT_DAMAGE,
+    why: effectLog(row.title, amount),
     change: 'damage',
-    delta: -1,
+    amount,
+    delta: -amount,
     game_seconds,
   };
 }
 
-function readBadAirCommand(body) {
-  const game_seconds = Number(body?.game_seconds);
-  if (!Number.isInteger(game_seconds) || game_seconds < 0) return { error: 'game_seconds is required' };
-  return { game_seconds };
+function readEnvironmentalDamage(kind, body) {
+  const effect = body?.environmental_effect;
+  if (kind !== 'hazard' || effect == null || effect === '') {
+    return { environmental_effect: null, environmental_amount: null };
+  }
+  if (effect !== ENVIRONMENTAL_EFFECT_DAMAGE) return { error: 'environmental_effect must be damage' };
+  const amount = Number(body?.environmental_amount);
+  if (!Number.isInteger(amount) || amount < 1 || amount > 100) {
+    return { error: 'environmental_amount must be from 1 to 100' };
+  }
+  return { environmental_effect: ENVIRONMENTAL_EFFECT_DAMAGE, environmental_amount: amount };
 }
 
-function rejectBadAir() {
+function readEnvironmentalEffectCommand(body) {
+  const game_seconds = Number(body?.game_seconds);
+  const encounter_id = Number(body?.encounter_id);
+  if (!Number.isInteger(game_seconds) || game_seconds < 0) return { error: 'game_seconds is required' };
+  if (!Number.isInteger(encounter_id) || encounter_id < 1) return { error: 'encounter_id is required' };
+  return { game_seconds, encounter_id };
+}
+
+function rejectEnvironmentalEffect() {
   return { changed: false };
 }
 
-async function readBadAirTurn(client, campaignId, lock) {
+async function readEnvironmentalTurn(client, campaignId, lock) {
   const board = await client.query(
-    `${BAD_AIR_BOARD_SQL}${lock ? ' FOR UPDATE OF b' : ''}`,
+    `${EFFECT_BOARD_SQL}${lock ? ' FOR UPDATE OF b' : ''}`,
     [campaignId]
   );
   if (board.rows.length === 0) return null;
   const row = board.rows[0];
   const seconds = Number(row.game_seconds);
-  const encounters = await client.query(BAD_AIR_ENCOUNTERS_SQL, [campaignId, BAD_AIR_TITLE]);
-  const logged = await client.query(BAD_AIR_LOG_SQL, [campaignId, seconds, BAD_AIR_LOG]);
+  const locationId = row.location_id == null ? null : Number(row.location_id);
+  const encounters = locationId == null
+    ? { rows: [] }
+    : await client.query(EFFECT_ROWS_SQL, [campaignId, seconds, locationId]);
   return {
     in_encounter: row.in_encounter === true,
-    location_name: row.location_name,
-    location_id: row.location_id == null ? null : Number(row.location_id),
+    location_id: locationId,
     game_seconds: seconds,
-    already: logged.rows.length > 0,
     encounters: encounters.rows,
   };
 }
 
-async function badAirOnTurn(client, campaignId, gameSeconds) {
-  const turn = await readBadAirTurn(client, campaignId, false);
+async function environmentalEffectOnTurn(client, campaignId, gameSeconds) {
+  const turn = await readEnvironmentalTurn(client, campaignId, false);
   if (!turn || Number(turn.game_seconds) !== Number(gameSeconds)) return null;
-  return badAirPreview({ ...turn, step: 'turn' });
+  return environmentalEffectPreview({ ...turn, step: 'turn' });
 }
 
 function namedPlace(locations, id, fallback) {
@@ -504,24 +546,28 @@ function waterThread(facts, encounters, locations, clues, objectives) {
   };
 }
 
-async function applyBadAir(client, campaignId, gameSeconds, writeHitPoints) {
-  const seconds = Number(gameSeconds);
+async function applyEnvironmentalEffect(client, campaignId, command, writeHitPoints) {
+  const seconds = Number(command?.game_seconds);
+  const encounterId = Number(command?.encounter_id);
   if (!Number.isInteger(seconds) || seconds < 0) throw storedError('game_seconds is required', 400);
-  const turn = await readBadAirTurn(client, campaignId, true);
+  if (!Number.isInteger(encounterId) || encounterId < 1) throw storedError('encounter_id is required', 400);
+  const turn = await readEnvironmentalTurn(client, campaignId, true);
   if (!turn || turn.game_seconds !== seconds) return { changed: false };
-  const preview = badAirPreview({ ...turn, step: 'turn' });
-  if (!preview) return { changed: false };
-  const people = await client.query(BAD_AIR_CHARACTERS_SQL, [campaignId]);
+  const preview = environmentalEffectPreview({ ...turn, step: 'turn' });
+  if (!preview || preview.encounter_id !== encounterId || preview.effect !== ENVIRONMENTAL_EFFECT_DAMAGE) {
+    return { changed: false };
+  }
+  const people = await client.query(EFFECT_CHARACTERS_SQL, [campaignId]);
   let damaged = 0;
   for (const person of people.rows) {
     if (person.current_hp == null) continue;
     const current = Number(person.current_hp);
     if (!Number.isInteger(current) || current <= 0) continue;
-    await writeHitPoints(client, Number(person.id), -1, 'bad air');
+    await writeHitPoints(client, Number(person.id), -preview.amount, effectNote(preview.title));
     damaged += 1;
   }
-  await client.query(BAD_AIR_MARK_SQL, [campaignId, turn.location_id, seconds, BAD_AIR_LOG]);
-  return { changed: true, damaged, game_seconds: seconds };
+  await client.query(EFFECT_MARK_SQL, [campaignId, turn.location_id, seconds, preview.why]);
+  return { changed: true, damaged, game_seconds: seconds, encounter_id: encounterId };
 }
 
 module.exports = {
@@ -541,12 +587,13 @@ module.exports = {
   readPreviewCommand,
   rejectRisingWater,
   applyRisingWater,
-  BAD_AIR_LOG,
-  badAirPreview,
-  readBadAirCommand,
-  rejectBadAir,
-  badAirOnTurn,
-  applyBadAir,
+  effectLog,
+  environmentalEffectPreview,
+  readEnvironmentalDamage,
+  readEnvironmentalEffectCommand,
+  rejectEnvironmentalEffect,
+  environmentalEffectOnTurn,
+  applyEnvironmentalEffect,
   waterStory,
   waterThread,
   listFacts,

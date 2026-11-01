@@ -952,13 +952,13 @@ export default function CharacterDetailPage({ playerMode = false }) {
               <>
                 <h3 style={{ margin: '0.5rem 0 0.25rem', fontSize: '1rem' }}>Exits:</h3>
                 <ul style={{ margin: 0, paddingLeft: '1.25rem' }}>
-                  {here.exits.map((row) => (
-                    <li key={`${row.destination_name}-${row.reason || ''}`}>
-                      {row.destination_name}
-                      {row.reason ? <span className="muted"> · {row.reason}</span> : null}
-                      {row.blocked ? <span className="muted"> · blocked</span> : null}
-                    </li>
-                  ))}
+                {here.exits.map((row, index) => (
+                  <li key={`${row.destination_name || 'unseen'}-${row.reason || ''}-${index}`}>
+                    {row.destination_name || row.reason || 'That path'}
+                    {row.destination_name && row.reason ? <span className="muted"> · {row.reason}</span> : null}
+                    {row.blocked ? <span className="muted"> · blocked</span> : null}
+                  </li>
+                ))}
                 </ul>
               </>
             )}

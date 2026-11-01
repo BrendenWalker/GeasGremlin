@@ -243,6 +243,7 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
   const [encounterError, setEncounterError] = useState(null);
   const [encounterTitle, setEncounterTitle] = useState('');
   const [encounterKind, setEncounterKind] = useState('discovery');
+  const [encounterDamage, setEncounterDamage] = useState('');
   const [encounterPurpose, setEncounterPurpose] = useState('');
   const [encounterNotes, setEncounterNotes] = useState('');
   const [encounterPlace, setEncounterPlace] = useState('');
@@ -321,6 +322,7 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
     setEncounterEditId(null);
     setEncounterTitle('');
     setEncounterKind('discovery');
+    setEncounterDamage('');
     setEncounterPurpose('');
     setEncounterNotes('');
     setEncounterPlace(scopeId);
@@ -377,6 +379,7 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
     setEncounterEditId(null);
     setEncounterTitle('');
     setEncounterKind('discovery');
+    setEncounterDamage('');
     setEncounterPurpose('');
     setEncounterNotes('');
     setEncounterPlace(place);
@@ -505,12 +508,25 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
       setEncounterError('Encounter title is required.');
       return;
     }
+    let environmental_effect = null;
+    let environmental_amount = null;
+    if (encounterKind === 'hazard' && String(encounterDamage).trim() !== '') {
+      const amount = Number(encounterDamage);
+      if (!Number.isInteger(amount) || amount < 1 || amount > 100) {
+        setEncounterError('Damage each turn must be from 1 to 100.');
+        return;
+      }
+      environmental_effect = 'damage';
+      environmental_amount = amount;
+    }
     const payload = {
       title: name,
       kind: encounterKind,
       purpose: encounterPurpose,
       notes: encounterNotes,
       location_id: placePayload(encounterPlace),
+      environmental_effect,
+      environmental_amount,
     };
     const action = encounterEditId == null
       ? () => createPreparedEncounter(campaignId, payload)
@@ -847,6 +863,9 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
             <li key={row.id} style={{ marginBottom: 8 }}>
               <strong>{row.title}</strong>
               <span className="muted"> · {row.kind} · {row.status}</span>
+              {row.environmental_effect === 'damage' ? (
+                <span className="muted">{` · ${row.environmental_amount} damage`}</span>
+              ) : null}
               {row.purpose ? <div className="muted">{row.purpose}</div> : null}
               {row.notes ? <div className="muted" style={{ whiteSpace: 'pre-wrap' }}>{row.notes}</div> : null}
               {row.members.length > 0 && (
@@ -876,6 +895,7 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
               setEncounterEditId(row.id);
               setEncounterTitle(row.title || '');
               setEncounterKind(row.kind || 'discovery');
+              setEncounterDamage(row.environmental_effect === 'damage' && row.environmental_amount != null ? String(row.environmental_amount) : '');
               setEncounterPurpose(row.purpose || '');
               setEncounterNotes(row.notes || '');
               setEncounterPlace(row.location_id ? String(row.location_id) : '');
@@ -909,6 +929,21 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
                 {KINDS.map((kind) => <option key={kind} value={kind}>{kind}</option>)}
               </select>
             </label>
+            {encounterKind === 'hazard' && (
+              <label>
+                Damage each turn
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={encounterDamage}
+                  onChange={(event) => setEncounterDamage(event.target.value)}
+                  placeholder="None"
+                  aria-label="Damage each turn"
+                  style={{ ...FIELD, width: 90, marginLeft: 6 }}
+                />
+              </label>
+            )}
             <PlaceSelect label="Place" value={encounterPlace} locations={locations} onChange={setEncounterPlace} />
             <textarea value={encounterPurpose} onChange={(event) => setEncounterPurpose(event.target.value)} placeholder="Purpose" aria-label="Encounter purpose" rows={2} style={FIELD} />
             <textarea value={encounterNotes} onChange={(event) => setEncounterNotes(event.target.value)} placeholder="Notes" aria-label="Encounter notes" rows={3} style={FIELD} />

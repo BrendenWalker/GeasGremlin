@@ -1,5 +1,5 @@
 /**
- * One confirmed point of bad air on the stair. The database section rolls back.
+ * One confirmed damage effect on an opened hazard. The database section rolls back.
  * It does not conclude a campaign and it does not commit.
  */
 const assert = require('assert');
@@ -14,69 +14,101 @@ const { resetCampaignRun } = require('./campaignLifecycle');
 const { openPreparedEncounter } = require('./preparedEncounter');
 const { risingWaterPreview } = require('./playState');
 const {
-  BAD_AIR_LOG,
-  badAirPreview,
-  readBadAirCommand,
-  rejectBadAir,
-  badAirOnTurn,
-  applyBadAir,
+  effectLog,
+  environmentalEffectPreview,
+  readEnvironmentalDamage,
+  readEnvironmentalEffectCommand,
+  rejectEnvironmentalEffect,
+  environmentalEffectOnTurn,
+  applyEnvironmentalEffect,
 } = require('./playState');
 const { writeCharacterHitPoints, pool: serverPool } = require('./server');
 
 const opened = [{
-  id: 4, title: 'Bad air', status: 'opened', kind: 'hazard', member_count: 0,
+  id: 4,
+  title: 'Bad air',
+  status: 'opened',
+  kind: 'hazard',
+  member_count: 0,
+  location_id: 65,
+  environmental_effect: 'damage',
+  environmental_amount: 1,
+  already: false,
 }];
 const stair = {
   step: 'turn',
   in_encounter: false,
-  location_name: 'Cistern Stair',
+  location_id: 65,
   game_seconds: 600,
-  already: false,
   encounters: opened,
 };
 
-assert.equal(badAirPreview(stair).encounter_id, 4);
-assert.equal(badAirPreview(stair).title, 'Bad air');
-assert.equal(badAirPreview(stair).change, 'damage');
-assert.equal(badAirPreview(stair).delta, -1);
-assert.equal(badAirPreview(stair).game_seconds, 600);
-assert.equal(badAirPreview(stair).why, 'A turn of searching costs 1 damage.');
-assert.equal(badAirPreview({ ...stair, step: 'round' }), null);
-assert.equal(badAirPreview({ ...stair, step: 'watch' }), null);
-assert.equal(badAirPreview({ ...stair, step: 'day' }), null);
-assert.equal(badAirPreview({ ...stair, in_encounter: true }), null);
-assert.equal(badAirPreview({ ...stair, location_name: 'Millbridge' }), null);
-assert.equal(badAirPreview({ ...stair, location_name: null }), null);
-assert.equal(badAirPreview({ ...stair, already: true }), null);
-assert.equal(badAirPreview({ ...stair, game_seconds: -1 }), null);
-assert.equal(badAirPreview({ ...stair, game_seconds: 1.5 }), null);
-assert.equal(badAirPreview({ ...stair, encounters: [{ ...opened[0], status: 'prepared' }] }), null);
-assert.equal(badAirPreview({ ...stair, encounters: [{ ...opened[0], status: 'resolved' }] }), null);
-assert.equal(badAirPreview({ ...stair, encounters: [{ ...opened[0], kind: 'environment' }] }), null);
-assert.equal(badAirPreview({ ...stair, encounters: [{ ...opened[0], member_count: 1 }] }), null);
-assert.equal(badAirPreview({ ...stair, encounters: [{ ...opened[0], members: [{ id: 9 }] }] }), null);
-assert.equal(badAirPreview({
+assert.equal(environmentalEffectPreview(stair).encounter_id, 4);
+assert.equal(environmentalEffectPreview(stair).title, 'Bad air');
+assert.equal(environmentalEffectPreview(stair).effect, 'damage');
+assert.equal(environmentalEffectPreview(stair).change, 'damage');
+assert.equal(environmentalEffectPreview(stair).amount, 1);
+assert.equal(environmentalEffectPreview(stair).delta, -1);
+assert.equal(environmentalEffectPreview(stair).game_seconds, 600);
+assert.equal(environmentalEffectPreview(stair).why, 'Bad air costs 1 damage.');
+assert.equal(environmentalEffectPreview({
   ...stair,
-  encounters: [opened[0], { ...opened[0], id: 5 }],
+  encounters: [{ ...opened[0], title: 'Green gas', environmental_amount: 2 }],
+}).delta, -2);
+assert.equal(environmentalEffectPreview({ ...stair, step: 'round' }), null);
+assert.equal(environmentalEffectPreview({ ...stair, step: 'watch' }), null);
+assert.equal(environmentalEffectPreview({ ...stair, step: 'day' }), null);
+assert.equal(environmentalEffectPreview({ ...stair, in_encounter: true }), null);
+assert.equal(environmentalEffectPreview({ ...stair, location_id: 9 }), null);
+assert.equal(environmentalEffectPreview({ ...stair, location_id: null }), null);
+assert.equal(environmentalEffectPreview({
+  ...stair,
+  encounters: [{ ...opened[0], already: true }],
 }), null);
-assert.equal(badAirPreview({ ...stair, encounters: [] }), null);
-assert.deepEqual(rejectBadAir(), { changed: false });
-assert.equal(readBadAirCommand({}).error, 'game_seconds is required');
-assert.equal(readBadAirCommand({ game_seconds: -1 }).error, 'game_seconds is required');
-assert.equal(readBadAirCommand({ game_seconds: 1.5 }).error, 'game_seconds is required');
-assert.equal(readBadAirCommand({ game_seconds: 600 }).game_seconds, 600);
+assert.equal(environmentalEffectPreview({ ...stair, game_seconds: -1 }), null);
+assert.equal(environmentalEffectPreview({ ...stair, game_seconds: 1.5 }), null);
+assert.equal(environmentalEffectPreview({ ...stair, encounters: [{ ...opened[0], status: 'prepared' }] }), null);
+assert.equal(environmentalEffectPreview({ ...stair, encounters: [{ ...opened[0], status: 'resolved' }] }), null);
+assert.equal(environmentalEffectPreview({ ...stair, encounters: [{ ...opened[0], kind: 'environment' }] }), null);
+assert.equal(environmentalEffectPreview({ ...stair, encounters: [{ ...opened[0], member_count: 1 }] }), null);
+assert.equal(environmentalEffectPreview({ ...stair, encounters: [{ ...opened[0], members: [{ id: 9 }] }] }), null);
+assert.equal(environmentalEffectPreview({
+  ...stair,
+  encounters: [{ ...opened[0], environmental_effect: null, environmental_amount: null }],
+}), null);
+assert.equal(environmentalEffectPreview({
+  ...stair,
+  encounters: [{ ...opened[0], environmental_effect: 'acid', environmental_amount: 1 }],
+}), null);
+assert.equal(environmentalEffectPreview({
+  ...stair,
+  encounters: [opened[0], { ...opened[0], id: 5, title: 'Green gas' }],
+}), null);
+assert.equal(environmentalEffectPreview({ ...stair, encounters: [] }), null);
+assert.deepEqual(rejectEnvironmentalEffect(), { changed: false });
+assert.equal(readEnvironmentalEffectCommand({}).error, 'game_seconds is required');
+assert.equal(readEnvironmentalEffectCommand({ game_seconds: -1 }).error, 'game_seconds is required');
+assert.equal(readEnvironmentalEffectCommand({ game_seconds: 1.5 }).error, 'game_seconds is required');
+assert.equal(readEnvironmentalEffectCommand({ game_seconds: 600 }).error, 'encounter_id is required');
+assert.equal(readEnvironmentalEffectCommand({ game_seconds: 600, encounter_id: 4 }).encounter_id, 4);
+assert.equal(readEnvironmentalDamage('hazard', { environmental_effect: 'damage', environmental_amount: 1 }).environmental_amount, 1);
+assert.equal(readEnvironmentalDamage('hazard', {}).environmental_effect, null);
+assert.equal(readEnvironmentalDamage('combat', { environmental_effect: 'damage', environmental_amount: 1 }).environmental_effect, null);
+assert.equal(readEnvironmentalDamage('hazard', { environmental_effect: 'acid', environmental_amount: 1 }).error, 'environmental_effect must be damage');
 assert.equal(risingWaterPreview(
   [{ subject_key: 'waterwheel', state_key: 'blocked', value: false }],
   [{ id: 7, title: 'Rising water', status: 'prepared', kind: 'environment', member_count: 0 }]
 ).change, 'open');
-assert.equal(badAirPreview({
+assert.equal(environmentalEffectPreview({
   ...stair,
-  encounters: [{ id: 7, title: 'Rising water', status: 'opened', kind: 'environment', member_count: 0 }],
+  encounters: [{ id: 7, title: 'Rising water', status: 'opened', kind: 'environment', member_count: 0, location_id: 65 }],
 }), null);
 
 const schema = fs.readFileSync(path.join(__dirname, '..', 'database', 'schema.sql'), 'utf8');
 assert.equal(schema.includes('CREATE TABLE IF NOT EXISTS public.campaign_situation'), false);
 assert.equal(schema.includes('campaign_automation_rule'), false);
+assert.equal(schema.includes("environmental_effect = 'damage'"), true);
+assert.equal(schema.includes("environmental_effect = 'acid'"), false);
 
 const serverSource = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
 const playSource = fs.readFileSync(path.join(__dirname, 'playState.js'), 'utf8');
@@ -88,62 +120,63 @@ assert.ok(tickAt > 0 && tickEnd > tickAt);
 const tickSource = serverSource.slice(tickAt, tickEnd);
 assert.equal(tickSource.split('applyWander(').length - 1, 1);
 assert.equal(tickSource.split('applyVisitCheck(').length - 1, 1);
-assert.ok(tickSource.indexOf('applyWander(') < tickSource.indexOf('badAirOnTurn('));
-assert.ok(tickSource.indexOf('applyVisitCheck(') < tickSource.indexOf('badAirOnTurn('));
+assert.ok(tickSource.indexOf('applyWander(') < tickSource.indexOf('environmentalEffectOnTurn('));
+assert.ok(tickSource.indexOf('applyVisitCheck(') < tickSource.indexOf('environmentalEffectOnTurn('));
 assert.equal(tickSource.includes("req.body.step === 'turn'"), true);
-assert.equal(tickSource.includes('bad_air: badAir'), true);
+assert.equal(tickSource.includes('environmental_effect: environmentalEffect'), true);
 
 const loadAt = serverSource.indexOf('async function loadAdventuring');
 const loadEnd = serverSource.indexOf('async function queueForParty', loadAt);
 assert.ok(loadAt > 0 && loadEnd > loadAt);
 const loadSource = serverSource.slice(loadAt, loadEnd);
-assert.equal(loadSource.includes('bad_air'), false);
-assert.equal(loadSource.includes('badAir'), false);
+assert.equal(loadSource.includes('environmental_effect'), false);
+assert.equal(loadSource.includes('environmentalEffect'), false);
 assert.equal(loadSource.includes('rising_water: risingWaterPreview'), true);
 
 const hereAt = serverSource.indexOf("app.get('/api/campaigns/:campaignId/here'");
 const hereEnd = serverSource.indexOf('// ==================== HEALTH', hereAt);
 assert.ok(hereAt > 0 && hereEnd > hereAt);
 const hereSource = serverSource.slice(hereAt, hereEnd);
-assert.equal(hereSource.includes('bad_air'), false);
-assert.equal(hereSource.includes('badAir'), false);
+assert.equal(hereSource.includes('environmental_effect'), false);
+assert.equal(hereSource.includes('environmentalEffect'), false);
 
-const badApply = serverSource.indexOf("app.post('/api/campaigns/:campaignId/adventuring/bad-air/apply'");
-const badReject = serverSource.indexOf("app.post('/api/campaigns/:campaignId/adventuring/bad-air/reject'");
+const badApply = serverSource.indexOf("app.post('/api/campaigns/:campaignId/adventuring/environmental-effect/apply'");
+const badReject = serverSource.indexOf("app.post('/api/campaigns/:campaignId/adventuring/environmental-effect/reject'");
 const badEnd = serverSource.indexOf("app.post('/api/campaigns/:campaignId/adventuring/creatures/take'", badReject);
 assert.ok(badApply > 0 && badReject > badApply && badEnd > badReject);
 const badRoutes = serverSource.slice(badApply, badEnd);
 assert.equal((badRoutes.match(/requireCampaign\(req, res, req\.params\.campaignId, true\)/g) || []).length, 2);
 assert.equal(badRoutes.includes('requireCampaign(req, res, req.params.campaignId, false)'), false);
-assert.equal(badRoutes.includes('applyBadAir'), true);
+assert.equal(badRoutes.includes('applyEnvironmentalEffect'), true);
 assert.equal(badRoutes.includes('writeCharacterHitPoints'), true);
 const rejectRoute = serverSource.slice(badReject, badEnd);
-assert.equal(rejectRoute.includes('rejectBadAir()'), true);
+assert.equal(rejectRoute.includes('rejectEnvironmentalEffect()'), true);
 assert.equal(rejectRoute.includes('INSERT'), false);
 assert.equal(rejectRoute.includes('UPDATE'), false);
 assert.equal(rejectRoute.includes('DELETE'), false);
 
 const applyFn = playSource.slice(
-  playSource.indexOf('async function applyBadAir'),
+  playSource.indexOf('async function applyEnvironmentalEffect'),
   playSource.indexOf('module.exports')
 );
-assert.equal(applyFn.includes("writeHitPoints(client, Number(person.id), -1, 'bad air')"), true);
+assert.equal(applyFn.includes('writeHitPoints(client, Number(person.id), -preview.amount, effectNote(preview.title))'), true);
 assert.equal(applyFn.includes('campaign_creature'), false);
 assert.equal(applyFn.includes('campaign_hireling'), false);
 assert.equal(applyFn.includes('roll'), false);
 const characterSql = playSource.slice(
-  playSource.indexOf('const BAD_AIR_CHARACTERS_SQL'),
-  playSource.indexOf('const BAD_AIR_MARK_SQL')
+  playSource.indexOf('const EFFECT_CHARACTERS_SQL'),
+  playSource.indexOf('const EFFECT_MARK_SQL')
 );
 assert.equal(characterSql.includes('campaign_character'), true);
 assert.equal(characterSql.includes('campaign_creature'), false);
 assert.equal(characterSql.includes('campaign_hireling'), false);
-assert.equal(BAD_AIR_LOG, 'Bad air costs 1 damage.');
+assert.equal(effectLog('Bad air', 1), 'Bad air costs 1 damage.');
 
-assert.equal(pageSource.includes('board?.bad_air'), false);
-assert.equal(pageSource.includes('res?.data?.bad_air'), true);
-assert.equal(pageSource.includes('Apply 1 damage'), true);
-assert.equal(pageSource.includes('game_seconds: badAirAsk.game_seconds'), true);
+assert.equal(pageSource.includes('board?.environmental_effect'), false);
+assert.equal(pageSource.includes('res?.data?.environmental_effect'), true);
+assert.equal(pageSource.includes('Apply ${environmentalAsk.amount} damage'), true);
+assert.equal(pageSource.includes('game_seconds: environmentalAsk.game_seconds'), true);
+assert.equal(pageSource.includes('encounter_id: environmentalAsk.encounter_id'), true);
 
 async function withRollback(run) {
   const pool = poolFromEnv();
@@ -250,8 +283,9 @@ async function withRollback(run) {
       );
       const scene = await client.query(
         `INSERT INTO campaign_encounter
-           (campaign_id, location_id, title, kind, purpose, status, base_status)
-         VALUES ($1, $2, 'Bad air', 'hazard', 'A turn of searching costs 1 damage.', 'prepared', 'prepared')
+           (campaign_id, location_id, title, kind, purpose, status, base_status,
+            environmental_effect, environmental_amount)
+         VALUES ($1, $2, 'Bad air', 'hazard', 'A turn of searching costs 1 damage.', 'prepared', 'prepared', 'damage', 1)
          RETURNING id`,
         [id, stairId]
       );
@@ -269,8 +303,8 @@ async function withRollback(run) {
         [id, alive]
       );
 
-      assert.equal(await badAirOnTurn(client, id, 600), null);
-      const prepared = await applyBadAir(client, id, 600, writeCharacterHitPoints);
+      assert.equal(await environmentalEffectOnTurn(client, id, 600), null);
+      const prepared = await applyEnvironmentalEffect(client, id, { game_seconds: 600, encounter_id: encounterId }, writeCharacterHitPoints);
       assert.equal(prepared.changed, false);
       assert.equal((await wound(alive)).rows, 0);
       const openedEncounter = await openPreparedEncounter(client, id, encounterId);
@@ -287,18 +321,18 @@ async function withRollback(run) {
       const logsAfterOpen = await client.query('SELECT id FROM campaign_log WHERE campaign_id = $1', [id]);
       assert.equal(logsAfterOpen.rows.length, 0);
 
-      const asked = await badAirOnTurn(client, id, 600);
+      const asked = await environmentalEffectOnTurn(client, id, 600);
       assert.equal(asked.encounter_id, encounterId);
       assert.equal(asked.delta, -1);
       assert.equal(asked.game_seconds, 600);
-      assert.equal(await badAirOnTurn(client, id, 1200), null);
-      const stale = await applyBadAir(client, id, 1200, writeCharacterHitPoints);
+      assert.equal(await environmentalEffectOnTurn(client, id, 1200), null);
+      const stale = await applyEnvironmentalEffect(client, id, { game_seconds: 1200, encounter_id: encounterId }, writeCharacterHitPoints);
       assert.equal(stale.changed, false);
-      assert.equal(rejectBadAir().changed, false);
+      assert.equal(rejectEnvironmentalEffect().changed, false);
       const before = await client.query('SELECT id FROM campaign_log WHERE campaign_id = $1', [id]);
       assert.equal(before.rows.length, 0);
 
-      const applied = await applyBadAir(client, id, 600, writeCharacterHitPoints);
+      const applied = await applyEnvironmentalEffect(client, id, { game_seconds: 600, encounter_id: encounterId }, writeCharacterHitPoints);
       assert.equal(applied.changed, true);
       assert.equal(applied.damaged, 2);
       assert.equal((await wound(alive)).wound, -1);
@@ -328,26 +362,26 @@ async function withRollback(run) {
       );
       assert.equal(marked.rows.length, 1);
       assert.equal(marked.rows[0].kind, 'consequence');
-      assert.equal(marked.rows[0].body, BAD_AIR_LOG);
+      assert.equal(marked.rows[0].body, effectLog('Bad air', 1));
       assert.equal(Number(marked.rows[0].at_seconds), 600);
       assert.equal(Number(marked.rows[0].location_id), stairId);
       const wanders = await client.query('SELECT id FROM campaign_wander WHERE campaign_id = $1', [id]);
       assert.equal(wanders.rows.length, 0);
 
-      const again = await applyBadAir(client, id, 600, writeCharacterHitPoints);
+      const again = await applyEnvironmentalEffect(client, id, { game_seconds: 600, encounter_id: encounterId }, writeCharacterHitPoints);
       assert.equal(again.changed, false);
       assert.equal((await wound(alive)).rows, 1);
       assert.equal((await wound(second)).wound, -1);
       const stillOne = await client.query('SELECT id FROM campaign_log WHERE campaign_id = $1', [id]);
       assert.equal(stillOne.rows.length, 1);
-      assert.equal(await badAirOnTurn(client, id, 600), null);
+      assert.equal(await environmentalEffectOnTurn(client, id, 600), null);
 
       await client.query(
         'UPDATE campaign_board SET in_encounter = true, game_seconds = 1200 WHERE campaign_id = $1',
         [id]
       );
-      assert.equal(await badAirOnTurn(client, id, 1200), null);
-      const fighting = await applyBadAir(client, id, 1200, writeCharacterHitPoints);
+      assert.equal(await environmentalEffectOnTurn(client, id, 1200), null);
+      const fighting = await applyEnvironmentalEffect(client, id, { game_seconds: 1200, encounter_id: encounterId }, writeCharacterHitPoints);
       assert.equal(fighting.changed, false);
       assert.equal((await wound(alive)).wound, -1);
 
@@ -355,8 +389,8 @@ async function withRollback(run) {
         'UPDATE campaign_board SET in_encounter = false, location_id = $2 WHERE campaign_id = $1',
         [id, townId]
       );
-      assert.equal(await badAirOnTurn(client, id, 1200), null);
-      const elsewhere = await applyBadAir(client, id, 1200, writeCharacterHitPoints);
+      assert.equal(await environmentalEffectOnTurn(client, id, 1200), null);
+      const elsewhere = await applyEnvironmentalEffect(client, id, { game_seconds: 1200, encounter_id: encounterId }, writeCharacterHitPoints);
       assert.equal(elsewhere.changed, false);
 
       await client.query(
@@ -364,8 +398,8 @@ async function withRollback(run) {
         [id, stairId]
       );
       await client.query(`UPDATE campaign_encounter SET status = 'resolved' WHERE id = $1`, [encounterId]);
-      assert.equal(await badAirOnTurn(client, id, 1200), null);
-      const resolved = await applyBadAir(client, id, 1200, writeCharacterHitPoints);
+      assert.equal(await environmentalEffectOnTurn(client, id, 1200), null);
+      const resolved = await applyEnvironmentalEffect(client, id, { game_seconds: 1200, encounter_id: encounterId }, writeCharacterHitPoints);
       assert.equal(resolved.changed, false);
 
       await client.query(`UPDATE campaign_encounter SET status = 'opened' WHERE id = $1`, [encounterId]);
@@ -373,11 +407,11 @@ async function withRollback(run) {
         'INSERT INTO campaign_encounter_member (encounter_id, creature_id) VALUES ($1, $2)',
         [encounterId, foe.rows[0].id]
       );
-      assert.equal(await badAirOnTurn(client, id, 1200), null);
+      assert.equal(await environmentalEffectOnTurn(client, id, 1200), null);
       await client.query('DELETE FROM campaign_encounter_member WHERE encounter_id = $1', [encounterId]);
-      const later = await badAirOnTurn(client, id, 1200);
+      const later = await environmentalEffectOnTurn(client, id, 1200);
       assert.equal(later.game_seconds, 1200);
-      const secondTurn = await applyBadAir(client, id, 1200, writeCharacterHitPoints);
+      const secondTurn = await applyEnvironmentalEffect(client, id, { game_seconds: 1200, encounter_id: encounterId }, writeCharacterHitPoints);
       assert.equal(secondTurn.changed, true);
       assert.equal(secondTurn.damaged, 2);
       assert.equal((await wound(alive)).wound, -2);
@@ -388,7 +422,7 @@ async function withRollback(run) {
         [id]
       );
       assert.deepEqual(twoLogs.rows.map((row) => Number(row.at_seconds)), [600, 1200]);
-      const repeatLater = await applyBadAir(client, id, 1200, writeCharacterHitPoints);
+      const repeatLater = await applyEnvironmentalEffect(client, id, { game_seconds: 1200, encounter_id: encounterId }, writeCharacterHitPoints);
       assert.equal(repeatLater.changed, false);
       assert.equal((await wound(alive)).rows, 2);
 
@@ -402,7 +436,7 @@ async function withRollback(run) {
       const foeRestored = await client.query('SELECT hp FROM campaign_creature WHERE id = $1', [foe.rows[0].id]);
       assert.equal(Number(foeRestored.rows[0].hp), 6);
     });
-    console.log('bad air ok');
+    console.log('environmental effect ok');
   } finally {
     await serverPool.end();
   }
