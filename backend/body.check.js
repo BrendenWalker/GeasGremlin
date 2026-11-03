@@ -29,6 +29,7 @@ assert.deepEqual(carryingCapacity('Halfling', 4), { light: 30, heavy: 60 });
 
 const leather = encumbrance({ raceName: 'Human', strength: 10, ounces: 15 * 16, armorAc: 13, armorMagic: false });
 assert.equal(leather.load, 'light');
+assert.equal(leather.label, 'Lightly Loaded');
 assert.equal(leather.armor, 'leather');
 assert.equal(leather.move, 30);
 assert.equal(leather.turn_feet, 90);
@@ -45,12 +46,26 @@ assert.equal(magicPlate.move, 30);
 
 const magicLeather = encumbrance({ raceName: 'Human', strength: 10, ounces: 200 * 16, armorAc: 13, armorMagic: true });
 assert.equal(magicLeather.load, 'over');
+assert.equal(magicLeather.label, 'Heavy');
 assert.equal(magicLeather.armor, 'magic leather');
 assert.equal(magicLeather.move, 30);
 
 const bare = encumbrance({ raceName: 'Human', strength: 10, ounces: 0, armorAc: null, armorMagic: false });
 assert.equal(bare.move, 40);
 assert.equal(bare.miles, 24);
+assert.equal(bare.label, 'Lightly Loaded');
+
+const atLight = encumbrance({ raceName: 'Human', strength: 10, ounces: 60 * 16, armorAc: null, armorMagic: false });
+assert.equal(atLight.label, 'Lightly Loaded');
+assert.equal(atLight.move, 40);
+const pastLight = encumbrance({ raceName: 'Human', strength: 10, ounces: 61 * 16, armorAc: null, armorMagic: false });
+assert.equal(pastLight.load, 'heavy');
+assert.equal(pastLight.label, 'Heavy');
+assert.equal(pastLight.move, 30);
+const pastHeavy = encumbrance({ raceName: 'Human', strength: 18, ounces: 196 * 16, armorAc: 17, armorMagic: false });
+assert.equal(pastHeavy.load, 'over');
+assert.equal(pastHeavy.label, 'Heavy');
+assert.equal(pastHeavy.move, 10);
 
 const slow = slowestMember([
   { name: 'Ann', move: 40 },

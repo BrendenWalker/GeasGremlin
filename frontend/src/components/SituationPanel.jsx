@@ -640,7 +640,7 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
 
   return (
     <div className={bare ? undefined : 'card'} style={{ marginBottom: '1rem' }}>
-      <h2 style={{ marginTop: 0 }}>Here</h2>
+      <h2 style={{ marginTop: 0 }}>{editing ? 'Here' : (here ? here.name : 'Select a location')}</h2>
       {editing && (
         <>
           <PlaceSelect
@@ -662,10 +662,8 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
       {!editing && pack.concluded && (
         <p>This campaign is concluded. The playthrough was reset to its base lines. Object facts return to their authored values. The log, hirelings, wander checks, room flags, and pending commands are already gone. Starting the session clears this flag and does not bring those rows back.</p>
       )}
-      {!editing && !here && <p className="muted">Select a location.</p>}
       {!editing && here && (
         <>
-          <p style={{ marginBottom: 4 }}><strong>{here.name}</strong></p>
           {here.place === 'inside' ? (
             <p className="muted" style={{ margin: '0.75rem 0 0' }}>
               {ambientLine({

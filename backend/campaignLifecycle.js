@@ -150,6 +150,7 @@ const RESET_STEPS = [
 
 const PRESERVED_TABLES = [
   'campaign',
+  'campaign_details',
   'campaign_member',
   'characters',
   'character_classes',

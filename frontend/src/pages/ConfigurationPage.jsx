@@ -14,6 +14,7 @@ import {
   getAdventuring,
   getItemCategories,
   getPrep,
+  saveCampaignDetails,
   stockRoom,
   updateEncounterTable,
   updateLocation,
@@ -132,6 +133,10 @@ export default function ConfigurationPage({ campaignName }) {
   const [creatureNote, setCreatureNote] = useState('');
   const [flagNote, setFlagNote] = useState('');
   const [flagState, setFlagState] = useState('sprung');
+  const [introText, setIntroText] = useState('');
+  const [gmNotes, setGmNotes] = useState('');
+  const [firstLocationId, setFirstLocationId] = useState('');
+  const [detailsDirty, setDetailsDirty] = useState(false);
 
   const load = useCallback(() => {
     return Promise.all([getAdventuring(campaignId), getPrep(campaignId), getItemCategories()])
@@ -147,6 +152,24 @@ export default function ConfigurationPage({ campaignName }) {
     setLoading(true);
     load().finally(() => setLoading(false));
   }, [load]);
+
+  useEffect(() => {
+    if (!board || detailsDirty) return;
+    setIntroText(board.intro || '');
+    setGmNotes(board.gm_notes || '');
+    setFirstLocationId(board.first_location_id == null ? '' : String(board.first_location_id));
+  }, [board, detailsDirty]);
+
+  const saveDetails = (e) => {
+    e.preventDefault();
+    run(() => saveCampaignDetails(campaignId, {
+      intro: introText,
+      gm_notes: gmNotes,
+      first_location_id: firstLocationId === '' ? null : Number(firstLocationId),
+    })).then((res) => {
+      if (res) setDetailsDirty(false);
+    });
+  };
 
   const run = (action, onError = setError) => {
     setBusy(true);
@@ -521,6 +544,53 @@ export default function ConfigurationPage({ campaignName }) {
         {campaignName ? <p className="muted">{campaignName}</p> : null}
         {error && <p style={{ color: '#c95858' }}>{error}</p>}
         {loading && !board && <p className="muted">Loading…</p>}
+
+        <h2>Intro</h2>
+        <p className="muted">Shown on Home until Begin Campaign selects the first location. Players do not see this.</p>
+        <form onSubmit={saveDetails} style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+          <label style={STACK}>
+            Intro
+            <textarea
+              value={introText}
+              onChange={(e) => { setDetailsDirty(true); setIntroText(e.target.value); }}
+              placeholder="What the GM reads before play"
+              aria-label="Intro"
+              rows={4}
+              maxLength={4000}
+              style={FIELD}
+            />
+          </label>
+          <label style={STACK}>
+            GM notes
+            <textarea
+              value={gmNotes}
+              onChange={(e) => { setDetailsDirty(true); setGmNotes(e.target.value); }}
+              placeholder="Private notes for the GM"
+              aria-label="GM notes"
+              rows={4}
+              maxLength={4000}
+              style={FIELD}
+            />
+          </label>
+          <label>
+            First location
+            <select
+              value={firstLocationId}
+              aria-label="First location"
+              disabled={busy || !board}
+              onChange={(e) => { setDetailsDirty(true); setFirstLocationId(e.target.value); }}
+              style={{ ...FIELD, marginLeft: 6, maxWidth: 420 }}
+            >
+              <option value="">None</option>
+              {locations.map((loc) => (
+                <option key={loc.id} value={loc.id}>{loc.name}</option>
+              ))}
+            </select>
+          </label>
+          <span>
+            <button type="submit" className="btn btn-secondary" disabled={busy || !board}>Save intro</button>
+          </span>
+        </form>
 
         <h2>Locations</h2>
         {locations.length === 0 && <p className="muted">No locations yet.</p>}

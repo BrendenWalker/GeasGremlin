@@ -5,7 +5,6 @@
  * Water flowing is derived from the wheel and the slab. It is not a row.
  * Opening Rising water is a preview over the existing encounter. It is not a row.
  * Bad air damage is a second preview over that encounter and the hit-point write.
- * The water crisis is a read of those facts. It is not a row.
  */
 
 const FACTS = [
@@ -361,191 +360,6 @@ async function environmentalEffectOnTurn(client, campaignId, gameSeconds) {
   return environmentalEffectPreview({ ...turn, step: 'turn' });
 }
 
-function namedPlace(locations, id, fallback) {
-  const found = (locations || []).find((loc) => loc && String(loc.id) === String(id));
-  return found && found.name ? found.name : fallback;
-}
-
-function oneFact(facts, subject, state) {
-  return (facts || []).find((fact) => fact && fact.subject_key === subject && fact.state_key === state) || null;
-}
-
-function factsWith(facts, subject, state, value) {
-  return (facts || []).map((fact) => (
-    fact && fact.subject_key === subject && fact.state_key === state ? { ...fact, value } : fact
-  ));
-}
-
-function asksRising(facts, encounters) {
-  return risingWaterPreview(facts, encounters) != null;
-}
-
-function waterWords(before, after, clearing) {
-  if (clearing) return after ? 'and water flows' : 'and water stays still';
-  if (before && !after) return 'and water stops';
-  if (after) return 'and water keeps flowing';
-  return 'and water stays still';
-}
-
-function wheelWould(facts, encounters, wheel) {
-  const nowFlow = waterFlowing(facts) === true;
-  const nowAsk = asksRising(facts, encounters);
-  const clearing = wheel.value === true;
-  const afterFacts = factsWith(facts, 'waterwheel', 'blocked', !clearing);
-  const afterFlow = waterFlowing(afterFacts) === true;
-  const afterAsk = asksRising(afterFacts, encounters);
-  const water = waterWords(nowFlow, afterFlow, clearing);
-  if (clearing) {
-    const ask = afterAsk ? 'asks to open Rising water' : 'does not ask to open Rising water';
-    return `Clearing the wheel ${ask}, ${water}.`;
-  }
-  const ask = nowAsk && !afterAsk ? 'drops the Rising water question' : 'leaves Rising water as it is';
-  return `Blocking the wheel again ${ask}, ${water}.`;
-}
-
-function slabWould(facts, encounters, slab) {
-  const nowFlow = waterFlowing(facts) === true;
-  const nowAsk = asksRising(facts, encounters);
-  const removing = slab.value !== true;
-  const afterFacts = factsWith(facts, 'burial_slab', 'removed', removing);
-  const afterFlow = waterFlowing(afterFacts) === true;
-  const afterAsk = asksRising(afterFacts, encounters);
-  const water = waterWords(nowFlow, afterFlow, removing);
-  if (removing) {
-    const ask = afterAsk ? 'still asks to open Rising water' : 'does not ask to open Rising water';
-    return `Removing the slab ${ask}, ${water}.`;
-  }
-  const ask = nowAsk && !afterAsk ? 'drops the Rising water question' : 'leaves Rising water as it is';
-  return `Putting the slab back ${ask}, ${water}.`;
-}
-
-function storyNow(facts, encounters) {
-  const flowing = waterFlowing(facts) === true ? 'Water is flowing.' : 'Water is not flowing.';
-  const preview = risingWaterPreview(facts, encounters);
-  if (!preview) return flowing;
-  return `${flowing} ${preview.why}`;
-}
-
-function waterStory(facts, encounters, locations) {
-  const wheel = oneFact(facts, 'waterwheel', 'blocked');
-  const slab = oneFact(facts, 'burial_slab', 'removed');
-  if (!wheel || !slab) return null;
-  const rising = (encounters || []).filter((row) => row && row.title === RISING_WATER_TITLE);
-  const places = [
-    {
-      name: namedPlace(locations, wheel.location_id, 'Cistern Well'),
-      line: wheel.value === true ? 'The wheel is blocked.' : 'The wheel is free.',
-    },
-    {
-      name: namedPlace(locations, slab.location_id, 'Cistern Heart'),
-      line: slab.value === true ? 'The slab is removed.' : 'The slab is in place.',
-    },
-  ];
-  if (rising.length === 0) {
-    places.push({ name: 'Rising water', line: 'That encounter is not on this campaign.' });
-  } else {
-    for (const row of rising) {
-      places.push({
-        name: namedPlace(locations, row.location_id, 'Rising water'),
-        line: `${RISING_WATER_TITLE} is ${row.status}.`,
-      });
-    }
-  }
-  return {
-    title: 'Water crisis',
-    now: storyNow(facts, encounters),
-    places,
-    links: [
-      { relation: 'requires', text: 'Water flowing requires the wheel free and the slab removed.' },
-      { relation: 'causes', text: 'A free wheel asks to open Rising water while that encounter is still a prepared environment with no members.' },
-      { relation: 'relates to', text: 'The slab does not gate that question. Opening it does not start a fight.' },
-    ],
-    would: [
-      wheelWould(facts, encounters, wheel),
-      slabWould(facts, encounters, slab),
-    ],
-  };
-}
-
-function sameId(left, right) {
-  if (left == null || right == null) return false;
-  return String(left) === String(right);
-}
-
-function cluesAtFacts(facts, clues) {
-  const places = [];
-  for (const fact of [oneFact(facts, 'waterwheel', 'blocked'), oneFact(facts, 'burial_slab', 'removed')]) {
-    if (fact && fact.location_id != null && !places.some((id) => sameId(id, fact.location_id))) {
-      places.push(fact.location_id);
-    }
-  }
-  return (clues || []).filter((clue) => clue && places.some((id) => sameId(id, clue.location_id)));
-}
-
-function goalsNamedBy(clues, objectives) {
-  const ids = [];
-  for (const clue of clues) {
-    if (clue.objective_id != null && !ids.some((id) => sameId(id, clue.objective_id))) ids.push(clue.objective_id);
-  }
-  return (objectives || []).filter((goal) => goal && ids.some((id) => sameId(id, goal.id)));
-}
-
-function waterThread(facts, encounters, locations, clues, objectives) {
-  const story = waterStory(facts, encounters, locations);
-  if (!story) return null;
-  const wheel = oneFact(facts, 'waterwheel', 'blocked');
-  const slab = oneFact(facts, 'burial_slab', 'removed');
-  const atFacts = cluesAtFacts(facts, clues);
-  const goals = goalsNamedBy(atFacts, objectives);
-  const knowledge = [];
-  if (atFacts.length === 0) {
-    knowledge.push({
-      kind: 'clue',
-      text: null,
-      party_known: false,
-      line: 'No clue is recorded at the wheel or the slab.',
-    });
-  }
-  for (const clue of atFacts) {
-    const learned = clue.discovered === true;
-    knowledge.push({
-      kind: 'clue',
-      text: clue.body,
-      party_known: learned,
-      line: learned ? 'The party has learned it.' : 'The party has not learned it.',
-    });
-  }
-  for (const goal of goals) {
-    const known = goal.known === true;
-    knowledge.push({
-      kind: 'objective',
-      text: goal.body,
-      party_known: known,
-      line: known ? 'The party knows this goal.' : 'The party does not know this goal.',
-    });
-  }
-  const questions = [];
-  if (wheel.value === true) questions.push('Has the wheel been cleared?');
-  if (slab.value !== true) questions.push('Has the slab been removed?');
-  if ((encounters || []).some((row) => row && row.title === RISING_WATER_TITLE && row.status === 'prepared')) {
-    questions.push('Has Rising water been opened?');
-  }
-  for (const item of knowledge) {
-    if (!item.text || item.party_known === true) continue;
-    questions.push(item.kind === 'clue'
-      ? `Has the party learned: ${item.text}?`
-      : `Does the party know: ${item.text}?`);
-  }
-  return {
-    title: story.title,
-    premise: 'Water reaches the town only after the wheel is free and the slab is removed. Neither step has to come first.',
-    resources: story.places,
-    knowledge,
-    questions,
-    outcomes: story.would,
-  };
-}
-
 async function applyEnvironmentalEffect(client, campaignId, command, writeHitPoints) {
   const seconds = Number(command?.game_seconds);
   const encounterId = Number(command?.encounter_id);
@@ -594,8 +408,6 @@ module.exports = {
   rejectEnvironmentalEffect,
   environmentalEffectOnTurn,
   applyEnvironmentalEffect,
-  waterStory,
-  waterThread,
   listFacts,
   setFact,
   attachAuthoredFacts,

@@ -59,11 +59,11 @@ Run that from `backend/`, and only against a database whose Feature Walk you are
 
 ## 2. Morning in Millbridge
 
-**GM.** Select Millbridge. Read the place summary aloud. On the Location tab, read the Water crisis card before anyone goes downstairs.
+**GM.** Select Millbridge. Read the place summary aloud. The Location tab has no Water crisis card.
 
 **Player.** On Bram's sheet, read Here. Open the shop only if you want the old buy-and-sell check. Buy nothing the later beats depend on.
 
-**GM pass.** The card is titled Water crisis. The premise says water reaches the town only after the wheel is free and the slab is removed, and that neither step has to come first. The places name the wheel blocked, the slab in place, and Rising water prepared. The lines are labeled requires, causes, and relates to. Open questions include the wheel, the slab, Rising water, and the clues the party has not learned. What the party knows quotes the bone clue and the burial clue as not learned, and the tomb goal as not known. The chalk clue is not on that list. Possible outcomes are labeled as not requiring an order. The card has no save button.
+**GM pass.** The Location tab has no Water crisis card. Millbridge shows the place summary. The wheel and the slab are object facts on their own places.
 
 **Player pass.** Here says Millbridge. Objectives include Bring water back to Millbridge and Get the mill turning. The cistern is a tomb is not listed. Exits include the stair under the mill. Cistern Gate is not named. No summary, no clue text, no Water crisis, no Rising water question.
 
@@ -103,7 +103,7 @@ Play this only as far as the table needs, to see that the old room still works.
 
 **GM.** Clear Waterwheel blocked. That is the bone coming out.
 
-**GM pass.** The checkbox is clear. One log line records the change. Clearing it again, or setting it back to the same value, does not add a second line. The question reads: The wheel is free. Open Rising water. Buttons: Open Rising water, and Leave it. Water is not flowing. The Water crisis card now says the wheel is free, and the open question about the wheel is gone. Rising water is still prepared.
+**GM pass.** The checkbox is clear. One log line records the change. Clearing it again, or setting it back to the same value, does not add a second line. The question reads: The wheel is free. Open Rising water. Buttons: Open Rising water, and Leave it. Water is not flowing. Rising water is still prepared.
 
 **Player pass.** Here is unchanged aside from the place name. No question, no wheel, no water sentence.
 
@@ -181,7 +181,7 @@ Play this only as far as the table needs, to see that the old room still works.
 
 **GM.** Check Burial slab removed.
 
-**GM pass.** Water is flowing. That sentence is not a checkbox. Rising water stays opened. The Water crisis card says the water is flowing, the slab is removed, and both of those open questions are gone. Putting the slab back, by clearing the checkbox, leaves Rising water opened. Water stops flowing while the slab is back in place. Check the box again so the slab stays removed.
+**GM pass.** Water is flowing. That sentence is not a checkbox. Rising water stays opened. Putting the slab back, by clearing the checkbox, leaves Rising water opened. Water stops flowing while the slab is back in place. Check the box again so the slab stays removed.
 
 **Player pass.** Here still has no water sentence and no tomb objective.
 
@@ -213,7 +213,7 @@ Play this only as far as the table needs, to see that the old room still works.
 
 **Player.** Refresh Bram, Oda, and Pip.
 
-**GM pass.** The burial clue shows as discovered. The Water crisis card says the party has learned that clue, and that the party knows the tomb goal. The bone clue at the well is still not learned, unless you marked it too. The chalk clue can be discovered and still stays off the Water crisis card. The card still does not save, and it still does not demand an order.
+**GM pass.** The burial clue shows as discovered. There is no Water crisis card.
 
 **Player pass.** Here includes The cistern is a tomb. It does not include the clue sentence, the chalk text, or the bone text.
 
@@ -268,7 +268,7 @@ Mark each row when both seats have been looked at.
 | Beat | GM saw | Player saw |
 |---|---|---|
 | 1 Open | Running, Session card | Sheets only |
-| 2 Millbridge | Water crisis card, both facts, clues not learned | Place, two known goals, stair exit |
+| 2 Millbridge | Place summary, no water-crisis card | Place, two known goals, stair exit |
 | 3 Stair down | Arrived, no log line | Gate, two exits, no chalk door |
 | 4 Landing | Old encounter Open still works | Place and exits only |
 | 5 Wheel | Question after the bone; Leave it forgotten on reload; water still | No question, no facts |
@@ -276,7 +276,7 @@ Mark each row when both seats have been looked at.
 | 7 Deep | Open Rising water, no fight, no second open | No question |
 | 8 Heart | Slab makes water flow; Rising water stays open | No water sentence, no tomb goal yet |
 | 9 Chalk | Go anyway logs; Mark found does not block; gate has no way back | Door appears only after Mark found, and only from the heart |
-| 10 Knowledge | Party knowledge updates; chalk clue stays off the card | Tomb goal appears |
+| 10 Knowledge | Burial clue discovered; no water-crisis card | Tomb goal appears |
 | 11 Reload | Facts, clock, log, door | Same place, same hit points, same goal |
 | 12 End session | Pause keeps the dungeon | Kicked out; start brings the same dungeon back |
 | 13 Wipe | Authored morning restored; sheets and hit points stay | No wipe, no archive |
@@ -284,7 +284,7 @@ Mark each row when both seats have been looked at.
 
 ## What this sitting does not cover
 
-A second campaign with no fact rows shows no Water crisis card. The automated play-state check already locks that. Sitting it means opening that other campaign as the GM and confirming the Location tab has no card.
+No campaign shows a Water crisis card. The play-state check locks that the board builder does not attach one.
 
 There is no player control for facts, paths, encounters, the clock, or Conclude. The pass is the missing Home link and the unchanged Here block.
 

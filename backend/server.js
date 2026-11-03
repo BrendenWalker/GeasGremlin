@@ -39,6 +39,7 @@ const { awardLine, splitAward, cappedAward } = require('./awards');
 const {
   rollLight,
   encumbrance,
+  formatPounds,
   slowestMember,
   requiredSleep,
   settleBody,
@@ -60,8 +61,6 @@ const {
   rejectEnvironmentalEffect,
   environmentalEffectOnTurn,
   applyEnvironmentalEffect,
-  waterStory,
-  waterThread,
 } = require('./playState');
 const { openPreparedEncounter } = require('./preparedEncounter');
 const { visitCheckDue, emptyCheckResult, currentVisitCheck } = require('./empty-check');
@@ -72,6 +71,7 @@ const {
   endCampaignSession,
   concludeCampaignRun,
 } = require('./campaignLifecycle');
+const { saveCampaignDetails } = require('./campaignDetails');
 const {
   adjustedMiles,
   forcedMiles,
@@ -438,6 +438,29 @@ app.put('/api/campaigns/:id', async (req, res) => {
   } catch (error) {
     console.error('Error updating campaign:', error);
     res.status(500).json({ error: 'Failed to update campaign' });
+  }
+});
+
+app.put('/api/campaigns/:id/details', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const member = await requireCampaign(req, res, req.params.id, true);
+    if (!member) return;
+    await client.query('BEGIN');
+    const saved = await saveCampaignDetails(client, req.params.id, req.body);
+    await client.query('COMMIT');
+    res.json(saved);
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch (_) { /* connection already failed */ }
+    if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    if (error.code === '23514') {
+      return res.status(400).json({ error: 'Intro or GM notes exceed 4000 characters' });
+    }
+    console.error('Error saving campaign details:', error);
+    res.status(500).json({ error: error.message || 'Failed to save campaign details' });
+  } finally {
+    client.release();
   }
 });
 
@@ -840,7 +863,23 @@ app.get('/api/characters/:id', async (req, res) => {
     }
     character.abilities = abil.rows;
     character.spells = spells.rows;
-    character.items = items.rows;
+    character.items = items.rows.map((row) => ({
+      ...row,
+      item_pounds: row.item_weight == null ? null : formatPounds(row.item_weight),
+    }));
+    const armor = character.items.find((row) => String(row.id) === String(character.equipped_armor_id));
+    const carried = encumbrance({
+      raceName: character.race_name,
+      strength: character.str,
+      ounces: character.items.reduce((sum, row) => {
+        const qty = row.quantity == null || row.quantity === '' ? 1 : Number(row.quantity);
+        const weight = row.item_weight == null || row.item_weight === '' ? 0 : Number(row.item_weight);
+        return sum + (Number.isFinite(qty) ? qty : 0) * (Number.isFinite(weight) ? weight : 0);
+      }, 0),
+      armorAc: armor && armor.item_ac != null && armor.item_ac !== '' ? Number(armor.item_ac) : null,
+      armorMagic: armor != null && Number(armor.bonus) > 0,
+    });
+    character.encumbrance = { pounds: carried.pounds, label: carried.label };
     character.effects = effects.rows;
     character.spells_cast = casts.rows;
 
@@ -2410,7 +2449,7 @@ async function loadAdventuring(campaignId) {
   if (camp.rows.length === 0) return null;
   const gameSeconds = Number(camp.rows[0].game_seconds);
   const visitStamp = camp.rows[0].visit_seconds;
-  const [enemies, characters, marks, locations, tables, wanders, turnBlocks, bodies, hirelings, visitRows] = await Promise.all([
+  const [enemies, characters, marks, locations, tables, wanders, turnBlocks, bodies, hirelings, visitRows, detailRows] = await Promise.all([
     pool.query(
       `SELECT e.id, e.name, e.monster_id, e.treasure_type, e.hp, e.base_hp, e.location_id,
               m.hit_dice, m.morale, m.morale_engaged, m.armor_class, m.defense_note, m.attack_note, m.notes
@@ -2505,6 +2544,11 @@ async function loadAdventuring(campaignId) {
          LIMIT 1`,
         [campaignId, visitStamp]
       ),
+    pool.query(
+      `SELECT intro, gm_notes, first_location_id
+       FROM campaign_details WHERE campaign_id = $1`,
+      [campaignId]
+    ),
   ]);
   const tableIds = tables.rows.map((row) => row.id);
   const faces = tableIds.length === 0
@@ -2538,6 +2582,7 @@ async function loadAdventuring(campaignId) {
       light_lb: carried ? carried.light_lb : null,
       heavy_lb: carried ? carried.heavy_lb : null,
       load: carried ? carried.load : null,
+      label: carried ? carried.label : null,
       armor: carried ? carried.armor : null,
       move: carried ? carried.move : null,
       turn_feet: carried ? carried.turn_feet : null,
@@ -2654,6 +2699,11 @@ async function loadAdventuring(campaignId) {
     in_encounter: camp.rows[0].in_encounter,
     place: camp.rows[0].place,
     location_id: camp.rows[0].location_id,
+    intro: detailRows.rows[0]?.intro ?? null,
+    gm_notes: detailRows.rows[0]?.gm_notes ?? null,
+    first_location_id: detailRows.rows[0]?.first_location_id == null
+      ? null
+      : Number(detailRows.rows[0].first_location_id),
     enemies: enemies.rows.map((row) => ({
       ...row,
       hp: row.hp == null ? null : Number(row.hp),
@@ -2666,6 +2716,7 @@ async function loadAdventuring(campaignId) {
     party_turn: slow ? slow.turn_feet : null,
     party_miles: slow ? slow.miles : null,
     party_slow: slow ? slow.name : null,
+    party_load: slow ? slow.label : null,
     visit_turns: selected && selected.site
       ? visitTurns(gameSeconds, camp.rows[0].visit_seconds, TURN_SECONDS)
       : null,
@@ -2697,14 +2748,6 @@ async function loadAdventuring(campaignId) {
     turn_blocks: turnBlocks.rows,
     water_flowing: playState.water_flowing,
     rising_water: risingWaterPreview(playState.facts, situation.encounters),
-    water_story: waterStory(playState.facts, situation.encounters, locations.rows),
-    thread: waterThread(
-      playState.facts,
-      situation.encounters,
-      locations.rows,
-      situation.clues,
-      situation.objectives,
-    ),
     situation,
   };
 }

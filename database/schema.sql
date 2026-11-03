@@ -933,6 +933,20 @@ END $$;
 -- gm_text is information for the GM. It is not read aloud. Players do not receive it.
 ALTER TABLE public.campaign_location ADD COLUMN IF NOT EXISTS gm_text text NULL;
 
+-- Authored copy for the GM intro screen. This is not a location.
+-- Conclude leaves the row. Deleting the first location clears the pointer.
+CREATE TABLE IF NOT EXISTS public.campaign_details (
+	campaign_id int4 NOT NULL,
+	intro text NULL,
+	gm_notes text NULL,
+	first_location_id int4 NULL,
+	CONSTRAINT campaign_details_pkey PRIMARY KEY (campaign_id),
+	CONSTRAINT campaign_details_campaign_fkey FOREIGN KEY (campaign_id) REFERENCES public.campaign(id) ON DELETE CASCADE,
+	CONSTRAINT campaign_details_first_location_fkey FOREIGN KEY (first_location_id) REFERENCES public.campaign_location(id) ON DELETE SET NULL,
+	CONSTRAINT campaign_details_intro_check CHECK (intro IS NULL OR char_length(intro) <= 4000),
+	CONSTRAINT campaign_details_gm_notes_check CHECK (gm_notes IS NULL OR char_length(gm_notes) <= 4000)
+);
+
 -- A shop at a location. It sells every priced catalog item in its categories.
 -- buy_cost_delta and sell_cost_delta are percents added to the listed copper price. 0 is list.
 CREATE TABLE IF NOT EXISTS public.campaign_location_shops (

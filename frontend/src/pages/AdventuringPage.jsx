@@ -113,13 +113,8 @@ function signed(n) {
 }
 
 function carryLine(character) {
-  if (character.move == null) return null;
-  const load = character.load === 'over'
-    ? 'over the heavy load'
-    : character.load === 'heavy'
-      ? 'heavily loaded'
-      : 'lightly loaded';
-  return `${character.pounds} lb · light ${character.light_lb} · heavy ${character.heavy_lb} · ${character.armor} · ${load} · ${character.move}'`;
+  if (character.pounds == null || !character.label) return null;
+  return `${character.pounds} lb · ${character.label}`;
 }
 
 function bodyLine(name, data) {
@@ -1177,11 +1172,38 @@ export default function AdventuringPage() {
     </div>
   ) : null;
 
+  const showingIntro = board != null
+    && board.location_id == null
+    && Boolean(board.intro || board.gm_notes || board.first_location_id != null);
+
   return (
     <div className="adventuring">
       <div>
-        {loading && !board && <p className="muted">Loading…</p>}
+        {!board && loading && <p className="muted">Loading…</p>}
 
+        {showingIntro ? (
+          <div className="card">
+            <h2 style={{ marginTop: 0 }}>Intro</h2>
+            {board.intro ? <p style={{ whiteSpace: 'pre-wrap' }}>{board.intro}</p> : null}
+            {board.gm_notes ? (
+              <>
+                <h3>GM notes</h3>
+                <p style={{ whiteSpace: 'pre-wrap' }}>{board.gm_notes}</p>
+              </>
+            ) : null}
+            {board.first_location_id == null ? (
+              <p className="muted">Choose a first location in Configuration.</p>
+            ) : null}
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={busy || board.first_location_id == null}
+              onClick={() => run(() => selectLocation(campaignId, board.first_location_id))}
+            >
+              Begin Campaign
+            </button>
+          </div>
+        ) : board ? (
         <div className="card">
           <div className="catalog-tabs" role="tablist" aria-label="Home">
             {[
@@ -1670,61 +1692,6 @@ export default function AdventuringPage() {
 
           {homeTab === 'location' && (
           <>
-          {board?.water_story && (
-            <div className="card">
-              <h2 style={{ marginTop: 0 }}>{board.water_story.title}</h2>
-              {board.thread?.premise && <p style={{ marginTop: 0 }}>{board.thread.premise}</p>}
-              <p style={{ marginTop: 0 }}>{board.water_story.now}</p>
-              <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 12px' }}>
-                {(board.water_story.places || []).map((place, index) => (
-                  <li key={`${place.name}-${index}`}>
-                    <strong>{place.name}</strong>
-                    <span className="muted">{` · ${place.line}`}</span>
-                  </li>
-                ))}
-              </ul>
-              <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 12px' }}>
-                {(board.water_story.links || []).map((link) => (
-                  <li key={link.relation}>
-                    <span className="muted">{link.relation}</span>
-                    {` ${link.text}`}
-                  </li>
-                ))}
-              </ul>
-              {board.thread && (
-                <>
-                  <h3 style={{ marginBottom: 6 }}>Open questions</h3>
-                  {(board.thread.questions || []).length === 0
-                    ? <p className="muted">None.</p>
-                    : (
-                      <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 12px' }}>
-                        {(board.thread.questions || []).map((line) => (
-                          <li key={line}>{line}</li>
-                        ))}
-                      </ul>
-                    )}
-                  <h3 style={{ marginBottom: 6 }}>What the party knows</h3>
-                  <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 12px' }}>
-                    {(board.thread.knowledge || []).map((item, index) => (
-                      <li key={`${item.kind}-${index}`}>
-                        {item.text ? <strong>{item.text}</strong> : null}
-                        <span className="muted">{`${item.text ? ' · ' : ''}${item.line}`}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              )}
-              <h3 style={{ marginBottom: 6 }}>What would change</h3>
-              <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 12px' }}>
-                {(board.water_story.would || []).map((line) => (
-                  <li key={line}>{line}</li>
-                ))}
-              </ul>
-              {board.thread && (
-                <p className="muted" style={{ marginBottom: 0 }}>Possible outcomes. This thread does not require an order.</p>
-              )}
-            </div>
-          )}
           <SituationPanel campaignId={campaignId} board={board} busy={busy} run={run} mode="play" bare />
 
         <div className="card">
@@ -2118,9 +2085,12 @@ export default function AdventuringPage() {
           </>
           )}
         </div>
+        ) : null}
       </div>
 
       <div>
+      {board && !showingIntro && (
+      <>
       <div className="card">
         <p className="adventuring-clock">{clockLabel || '—'}</p>
         {board && <p style={{ color: '#fff', margin: '0 0 0.75rem' }}>{hereLine}</p>}
@@ -2243,7 +2213,7 @@ export default function AdventuringPage() {
       <div className="card">
         <h2>Characters</h2>
         {board?.party_move != null && (
-          <p>The group moves at {board.party_slow}'s {board.party_move}' ({board.party_turn}' a turn, {board.party_miles} miles a day).</p>
+          <p>The group moves at {board.party_slow}'s {board.party_move}' ({board.party_load}, {board.party_turn}' a turn, {board.party_miles} miles a day).</p>
         )}
         {bodyNote && <p style={{ color: '#e8c547' }}>{bodyNote}</p>}
         {board && board.characters.length === 0 && <p className="muted">No characters in this campaign.</p>}
@@ -2284,7 +2254,10 @@ export default function AdventuringPage() {
           ))}
         </ul>
       </div>
+      </>
+      )}
 
+      {board && (
       <div className="card">
         <h2>Session</h2>
         <p className="muted">End session pauses and keeps this playthrough. Conclude wipes it.</p>
@@ -2332,6 +2305,7 @@ export default function AdventuringPage() {
           </div>
         )}
       </div>
+      )}
       </div>
     </div>
   );

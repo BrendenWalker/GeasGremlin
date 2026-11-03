@@ -23,6 +23,7 @@ export const getCampaigns = () => api.get('/campaigns');
 export const getCampaign = (id) => api.get(`/campaigns/${id}`);
 export const createCampaign = (data) => api.post('/campaigns', data);
 export const updateCampaign = (id, data) => api.put(`/campaigns/${id}`, data);
+export const saveCampaignDetails = (id, data) => api.put(`/campaigns/${id}/details`, data);
 export const deleteCampaign = (id) => api.delete(`/campaigns/${id}`);
 export const startCampaign = (id) => api.post(`/campaigns/${id}/start`);
 export const pauseCampaign = (id) => api.post(`/campaigns/${id}/pause`);
