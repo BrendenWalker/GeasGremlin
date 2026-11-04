@@ -210,7 +210,17 @@ function MemberEditor({
   );
 }
 
-export default function SituationPanel({ campaignId, board, busy, run, mode = 'play', bare = false }) {
+export default function SituationPanel({
+  campaignId,
+  board,
+  busy,
+  run,
+  mode = 'play',
+  bare = false,
+  afterPlace = null,
+  afterNpcs = null,
+  beforeLog = null,
+}) {
   const editing = mode === 'edit';
   const pack = board?.situation;
   const locations = board?.locations || [];
@@ -639,8 +649,10 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
   );
 
   return (
-    <div className={bare ? undefined : 'card'} style={{ marginBottom: '1rem' }}>
-      <h2 style={{ marginTop: 0 }}>{editing ? 'Here' : (here ? here.name : 'Select a location')}</h2>
+    <div className={bare ? undefined : 'card'} style={{ marginBottom: bare ? 0 : '1rem' }}>
+      {!bare && (
+        <h2 style={{ marginTop: 0 }}>{editing ? 'Here' : (here ? here.name : 'Select a location')}</h2>
+      )}
       {editing && (
         <>
           <PlaceSelect
@@ -695,6 +707,7 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
           <p>{board.in_encounter ? 'A fight is open.' : 'No fight is open.'}</p>
         </>
       )}
+      {afterPlace}
 
       <h3>Objectives</h3>
       {!editing && knownObjectives.length === 0 && hiddenHere.length === 0 && <p className="muted">None yet.</p>}
@@ -789,6 +802,7 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
           </span>
         </form>
       )}
+      {afterNpcs}
 
       <h3>Clues</h3>
       {!editing && roomClues.length === 0 && <p className="muted">{scopeId ? 'None in this place.' : 'None yet.'}</p>}
@@ -1088,6 +1102,7 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
             </div>
           ))}
 
+          {beforeLog}
           <h3>Log</h3>
           {(pack.log || []).length === 0 && <p className="muted">Nothing recorded.</p>}
           <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>

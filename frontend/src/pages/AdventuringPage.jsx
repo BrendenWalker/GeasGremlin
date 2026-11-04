@@ -1172,6 +1172,113 @@ export default function AdventuringPage() {
     </div>
   ) : null;
 
+  const placeDetails = (
+    <>
+      {(!here || (here.facts || []).length === 0) && risingPrompt}
+      {(!here || (here.facts || []).length === 0) && environmentalPrompt}
+      {here && (here.facts || []).length > 0 && (
+        <div style={{ marginTop: 12 }}>
+          <h3 style={{ marginBottom: 6 }}>Object facts</h3>
+          <p className="muted">This playthrough. Room flags stay sprung, taken, or found.</p>
+          {(here.facts || []).map((fact) => (
+            <label key={fact.id} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+              <input
+                type="checkbox"
+                checked={fact.value === true}
+                disabled={busy}
+                onChange={() => run(() => setPlayFact(campaignId, {
+                  subject_type: fact.subject_type,
+                  subject_key: fact.subject_key,
+                  state_key: fact.state_key,
+                  value: fact.value !== true,
+                  version: fact.version,
+                }))}
+              />
+              <span>{fact.label}</span>
+            </label>
+          ))}
+          {board?.water_flowing != null && (
+            <p className="muted">{board.water_flowing ? 'Water is flowing.' : 'Water is not flowing.'}</p>
+          )}
+          {risingPrompt}
+          {environmentalPrompt}
+        </div>
+      )}
+    </>
+  );
+
+  const creaturesHere = here ? (
+    <div style={{ marginTop: 12 }}>
+      <h3 style={{ marginBottom: 6 }}>Creatures here</h3>
+      {(here.creatures || []).length === 0 && <p className="muted">No creatures at this location.</p>}
+      <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+        {creatureGroups(here.creatures).map((group) => (
+          <li key={group.key} style={{ marginBottom: 4 }}>{creatureLine(group)}</li>
+        ))}
+      </ul>
+      {board?.in_encounter && (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const count = parseInt(takeCount, 10);
+            if (!takeName) {
+              setError('Choose a creature.');
+              return;
+            }
+            if (!Number.isInteger(count) || count < 1) {
+              setError('Count must be a positive number.');
+              return;
+            }
+            run(() => takeCreatures(campaignId, { name: takeName, count }));
+          }}
+          style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}
+        >
+          <select value={takeName} aria-label="Creature to add" onChange={(e) => setTakeName(e.target.value)} style={FIELD}>
+            <option value="">Living creature…</option>
+            {[...new Set((here.creatures || []).filter((creature) => creature.hp > 0 && !creature.in_fight).map((creature) => creature.name))].map((name) => (
+              <option key={name} value={name}>{name}</option>
+            ))}
+          </select>
+          <input
+            type="number"
+            min={1}
+            max={100}
+            value={takeCount}
+            aria-label="How many creatures"
+            onChange={(e) => setTakeCount(e.target.value)}
+            style={{ ...FIELD, width: 70 }}
+          />
+          <button type="submit" className="btn btn-secondary" disabled={busy}>Add to fight</button>
+        </form>
+      )}
+    </div>
+  ) : null;
+
+  const roomFlags = here ? (
+    <div style={{ marginTop: 12 }}>
+      <h3 style={{ marginBottom: 6 }}>Room flags</h3>
+      <p className="muted">Sprung, taken, or found. A sentence stays a clue.</p>
+      {(here.flags || []).length === 0 && <p className="muted">Nothing marked here.</p>}
+      <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+        {(here.flags || []).map((flag) => (
+          <li key={flag.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 6, alignItems: 'center' }}>
+            <span>{flag.note} · {flag.state}</span>
+            <button type="button" className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem' }} disabled={busy} onClick={() => run(() => clearLocationFlag(campaignId, here.id, flag.id))}>Clear</button>
+          </li>
+        ))}
+      </ul>
+      <form onSubmit={saveFlag} style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <input value={flagNote} onChange={(e) => setFlagNote(e.target.value)} placeholder="Pit, chest, secret" maxLength={80} aria-label="Flag note" style={FIELD} />
+        <select value={flagState} aria-label="Flag state" onChange={(e) => setFlagState(e.target.value)} style={FIELD}>
+          <option value="sprung">Sprung</option>
+          <option value="taken">Taken</option>
+          <option value="found">Found</option>
+        </select>
+        <button type="submit" className="btn btn-secondary" disabled={busy}>Set flag</button>
+      </form>
+    </div>
+  ) : null;
+
   const showingIntro = board != null
     && board.location_id == null
     && Boolean(board.intro || board.gm_notes || board.first_location_id != null);
@@ -1692,50 +1799,38 @@ export default function AdventuringPage() {
 
           {homeTab === 'location' && (
           <>
-          <SituationPanel campaignId={campaignId} board={board} busy={busy} run={run} mode="play" bare />
-
-        <div className="card">
-          <h2>Locations</h2>
-          {(board?.locations || []).length === 0 && <p className="muted">No locations yet.</p>}
-          {board && (board.locations || []).length > 0 && (
-            <>
-              <p style={{ marginTop: 0 }}>
-                <strong>Selected</strong>
-                {here ? (
-                  <>
-                    {` ${here.name}`}
-                    <span className="muted">
-                      {` · ${locationFacts(here)}${(here.flags || []).length ? ` · ${(here.flags || []).length} flag${(here.flags || []).length === 1 ? '' : 's'}` : ''}`}
-                    </span>
-                  </>
-                ) : (
-                  <span className="muted"> · No location</span>
-                )}
-              </p>
-              {(!here || (here.facts || []).length === 0) && risingPrompt}
-              {(!here || (here.facts || []).length === 0) && environmentalPrompt}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', margin: '0.75rem 0' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+              <h2 style={{ margin: 0 }}>{here ? here.name : 'Select a location'}</h2>
+              {here ? (
+                <span className="muted">
+                  {locationFacts(here)}
+                  {(here.flags || []).length ? ` · ${(here.flags || []).length} flag${(here.flags || []).length === 1 ? '' : 's'}` : ''}
+                </span>
+              ) : (board.locations || []).length === 0 ? (
+                <span className="muted">No locations yet.</span>
+              ) : null}
+            </div>
+            {(board.locations || []).length > 0 && (
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
                   if (!locationPick || String(locationPick) === String(board.location_id)) return;
                   run(() => selectLocation(campaignId, locationPick));
                 }}
-                style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}
+                style={{ display: 'flex', gap: 6, alignItems: 'center', marginLeft: 'auto' }}
               >
-                <label>
-                  Location
-                  <select
-                    aria-label="Location"
-                    value={locationPick}
-                    onChange={(e) => setLocationPick(e.target.value)}
-                    style={{ ...FIELD, marginLeft: 6, maxWidth: 280 }}
-                  >
-                    <option value="">Choose…</option>
-                    {(board.locations || []).map((loc) => (
-                      <option key={loc.id} value={loc.id}>{loc.name}</option>
-                    ))}
-                  </select>
-                </label>
+                <select
+                  aria-label="Location"
+                  value={locationPick}
+                  onChange={(e) => setLocationPick(e.target.value)}
+                  style={{ ...FIELD, maxWidth: 280 }}
+                >
+                  <option value="">Choose…</option>
+                  {(board.locations || []).map((loc) => (
+                    <option key={loc.id} value={loc.id}>{loc.name}</option>
+                  ))}
+                </select>
                 <button
                   type="submit"
                   className="btn btn-secondary"
@@ -1744,107 +1839,19 @@ export default function AdventuringPage() {
                   Select
                 </button>
               </form>
-            </>
-          )}
-          {here && (
-            <div style={{ marginTop: 12 }}>
-              <h3 style={{ marginBottom: 6 }}>Creatures here</h3>
-              {(here.creatures || []).length === 0 && <p className="muted">No creatures at this location.</p>}
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                {creatureGroups(here.creatures).map((group) => (
-                  <li key={group.key} style={{ marginBottom: 4 }}>{creatureLine(group)}</li>
-                ))}
-              </ul>
-              {board?.in_encounter && (
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const count = parseInt(takeCount, 10);
-                    if (!takeName) {
-                      setError('Choose a creature.');
-                      return;
-                    }
-                    if (!Number.isInteger(count) || count < 1) {
-                      setError('Count must be a positive number.');
-                      return;
-                    }
-                    run(() => takeCreatures(campaignId, { name: takeName, count }));
-                  }}
-                  style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}
-                >
-                  <select value={takeName} aria-label="Creature to add" onChange={(e) => setTakeName(e.target.value)} style={FIELD}>
-                    <option value="">Living creature…</option>
-                    {[...new Set((here.creatures || []).filter((creature) => creature.hp > 0 && !creature.in_fight).map((creature) => creature.name))].map((name) => (
-                      <option key={name} value={name}>{name}</option>
-                    ))}
-                  </select>
-                  <input
-                    type="number"
-                    min={1}
-                    max={100}
-                    value={takeCount}
-                    aria-label="How many creatures"
-                    onChange={(e) => setTakeCount(e.target.value)}
-                    style={{ ...FIELD, width: 70 }}
-                  />
-                  <button type="submit" className="btn btn-secondary" disabled={busy}>Add to fight</button>
-                </form>
-              )}
-            </div>
-          )}
-          {here && (
-            <div style={{ marginTop: 12 }}>
-              <h3 style={{ marginBottom: 6 }}>Room flags</h3>
-              <p className="muted">Sprung, taken, or found. A sentence stays a clue.</p>
-              {(here.flags || []).length === 0 && <p className="muted">Nothing marked here.</p>}
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                {(here.flags || []).map((flag) => (
-                  <li key={flag.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 6, alignItems: 'center' }}>
-                    <span>{flag.note} · {flag.state}</span>
-                    <button type="button" className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem' }} disabled={busy} onClick={() => run(() => clearLocationFlag(campaignId, here.id, flag.id))}>Clear</button>
-                  </li>
-                ))}
-              </ul>
-              <form onSubmit={saveFlag} style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                <input value={flagNote} onChange={(e) => setFlagNote(e.target.value)} placeholder="Pit, chest, secret" maxLength={80} aria-label="Flag note" style={FIELD} />
-                <select value={flagState} aria-label="Flag state" onChange={(e) => setFlagState(e.target.value)} style={FIELD}>
-                  <option value="sprung">Sprung</option>
-                  <option value="taken">Taken</option>
-                  <option value="found">Found</option>
-                </select>
-                <button type="submit" className="btn btn-secondary" disabled={busy}>Set flag</button>
-              </form>
-            </div>
-          )}
-          {here && (here.facts || []).length > 0 && (
-            <div style={{ marginTop: 12 }}>
-              <h3 style={{ marginBottom: 6 }}>Object facts</h3>
-              <p className="muted">This playthrough. Room flags stay sprung, taken, or found.</p>
-              {(here.facts || []).map((fact) => (
-                <label key={fact.id} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
-                  <input
-                    type="checkbox"
-                    checked={fact.value === true}
-                    disabled={busy}
-                    onChange={() => run(() => setPlayFact(campaignId, {
-                      subject_type: fact.subject_type,
-                      subject_key: fact.subject_key,
-                      state_key: fact.state_key,
-                      value: fact.value !== true,
-                      version: fact.version,
-                    }))}
-                  />
-                  <span>{fact.label}</span>
-                </label>
-              ))}
-              {board?.water_flowing != null && (
-                <p className="muted">{board.water_flowing ? 'Water is flowing.' : 'Water is not flowing.'}</p>
-              )}
-              {risingPrompt}
-              {environmentalPrompt}
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+          <SituationPanel
+            campaignId={campaignId}
+            board={board}
+            busy={busy}
+            run={run}
+            mode="play"
+            bare
+            afterPlace={placeDetails}
+            afterNpcs={creaturesHere}
+            beforeLog={roomFlags}
+          />
 
           </>
           )}
