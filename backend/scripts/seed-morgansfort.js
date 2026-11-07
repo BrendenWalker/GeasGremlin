@@ -435,7 +435,13 @@ function townPlaces() {
     place('10. Thelan Taramedes', 'An iron-bound door with a small mystical mark, easy to miss.', 'Thelan is a semi-retired 4th level magic-user, vain and kind. The bedroom trunk hides scrolls: protection from magic, detect magic, detect evil, shield, and web.'),
     place('11. Smithy', 'The smithy announces itself with heat, smoke, and the hammer.', 'Rugarr works with his apprentice Tob. Rugarr lives upstairs. Tob sleeps in the shop, and sometimes goes home to a nearby farm.'),
     place('12. Warehouse', 'A long wooden warehouse full of crates, barrels, and sacks.', 'The merchant guild rents space at 1 gp a week. By day: clerk Sardas and laborers Valdin, Tamas, and Kaino, each a normal man with 3 hit points. At need they have leather, shortbow, and spear. The laborers sleep here. Sardas rooms at the inn. Locked at night.'),
-    place('13. Toothless Dragon', 'The Toothless Dragon serves beer, wine, and three hearty meals a day.', 'Garnoth, a retired 3rd level fighter, runs it with his wife Lianna. Their daughters Irene and Louise serve. Rude patrons get thrown out. Garnoth fights with a club if he must: AC 11, attack +2, 17 hit points.'),
+    {
+      ...place('13. Toothless Dragon', 'The Toothless Dragon serves beer, wine, and three hearty meals a day.', `${RUMOR_HOW}\n\nGarnoth, a retired 3rd level fighter, runs it with his wife Lianna. Their daughters Irene and Louise serve. Rude patrons get thrown out. Garnoth fights with a club if he must: AC 11, attack +2, 17 hit points.`),
+      place: 'inside',
+      interval: 1800,
+      ambientLight: 70,
+      darkSummary: null,
+    },
     place('14. Iron Helm Inn', 'The inn has a common room downstairs and four rooms above.', 'Lorynn, Lianna\'s older brother, keeps it. A cot in the common room is 1 sp. A room is 1 gp, plus 1 sp for an extra cot. The bath is 1 sp. He is unmarried and pays awkward attention to unattended human or elven women.'),
     place('15. Chapel of St. Queril', 'The Reformers\' chapel. Plain, and unusually well kept.', 'Father Thelbain, a 6th level cleric, will not adventure. He casts for parishioners free and for adventurers against a real donation. He usually has cure light wounds twice, bless, hold person, and cure disease. His assistants are Baris, Jerard, and Melean, all 1st level.'),
     place('16. East Tower', 'Another wall tower of bunks and racks.', 'Nine bunks. The same guard weapons as the other towers. No private valuables.'),
@@ -533,13 +539,31 @@ const ROOM_NOTES = {
   'Nameless 73.': 'The Orb of Domination is here, a faint glass sphere, found on an ordinary search. A hidden compartment in the base holds a teleport scroll. Sir Gervus turns once the orb is found. He needs 1d4 rounds to open the compartment and two more to read the scroll. Anyone holding him at the end of the reading goes with him to Ramsgate. Nelaser then appears as an image. She cannot be hurt, and she cannot hurt anyone. She wants the orb, and she is the only one who can wield it.',
 };
 
+const RUMOR_HOW = 'Rumors are heard by talking to people around the fort. At this bar, 1 gp buys a patron a drink and one roll among rumors not yet marked discovered. Skip a rumor already heard. Hold some of the list back. Each player may start with one. Barrow\'s Edge repeats this list, and a questioned goblin may answer from it.';
+
 const INTRO = `You have been in Morgansfort for two weeks. The fort is busy, the guard is bored, and the Toothless Dragon has become the place you compare notes.
 
 This evening you step out of the tavern. Father Thelbain of the Reformed chapel is waiting. He is stocky, about fifty, in plain robes, and the smile does not last.
 
-Jerard of Newport, the chapel's herbalist, rode south two mornings ago for a patch of slumberthorn and gristleweed near the ruined island fortress of Stafeld. He has not come back. The knights have fetched him before and found him merely lost in thought, so they will not turn out again. Thelbain asks you to go and look. If you take it, the cleric Baris Barrenrock goes with you, and he has a two-dose healing potion for each of you.
+Father Thelbain says:
 
-He has heard that goblin bands are on the island more often than they used to be. The old story says the Goblin Slayer, Grancent Kyne, was buried under those ruins with his weapons.`;
+“Hello, dear friends,” Father Thelbain cheerfully greets you. “May the blessings of Tah be upon you,” he says as he waves his hand in a semicircle in front of him, his hand folded with only two fingers extended.
+
+“I have heard of your exploits and successes in adventuring,” he smiles. “Word has traveled from abroad, and it’s all good. Thank you for being in our city.”
+
+Thelbain’s face turns more serious, glances around him in a suspicious manner, and motions the character to an empty part of the street. 
+
+“I need serious help,” he whispers. “The Morgansfort knights and guard are not taking me seriously! One of my clerics, Jerard, hasn’t returned in a couple of days. He went out to the area near Stafeld to research some herbs and plants needed for making potions; he’s our botanist.
+
+“The problem is that this is not the first time that this happens,” he looks almost embarrassed. “You see, Jerard tends to be a little... distracted and absent minded. I guess it’s the trait of a genius. His mind is always racing with ideas and possibilities, new potions, new creations.
+
+“So he eventually returns and gets scolded about the whole thing. And the knights and regiment are tired of assembling a group to get him, only to have him appear fresh-faced like nothing has happened. But this time I think it’s bad.
+
+“There’s tellings and rumors of unexpected goblin groups in the nearby lands,” he adds, his voice a tad darker and foreboding. “Occasionally, it’s not a rare thing. But the news is of far more frequent and bigger groups. They haven’t caused any troubles here so far. But they have been prowling Stafeld. Some think they might be planning to restore its use as a battle fortress.
+
+“You see, above ground, Stafeld is basically gone... But the dungeons underneath are, as far as we know, open.
+
+“I’m dead serious about this,” he continues. “And as Tah is my god and witness, I will have my dear cleric Baris Barrenrock to go with you on this journey, should you accept...”`;
 
 const GM_NOTES = `Nelaser, an elf magic-user, has charmed the bugbear chieftain Brect Hammerhand. She wants the fort because Morgansfort and Stafeld together can threaten Slateholm, and after that the road to Novatia. Most people here think that is a far-off rumor. A few have heard the name Nelaser and filed it with the nursery story of Nelaro.
 
@@ -550,6 +574,8 @@ Once Gobphloc has talked, Thelbain sends the party west through the Blue Forest.
 The Nameless Dungeon is a day's march north, under the ruins of Alderston. Sir Gervus belongs to Nelaser. He means to take the orb and teleport to her keep at Ramsgate. She appears there only as an image. She is not using the orb day to day anymore. She still wants it back in her hand.
 
 The twenty rumors at the Toothless Dragon are the supplement's list. False ones are marked. The module's own rumor table is not loaded.
+
+${RUMOR_HOW}
 
 Do not select a place during the fill. Begin Campaign opens on the Toothless Dragon. The campaign is not started.`;
 
@@ -664,8 +690,8 @@ async function main() {
           place.pct,
           clip(place.summary),
           place.site,
-          place.place === 'inside' ? 0 : null,
-          place.place === 'inside' ? 'Dark. Bring a light.' : null,
+          place.ambientLight === undefined ? (place.place === 'inside' ? 0 : null) : place.ambientLight,
+          place.darkSummary === undefined ? (place.place === 'inside' ? 'Dark. Bring a light.' : null) : place.darkSummary,
           clip(place.gmText),
         ]
       );
