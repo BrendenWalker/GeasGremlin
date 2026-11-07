@@ -15,18 +15,19 @@ Leave the ruleset catalog alone. Do not run `import-catalog` or `import-ruleset`
 
 | Module material | Row | What to store |
 | --- | --- | --- |
-| A place | `campaign_location` | Name, inside or outside, wander setup, a `summary` the GM reads aloud, a private `gm_text` note, and the same `site` label on every place in one site. |
+| A destination | `campaign_place` | Name, optional type (Settlement, Fortress, Dungeon, and similar), description, and private `gm_text`. One Place groups the locations of that destination. |
+| A place | `campaign_location` | Name, inside or outside (`environment`), wander setup, a `summary` the GM reads aloud, a private `gm_text` note, and `place_id` for the parent Place when the location belongs to one. |
 | A goal | `campaign_objective` | Body and, when the goal is about one place, that `location_id`. `known` only when the module says the party already has it. Status stays `open`. |
 | A story person | `campaign_npc` | Name, motivation, knowledge, and attitude. `location_id` is where they are. |
 | A secret | `campaign_clue` | Body. `location_id` is where it is found. `npc_id` is who can tell it. `discovered` stays false. When the secret implies a goal, set `objective_id`. |
 | A planned fight or discovery | `campaign_encounter` plus members | Kind, title, purpose, and the place. Status stays `prepared`. |
-| A path to another place | `campaign_transition` | The place it leaves, the destination, and a reason. `one_way` when the way back is closed. Otherwise the path is listed at both places. Create both places first. |
+| A path to another place | `campaign_transition` | The place it leaves, the destination, and a reason. `one_way` when the way back is closed. Otherwise the path is listed at both places. `discovered` false when the party has not found it. `blocked` is separate and stays as written when they find it. Create both places first. |
 
-A sprung pit, a taken chest, or a found secret is a `campaign_location_flag` with that state. The GM sets it during play. The fill does not. A sentence secret stays a clue.
+A sprung pit, a taken chest, or a found secret is a `campaign_location_flag` with that state. The GM sets it during play. The fill does not. A sentence secret stays a clue. A wheel or slab fact is a `campaign_state_value` on that playthrough. The fill does not write it. Room flags stay sprung, taken, or found.
 
 A goal about one place sets `location_id`. A goal for the whole module leaves it empty.
 
-A `site` label is at most 80 characters. A place outside that site leaves it empty. The visit stamp is written when the party selects a place, not during the fill.
+Create the Place first, then the locations under it. A location with no parent Place leaves `place_id` empty. The visit stamp follows `place_id` when the party selects a location, not during the fill.
 
 Hired help stays `campaign_hireling`. A price list does not become an NPC. The log is written when the table makes a decision. A fill does not preload it.
 

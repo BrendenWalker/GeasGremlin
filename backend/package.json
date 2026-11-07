@@ -31,7 +31,13 @@
     "test:ruleset-roundtrip": "node scripts/test-ruleset-roundtrip.js",
     "test:overlay": "node overlay.check.js",
     "test:class-assignment": "node classAssignment.check.js",
-    "test:sheet-lock": "node sheetLock.check.js"
+    "test:sheet-lock": "node sheetLock.check.js",
+    "test:lifecycle": "node campaignLifecycle.check.js",
+    "test:campaign-details": "node campaignDetails.check.js",
+    "test:place": "node place.check.js",
+    "test:play-state": "node playState.check.js",
+    "test:bad-air": "node environmentalEffect.check.js",
+    "test:environmental-effect": "node environmentalEffect.check.js"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",

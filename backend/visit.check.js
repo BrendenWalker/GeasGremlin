@@ -13,30 +13,30 @@ assert.equal(visitTurns(5000, null), null);
 assert.equal(visitTurns(1000, 1000), 0);
 assert.equal(visitTurns(1200, 0, 600), 2);
 
-const kept = nextVisitStamp('Caves', 'Caves', 2400, 600);
+const kept = nextVisitStamp(4, 4, 2400, 600);
 assert.equal(kept, 600);
 assert.equal(visitTurns(2400, kept), 3);
-assert.equal(nextVisitStamp(' Caves ', 'Caves', 2400, 600), 600);
+assert.equal(nextVisitStamp('4', 4, 2400, 600), 600);
 
-assert.equal(nextVisitStamp('Caves', null, 2400, 600), null);
-assert.equal(nextVisitStamp('Caves', '   ', 2400, 600), null);
+assert.equal(nextVisitStamp(4, null, 2400, 600), null);
+assert.equal(nextVisitStamp(4, '', 2400, 600), null);
 assert.equal(nextVisitStamp(null, null, 100, null), null);
 
-const again = nextVisitStamp(null, 'Caves', 3000, null);
+const again = nextVisitStamp(null, 4, 3000, null);
 assert.equal(again, 3000);
 assert.equal(visitTurns(3000, again), 0);
 assert.equal(visitTurns(3600, again), 1);
-assert.equal(nextVisitStamp('Caves', 'Fort', 2400, 600), 2400);
-assert.equal(nextVisitStamp(null, 'Caves', 0, null), 0);
+assert.equal(nextVisitStamp(4, 7, 2400, 600), 2400);
+assert.equal(nextVisitStamp(null, 4, 0, null), 0);
 
 const firstArrival = arrivedAfterSelect(null, 0);
 assert.equal(firstArrival, 0);
-const left = nextVisitStamp('Caves', null, 2400, 0);
+const left = nextVisitStamp(4, null, 2400, 0);
 assert.equal(left, null);
 assert.equal(arrivedAfterSelect(firstArrival, 2400), firstArrival);
-const back = nextVisitStamp(null, 'Caves', 3000, left);
+const back = nextVisitStamp(null, 4, 3000, left);
 assert.equal(back, 3000);
 assert.equal(visitTurns(3000, back), 0);
 assert.equal(arrivedAfterSelect(firstArrival, 3000), firstArrival);
 
-console.log('site visit ok');
+console.log('place visit ok');

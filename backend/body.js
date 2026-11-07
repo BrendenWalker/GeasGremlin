@@ -106,6 +106,11 @@ function formatPounds(ounces) {
   return (n / OUNCES_PER_POUND).toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
 }
 
+function loadLabel(load) {
+  if (load === 'light') return 'Lightly Loaded';
+  return 'Heavy';
+}
+
 function encumbrance({ raceName, strength, ounces, armorAc, armorMagic }) {
   const caps = carryingCapacity(raceName, strength);
   const carried = Number(ounces) || 0;
@@ -120,6 +125,7 @@ function encumbrance({ raceName, strength, ounces, armorAc, armorMagic }) {
     light_lb: caps.light,
     heavy_lb: caps.heavy,
     load,
+    label: loadLabel(load),
     armor: armorLabel(armorAc, armorMagic === true),
     move,
     turn_feet: move * 3,
@@ -200,6 +206,7 @@ module.exports = {
   rollLight,
   carryingCapacity,
   encumbrance,
+  loadLabel,
   slowestMember,
   requiredSleep,
   settleBody,

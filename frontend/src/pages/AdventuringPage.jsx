@@ -42,13 +42,19 @@ import {
   startEncounter,
   takeCreatures,
   setLocationFlag,
+  setPlayFact,
+  applyRisingWater,
+  rejectRisingWater,
+  applyEnvironmentalEffect,
+  rejectEnvironmentalEffect,
   clearLocationFlag,
-  setAdventuringPlace,
+  setAdventuringEnvironment,
   tickAdventuring,
   selectLocation,
   concludeCampaign,
   endSituationSession,
 } from '../api/api';
+import { CONCLUDE_CONFIRM } from '../domain/concludeConfirm.mjs';
 import { clockToSeconds, effectEndSeconds, effectTurnsLeft, formatGameTime, markStatus, primaryStep, splitGameTime } from '../domain/gameTime.mjs';
 import SituationPanel from '../components/SituationPanel';
 
@@ -78,9 +84,10 @@ function intervalLabel(seconds) {
   return `every ${n} seconds`;
 }
 
-function locationFacts(loc) {
-  const bits = [loc.place];
-  if (loc.site) bits.push(loc.site);
+function locationFacts(loc, places) {
+  const bits = [loc.environment];
+  const parent = (places || []).find((place) => String(place.id) === String(loc.place_id));
+  if (parent) bits.push(parent.name);
   if (loc.terrain) {
     const pct = Number(loc.movement_pct);
     const shown = Number.isInteger(pct) ? `${pct > 0 ? '+' : ''}${pct}%` : '';
@@ -89,6 +96,19 @@ function locationFacts(loc) {
   bits.push(`d${loc.check_die}`);
   bits.push(intervalLabel(loc.interval_seconds));
   return bits.join(' · ');
+}
+
+function locationOptions(board) {
+  const places = board?.places || [];
+  const locations = board?.locations || [];
+  const groups = places.map((place) => ({
+    id: place.id,
+    label: place.name,
+    locations: locations.filter((loc) => String(loc.place_id) === String(place.id)),
+  })).filter((group) => group.locations.length > 0);
+  const unassigned = locations.filter((loc) => loc.place_id == null);
+  if (unassigned.length > 0) groups.push({ id: 'unassigned', label: 'Unassigned Locations', locations: unassigned });
+  return groups;
 }
 
 function errText(err) {
@@ -107,13 +127,8 @@ function signed(n) {
 }
 
 function carryLine(character) {
-  if (character.move == null) return null;
-  const load = character.load === 'over'
-    ? 'over the heavy load'
-    : character.load === 'heavy'
-      ? 'heavily loaded'
-      : 'lightly loaded';
-  return `${character.pounds} lb · light ${character.light_lb} · heavy ${character.heavy_lb} · ${character.armor} · ${load} · ${character.move}'`;
+  if (character.pounds == null || !character.label) return null;
+  return `${character.pounds} lb · ${character.label}`;
 }
 
 function bodyLine(name, data) {
@@ -287,6 +302,7 @@ export default function AdventuringPage() {
   const [loading, setLoading] = useState(true);
   const [homeTab, setHomeTab] = useState('location');
   const [busy, setBusy] = useState(false);
+  const [concludeArmed, setConcludeArmed] = useState(false);
   const [marchNote, setMarchNote] = useState(null);
   const [lostNote, setLostNote] = useState(null);
   const [weatherNote, setWeatherNote] = useState(null);
@@ -370,6 +386,8 @@ export default function AdventuringPage() {
   const [eventClock, setEventClock] = useState(CLOCK_ZERO);
   const [eventDirty, setEventDirty] = useState(false);
   const [locationPick, setLocationPick] = useState('');
+  const [risingDismissed, setRisingDismissed] = useState(false);
+  const [environmentalAsk, setEnvironmentalAsk] = useState(null);
 
   const load = useCallback((quiet) => {
     if (!quiet) setLoading(true);
@@ -428,6 +446,11 @@ export default function AdventuringPage() {
   useEffect(() => {
     setLocationPick(board?.location_id == null ? '' : String(board.location_id));
   }, [board?.location_id]);
+
+  const risingId = board?.rising_water?.encounter_id ?? null;
+  useEffect(() => {
+    if (risingId == null) setRisingDismissed(false);
+  }, [risingId]);
 
   const run = (action) => {
     setBusy(true);
@@ -1078,11 +1101,12 @@ export default function AdventuringPage() {
   const hereLine = here
     ? [here.name, here.terrain, hereTable?.name].filter(Boolean).join(' · ')
     : 'No location';
-  const visitLine = here?.site && Number.isInteger(board?.visit_turns)
-    ? `${board.visit_turns} ${board.visit_turns === 1 ? 'turn' : 'turns'} on ${here.site}`
+  const herePlace = here && (board?.places || []).find((place) => String(place.id) === String(here.place_id));
+  const visitLine = herePlace && Number.isInteger(board?.visit_turns)
+    ? `${board.visit_turns} ${board.visit_turns === 1 ? 'turn' : 'turns'} in ${herePlace.name}`
     : null;
-  const place = board?.place === 'inside' ? 'inside' : 'outside';
-  const primary = primaryStep(place, board?.in_encounter);
+  const environment = board?.environment === 'inside' ? 'inside' : 'outside';
+  const primary = primaryStep(environment, board?.in_encounter);
   const fighters = fighterOptions(board);
   const attackerChoice = fighters.find((option) => option.key === blowAttacker);
   const defenderChoice = fighters.find((option) => option.key === blowDefender);
@@ -1100,11 +1124,208 @@ export default function AdventuringPage() {
     ...CLOCK_BUTTONS.filter((button) => button.step !== primary),
   ].filter((button) => button.step !== 'round');
 
+  const risingPrompt = board?.rising_water && !risingDismissed ? (
+    <div style={{ margin: '8px 0 12px' }}>
+      <p style={{ marginTop: 0 }}>{board.rising_water.why}</p>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={busy}
+          onClick={() => run(() => applyRisingWater(campaignId, { encounter_id: board.rising_water.encounter_id }))}
+        >
+          Open Rising water
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          disabled={busy}
+          onClick={() => {
+            run(() => rejectRisingWater(campaignId)).then((res) => {
+              if (res) setRisingDismissed(true);
+            });
+          }}
+        >
+          Leave it
+        </button>
+      </div>
+    </div>
+  ) : null;
+
+  const environmentalPrompt = environmentalAsk?.effect === 'damage' ? (
+    <div style={{ margin: '8px 0 12px' }}>
+      <p style={{ marginTop: 0 }}>{environmentalAsk.why}</p>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={busy}
+          onClick={() => {
+            run(() => applyEnvironmentalEffect(campaignId, {
+              game_seconds: environmentalAsk.game_seconds,
+              encounter_id: environmentalAsk.encounter_id,
+            })).then((res) => {
+              if (res?.data?.changed) setEnvironmentalAsk(null);
+            });
+          }}
+        >
+          {`Apply ${environmentalAsk.amount} damage`}
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          disabled={busy}
+          onClick={() => {
+            run(() => rejectEnvironmentalEffect(campaignId)).then((res) => {
+              if (res) setEnvironmentalAsk(null);
+            });
+          }}
+        >
+          Leave it
+        </button>
+      </div>
+    </div>
+  ) : null;
+
+  const placeDetails = (
+    <>
+      {(!here || (here.facts || []).length === 0) && risingPrompt}
+      {(!here || (here.facts || []).length === 0) && environmentalPrompt}
+      {here && (here.facts || []).length > 0 && (
+        <div style={{ marginTop: 12 }}>
+          <h3 style={{ marginBottom: 6 }}>Object facts</h3>
+          <p className="muted">This playthrough. Room flags stay sprung, taken, or found.</p>
+          {(here.facts || []).map((fact) => (
+            <label key={fact.id} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+              <input
+                type="checkbox"
+                checked={fact.value === true}
+                disabled={busy}
+                onChange={() => run(() => setPlayFact(campaignId, {
+                  subject_type: fact.subject_type,
+                  subject_key: fact.subject_key,
+                  state_key: fact.state_key,
+                  value: fact.value !== true,
+                  version: fact.version,
+                }))}
+              />
+              <span>{fact.label}</span>
+            </label>
+          ))}
+          {board?.water_flowing != null && (
+            <p className="muted">{board.water_flowing ? 'Water is flowing.' : 'Water is not flowing.'}</p>
+          )}
+          {risingPrompt}
+          {environmentalPrompt}
+        </div>
+      )}
+    </>
+  );
+
+  const creaturesHere = here ? (
+    <div style={{ marginTop: 12 }}>
+      <h3 style={{ marginBottom: 6 }}>Creatures here</h3>
+      {(here.creatures || []).length === 0 && <p className="muted">No creatures at this location.</p>}
+      <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+        {creatureGroups(here.creatures).map((group) => (
+          <li key={group.key} style={{ marginBottom: 4 }}>{creatureLine(group)}</li>
+        ))}
+      </ul>
+      {board?.in_encounter && (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const count = parseInt(takeCount, 10);
+            if (!takeName) {
+              setError('Choose a creature.');
+              return;
+            }
+            if (!Number.isInteger(count) || count < 1) {
+              setError('Count must be a positive number.');
+              return;
+            }
+            run(() => takeCreatures(campaignId, { name: takeName, count }));
+          }}
+          style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}
+        >
+          <select value={takeName} aria-label="Creature to add" onChange={(e) => setTakeName(e.target.value)} style={FIELD}>
+            <option value="">Living creature…</option>
+            {[...new Set((here.creatures || []).filter((creature) => creature.hp > 0 && !creature.in_fight).map((creature) => creature.name))].map((name) => (
+              <option key={name} value={name}>{name}</option>
+            ))}
+          </select>
+          <input
+            type="number"
+            min={1}
+            max={100}
+            value={takeCount}
+            aria-label="How many creatures"
+            onChange={(e) => setTakeCount(e.target.value)}
+            style={{ ...FIELD, width: 70 }}
+          />
+          <button type="submit" className="btn btn-secondary" disabled={busy}>Add to fight</button>
+        </form>
+      )}
+    </div>
+  ) : null;
+
+  const roomFlags = here ? (
+    <div style={{ marginTop: 12 }}>
+      <h3 style={{ marginBottom: 6 }}>Room flags</h3>
+      <p className="muted">Sprung, taken, or found. A sentence stays a clue.</p>
+      {(here.flags || []).length === 0 && <p className="muted">Nothing marked here.</p>}
+      <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+        {(here.flags || []).map((flag) => (
+          <li key={flag.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 6, alignItems: 'center' }}>
+            <span>{flag.note} · {flag.state}</span>
+            <button type="button" className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem' }} disabled={busy} onClick={() => run(() => clearLocationFlag(campaignId, here.id, flag.id))}>Clear</button>
+          </li>
+        ))}
+      </ul>
+      <form onSubmit={saveFlag} style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <input value={flagNote} onChange={(e) => setFlagNote(e.target.value)} placeholder="Pit, chest, secret" maxLength={80} aria-label="Flag note" style={FIELD} />
+        <select value={flagState} aria-label="Flag state" onChange={(e) => setFlagState(e.target.value)} style={FIELD}>
+          <option value="sprung">Sprung</option>
+          <option value="taken">Taken</option>
+          <option value="found">Found</option>
+        </select>
+        <button type="submit" className="btn btn-secondary" disabled={busy}>Set flag</button>
+      </form>
+    </div>
+  ) : null;
+
+  const showingIntro = board != null
+    && board.location_id == null
+    && Boolean(board.intro || board.gm_notes || board.first_location_id != null);
+
   return (
     <div className="adventuring">
       <div>
-        {loading && !board && <p className="muted">Loading…</p>}
+        {!board && loading && <p className="muted">Loading…</p>}
 
+        {showingIntro ? (
+          <div className="card">
+            <h2 style={{ marginTop: 0 }}>Intro</h2>
+            {board.intro ? <p style={{ whiteSpace: 'pre-wrap' }}>{board.intro}</p> : null}
+            {board.gm_notes ? (
+              <>
+                <h3>GM notes</h3>
+                <p style={{ whiteSpace: 'pre-wrap' }}>{board.gm_notes}</p>
+              </>
+            ) : null}
+            {board.first_location_id == null ? (
+              <p className="muted">Choose a first location in Configuration.</p>
+            ) : null}
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={busy || board.first_location_id == null}
+              onClick={() => run(() => selectLocation(campaignId, board.first_location_id))}
+            >
+              Begin Campaign
+            </button>
+          </div>
+        ) : board ? (
         <div className="card">
           <div className="catalog-tabs" role="tablist" aria-label="Home">
             {[
@@ -1593,48 +1814,46 @@ export default function AdventuringPage() {
 
           {homeTab === 'location' && (
           <>
-          <SituationPanel campaignId={campaignId} board={board} busy={busy} run={run} mode="play" bare />
-
-        <div className="card">
-          <h2>Locations</h2>
-          {(board?.locations || []).length === 0 && <p className="muted">No locations yet.</p>}
-          {board && (board.locations || []).length > 0 && (
-            <>
-              <p style={{ marginTop: 0 }}>
-                <strong>Selected</strong>
-                {here ? (
-                  <>
-                    {` ${here.name}`}
-                    <span className="muted">
-                      {` · ${locationFacts(here)}${(here.flags || []).length ? ` · ${(here.flags || []).length} flag${(here.flags || []).length === 1 ? '' : 's'}` : ''}`}
-                    </span>
-                  </>
-                ) : (
-                  <span className="muted"> · No location</span>
-                )}
-              </p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', margin: '0.75rem 0' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+              <h2 style={{ margin: 0 }}>
+                {here
+                  ? (herePlace ? `${herePlace.name} · ${here.name}` : here.name)
+                  : 'Select a location'}
+              </h2>
+              {here ? (
+                <span className="muted">
+                  {locationFacts(here, board?.places)}
+                  {(here.flags || []).length ? ` · ${(here.flags || []).length} flag${(here.flags || []).length === 1 ? '' : 's'}` : ''}
+                </span>
+              ) : (board.locations || []).length === 0 ? (
+                <span className="muted">No locations yet.</span>
+              ) : null}
+            </div>
+            {(board.locations || []).length > 0 && (
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
                   if (!locationPick || String(locationPick) === String(board.location_id)) return;
                   run(() => selectLocation(campaignId, locationPick));
                 }}
-                style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}
+                style={{ display: 'flex', gap: 6, alignItems: 'center', marginLeft: 'auto' }}
               >
-                <label>
-                  Location
-                  <select
-                    aria-label="Location"
-                    value={locationPick}
-                    onChange={(e) => setLocationPick(e.target.value)}
-                    style={{ ...FIELD, marginLeft: 6, maxWidth: 280 }}
-                  >
-                    <option value="">Choose…</option>
-                    {(board.locations || []).map((loc) => (
-                      <option key={loc.id} value={loc.id}>{loc.name}</option>
-                    ))}
-                  </select>
-                </label>
+                <select
+                  aria-label="Location"
+                  value={locationPick}
+                  onChange={(e) => setLocationPick(e.target.value)}
+                  style={{ ...FIELD, maxWidth: 280 }}
+                >
+                  <option value="">Choose…</option>
+                  {locationOptions(board).map((group) => (
+                    <optgroup key={group.id} label={group.label}>
+                      {group.locations.map((loc) => (
+                        <option key={loc.id} value={loc.id}>{loc.name}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
                 <button
                   type="submit"
                   className="btn btn-secondary"
@@ -1643,79 +1862,19 @@ export default function AdventuringPage() {
                   Select
                 </button>
               </form>
-            </>
-          )}
-          {here && (
-            <div style={{ marginTop: 12 }}>
-              <h3 style={{ marginBottom: 6 }}>Creatures here</h3>
-              {(here.creatures || []).length === 0 && <p className="muted">No creatures at this location.</p>}
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                {creatureGroups(here.creatures).map((group) => (
-                  <li key={group.key} style={{ marginBottom: 4 }}>{creatureLine(group)}</li>
-                ))}
-              </ul>
-              {board?.in_encounter && (
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const count = parseInt(takeCount, 10);
-                    if (!takeName) {
-                      setError('Choose a creature.');
-                      return;
-                    }
-                    if (!Number.isInteger(count) || count < 1) {
-                      setError('Count must be a positive number.');
-                      return;
-                    }
-                    run(() => takeCreatures(campaignId, { name: takeName, count }));
-                  }}
-                  style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}
-                >
-                  <select value={takeName} aria-label="Creature to add" onChange={(e) => setTakeName(e.target.value)} style={FIELD}>
-                    <option value="">Living creature…</option>
-                    {[...new Set((here.creatures || []).filter((creature) => creature.hp > 0 && !creature.in_fight).map((creature) => creature.name))].map((name) => (
-                      <option key={name} value={name}>{name}</option>
-                    ))}
-                  </select>
-                  <input
-                    type="number"
-                    min={1}
-                    max={100}
-                    value={takeCount}
-                    aria-label="How many creatures"
-                    onChange={(e) => setTakeCount(e.target.value)}
-                    style={{ ...FIELD, width: 70 }}
-                  />
-                  <button type="submit" className="btn btn-secondary" disabled={busy}>Add to fight</button>
-                </form>
-              )}
-            </div>
-          )}
-          {here && (
-            <div style={{ marginTop: 12 }}>
-              <h3 style={{ marginBottom: 6 }}>Room flags</h3>
-              <p className="muted">Sprung, taken, or found. A sentence stays a clue.</p>
-              {(here.flags || []).length === 0 && <p className="muted">Nothing marked here.</p>}
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                {(here.flags || []).map((flag) => (
-                  <li key={flag.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 6, alignItems: 'center' }}>
-                    <span>{flag.note} · {flag.state}</span>
-                    <button type="button" className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem' }} disabled={busy} onClick={() => run(() => clearLocationFlag(campaignId, here.id, flag.id))}>Clear</button>
-                  </li>
-                ))}
-              </ul>
-              <form onSubmit={saveFlag} style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                <input value={flagNote} onChange={(e) => setFlagNote(e.target.value)} placeholder="Pit, chest, secret" maxLength={80} aria-label="Flag note" style={FIELD} />
-                <select value={flagState} aria-label="Flag state" onChange={(e) => setFlagState(e.target.value)} style={FIELD}>
-                  <option value="sprung">Sprung</option>
-                  <option value="taken">Taken</option>
-                  <option value="found">Found</option>
-                </select>
-                <button type="submit" className="btn btn-secondary" disabled={busy}>Set flag</button>
-              </form>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+          <SituationPanel
+            campaignId={campaignId}
+            board={board}
+            busy={busy}
+            run={run}
+            mode="play"
+            bare
+            afterPlace={placeDetails}
+            afterNpcs={creaturesHere}
+            beforeLog={roomFlags}
+          />
 
           </>
           )}
@@ -1956,9 +2115,12 @@ export default function AdventuringPage() {
           </>
           )}
         </div>
+        ) : null}
       </div>
 
       <div>
+      {board && !showingIntro && (
+      <>
       <div className="card">
         <p className="adventuring-clock">{clockLabel || '—'}</p>
         {board && <p style={{ color: '#fff', margin: '0 0 0.75rem' }}>{hereLine}</p>}
@@ -1970,24 +2132,28 @@ export default function AdventuringPage() {
               type="button"
               className={button.step === primary ? 'btn clock-step' : 'btn btn-secondary'}
               disabled={busy || !board}
-              onClick={() => run(() => tickAdventuring(campaignId, button.step))}
+              onClick={() => run(() => tickAdventuring(campaignId, button.step)).then((res) => {
+                if (res?.data?.environmental_effect?.effect === 'damage') {
+                  setEnvironmentalAsk(res.data.environmental_effect);
+                }
+              })}
             >
               {button.label}
             </button>
           ))}
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 8 }}>
-          <span className="muted">Place</span>
+          <span className="muted">Environment</span>
           {['outside', 'inside'].map((value) => (
             <button
               key={value}
               type="button"
-              className={place === value ? 'btn btn-primary' : 'btn btn-secondary'}
-              aria-pressed={place === value}
+              className={environment === value ? 'btn btn-primary' : 'btn btn-secondary'}
+              aria-pressed={environment === value}
               disabled={busy || !board}
               onClick={() => {
-                if (place === value) return;
-                run(() => setAdventuringPlace(campaignId, value));
+                if (environment === value) return;
+                run(() => setAdventuringEnvironment(campaignId, value));
               }}
             >
               {value === 'outside' ? 'Outside' : 'Inside'}
@@ -2077,7 +2243,7 @@ export default function AdventuringPage() {
       <div className="card">
         <h2>Characters</h2>
         {board?.party_move != null && (
-          <p>The group moves at {board.party_slow}'s {board.party_move}' ({board.party_turn}' a turn, {board.party_miles} miles a day).</p>
+          <p>The group moves at {board.party_slow}'s {board.party_move}' ({board.party_load}, {board.party_turn}' a turn, {board.party_miles} miles a day).</p>
         )}
         {bodyNote && <p style={{ color: '#e8c547' }}>{bodyNote}</p>}
         {board && board.characters.length === 0 && <p className="muted">No characters in this campaign.</p>}
@@ -2118,9 +2284,13 @@ export default function AdventuringPage() {
           ))}
         </ul>
       </div>
+      </>
+      )}
 
+      {board && (
       <div className="card">
         <h2>Session</h2>
+        <p className="muted">End session pauses and keeps this playthrough. Conclude wipes it.</p>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button
             type="button"
@@ -2130,16 +2300,42 @@ export default function AdventuringPage() {
           >
             End session
           </button>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            disabled={busy || !board}
-            onClick={() => leave(() => concludeCampaign(campaignId))}
-          >
-            Conclude campaign
-          </button>
+          {!concludeArmed && (
+            <button
+              type="button"
+              className="btn btn-danger"
+              disabled={busy || !board}
+              onClick={() => setConcludeArmed(true)}
+            >
+              Conclude campaign
+            </button>
+          )}
         </div>
+        {concludeArmed && (
+          <div style={{ marginTop: 12 }}>
+            <p style={{ whiteSpace: 'pre-wrap' }}>{CONCLUDE_CONFIRM}</p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn btn-danger"
+                disabled={busy || !board}
+                onClick={() => leave(() => concludeCampaign(campaignId))}
+              >
+                Wipe this playthrough
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={busy}
+                onClick={() => setConcludeArmed(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
+      )}
       </div>
     </div>
   );

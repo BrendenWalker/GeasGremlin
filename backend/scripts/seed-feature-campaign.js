@@ -8,6 +8,7 @@
  */
 require('dotenv').config({ path: require('path').join(__dirname, '..', '..', '.env') });
 const { Pool } = require('pg');
+const { attachAuthoredFacts } = require('../playState');
 
 const CAMPAIGN_NAME = 'Feature Walk';
 const RULESET_NAME = 'Basic Fantasy Core';
@@ -113,12 +114,12 @@ async function main() {
     }
 
     const outside = (name, terrain, pct, tableName, summary) => ({
-      name, place: 'outside', terrain, pct, tableName, summary, site: null,
+      name, environment: 'outside', terrain, pct, tableName, summary, destination: null,
       die: 6, interval: 14400, ambient: null, dark: null,
     });
     const inside = (name, tableName, summary, interval, die) => ({
-      name, place: 'inside', terrain: null, pct: null, tableName, summary,
-      site: 'Cistern', die, interval, ambient: 0, dark: null,
+      name, environment: 'inside', terrain: null, pct: null, tableName, summary,
+      destination: 'Cistern', die, interval, ambient: 0, dark: null,
     });
     const places = [
       outside(
@@ -158,19 +159,29 @@ async function main() {
     ];
     places.find((row) => row.name === 'Cistern Well').tableId = custom.id;
 
+    const cistern = await one(
+      client,
+      `INSERT INTO campaign_place (campaign_id, name, place_type)
+       VALUES ($1, 'Cistern', 'Dungeon') RETURNING id`,
+      [campaignId]
+    );
+    const cisternId = Number(cistern.id);
+
     const locationIds = {};
     for (const place of places) {
       const table = place.tableId || tableId(place.tableName);
       const inserted = await one(
         client,
         `INSERT INTO campaign_location
-           (campaign_id, name, place, check_die, interval_seconds, encounter_table_id,
-            terrain, movement_pct, summary, site, arrived_seconds, ambient_light, dark_summary)
+           (campaign_id, name, environment, place_id, check_die, interval_seconds, encounter_table_id,
+            terrain, movement_pct, summary, arrived_seconds, ambient_light, dark_summary)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
          RETURNING id`,
         [
-          campaignId, place.name, place.place, place.die, place.interval, table,
-          place.terrain, place.pct, place.summary, place.site,
+          campaignId, place.name, place.environment,
+          place.destination ? cisternId : null,
+          place.die, place.interval, table,
+          place.terrain, place.pct, place.summary,
           place.name === 'Millbridge' ? CLOCK : null,
           place.ambient, place.dark,
         ]
@@ -180,7 +191,7 @@ async function main() {
 
     await client.query(
       `INSERT INTO campaign_board
-         (campaign_id, game_seconds, in_encounter, place, location_id, check_seconds, visit_seconds)
+         (campaign_id, game_seconds, in_encounter, environment, location_id, check_seconds, visit_seconds)
        VALUES ($1, $2, false, 'outside', $3, $2, NULL)`,
       [campaignId, CLOCK, locationIds.Millbridge]
     );
@@ -373,13 +384,23 @@ async function main() {
     await clue('Cistern Gate', 'Chalk marks a secret door on the landing.', null);
     await clue('Cistern Heart', 'The slab is a burial.', tomb);
 
-    async function scene(locationName, title, kind, purpose, notes, members) {
+    async function scene(locationName, title, kind, purpose, notes, members, effect) {
       const inserted = await one(
         client,
         `INSERT INTO campaign_encounter
-           (campaign_id, location_id, title, kind, purpose, notes, status, base_status)
-         VALUES ($1, $2, $3, $4, $5, $6, 'prepared', 'prepared') RETURNING id`,
-        [campaignId, locationIds[locationName], title, kind, purpose, notes]
+           (campaign_id, location_id, title, kind, purpose, notes, status, base_status,
+            environmental_effect, environmental_amount)
+         VALUES ($1, $2, $3, $4, $5, $6, 'prepared', 'prepared', $7, $8) RETURNING id`,
+        [
+          campaignId,
+          locationIds[locationName],
+          title,
+          kind,
+          purpose,
+          notes,
+          effect ? effect.effect : null,
+          effect ? effect.amount : null,
+        ]
       );
       for (const creatureId of members) {
         await client.query(
@@ -403,7 +424,7 @@ async function main() {
     await scene(
       'Cistern Gate', 'Scratch marks', 'discovery',
       'Marks climb the shaft.',
-      'The marks are there, and the clue starts hidden. Mark it discovered when someone sees them. The chalk door on this landing only shortens the way back. Set Secret door found when they find it.',
+      'The marks are there, and the clue starts hidden. Mark it discovered when someone sees them. The chalk door on this landing only shortens the way back. It starts secret. Mark it found when they see the chalk. That does not block or open it.',
       []
     );
     await scene(
@@ -422,7 +443,8 @@ async function main() {
       'Cistern Stair', 'Bad air', 'hazard',
       'A turn of searching costs 1 damage.',
       'The air is bad on this flight. Each turn they search here costs 1 damage unless they retreat for a turn first. Do not roll for the damage. No flag.',
-      []
+      [],
+      { effect: 'damage', amount: 1 }
     );
     await scene(
       'Cistern Crypt', 'Niche skeleton', 'combat',
@@ -450,13 +472,15 @@ async function main() {
       ['Cistern Stair', 'Cistern Crypt', 'Down the flight.'],
       ['Cistern Crypt', 'Cistern Deep', 'The far arch.'],
       ['Cistern Deep', 'Cistern Heart', 'The passage on.'],
-      ['Cistern Heart', 'Cistern Gate', 'The chalk door. It shortens the way back.'],
+      ['Cistern Heart', 'Cistern Gate', 'The chalk door. It shortens the way back.', true, false],
     ];
-    for (const [fromName, toName, reason] of paths) {
+    for (const [fromName, toName, reason, oneWay, discovered] of paths) {
+      const found = discovered !== false;
       await client.query(
-        `INSERT INTO campaign_transition (campaign_id, from_location_id, to_location_id, reason)
-         VALUES ($1, $2, $3, $4)`,
-        [campaignId, locationIds[fromName], locationIds[toName], reason]
+        `INSERT INTO campaign_transition
+           (campaign_id, from_location_id, to_location_id, reason, one_way, discovered, base_discovered, blocked, base_blocked)
+         VALUES ($1, $2, $3, $4, $5, $6, $6, false, false)`,
+        [campaignId, locationIds[fromName], locationIds[toName], reason, oneWay === true, found]
       );
     }
 
@@ -465,6 +489,7 @@ async function main() {
        VALUES ($1, 'event', 'The carter leaves', $2, NULL)`,
       [campaignId, CARTER_LEAVES]
     );
+    await attachAuthoredFacts(client, campaignId);
 
     await client.query('COMMIT');
     console.log(JSON.stringify({

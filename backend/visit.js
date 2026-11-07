@@ -1,20 +1,21 @@
 /**
- * Turns since the party entered this site.
+ * Turns since the party entered this Place.
  * The stamp is game_seconds at entry. It does not tick.
  * A turn is 600 seconds, the same step as Next Turn.
  * arrived_seconds is a separate first-select mark. This module does not write it.
  */
 
-function siteLabel(value) {
-  if (value == null) return null;
-  const text = String(value).trim();
-  return text === '' ? null : text;
+function placeKey(value) {
+  if (value == null || value === '') return null;
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 1) return null;
+  return n;
 }
 
-function nextVisitStamp(previousSite, nextSite, gameSeconds, stamp) {
-  const next = siteLabel(nextSite);
+function nextVisitStamp(previousPlaceId, nextPlaceId, gameSeconds, stamp) {
+  const next = placeKey(nextPlaceId);
   if (next == null) return null;
-  const previous = siteLabel(previousSite);
+  const previous = placeKey(previousPlaceId);
   if (previous === next && stamp != null && stamp !== '') return Number(stamp);
   return Number(gameSeconds);
 }
@@ -32,7 +33,7 @@ function arrivedAfterSelect(arrivedSeconds, gameSeconds) {
 }
 
 module.exports = {
-  siteLabel,
+  placeKey,
   nextVisitStamp,
   visitTurns,
   arrivedAfterSelect,

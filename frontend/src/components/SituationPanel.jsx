@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import {
   addSituationLog,
   arriveTransition,
+  findTransition,
+  setTransitionAccess,
   createClue,
   createNpc,
   createObjective,
@@ -57,7 +59,8 @@ function locationName(locations, id) {
   return found ? found.name : 'location';
 }
 
-function pathsHere(rows, scopeId) {
+function pathsHere(rows, scopeId, { showAll = false } = {}) {
+  if (showAll && !scopeId) return rows || [];
   return (rows || []).filter((row) => {
     const fromHere = scopeId ? sameId(row.from_location_id, scopeId) : row.from_location_id == null;
     if (fromHere) return true;
@@ -135,12 +138,12 @@ function keepField(event, save) {
   save();
 }
 
-function PlaceSelect({ label, value, locations, onChange, allowEmpty = true }) {
+function PlaceSelect({ label, value, locations, onChange, allowEmpty = true, emptyLabel = 'None' }) {
   return (
     <label>
       {label}
       <select value={value} onChange={(event) => onChange(event.target.value)} aria-label={label} style={{ ...FIELD, marginLeft: 6 }}>
-        {allowEmpty && <option value="">None</option>}
+        {allowEmpty && <option value="">{emptyLabel}</option>}
         {locations.map((loc) => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
       </select>
     </label>
@@ -208,7 +211,18 @@ function MemberEditor({
   );
 }
 
-export default function SituationPanel({ campaignId, board, busy, run, mode = 'play', bare = false }) {
+export default function SituationPanel({
+  campaignId,
+  board,
+  busy,
+  run,
+  mode = 'play',
+  bare = false,
+  afterPlace = null,
+  afterNpcs = null,
+  beforeLog = null,
+  sections = null,
+}) {
   const editing = mode === 'edit';
   const pack = board?.situation;
   const locations = board?.locations || [];
@@ -241,6 +255,7 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
   const [encounterError, setEncounterError] = useState(null);
   const [encounterTitle, setEncounterTitle] = useState('');
   const [encounterKind, setEncounterKind] = useState('discovery');
+  const [encounterDamage, setEncounterDamage] = useState('');
   const [encounterPurpose, setEncounterPurpose] = useState('');
   const [encounterNotes, setEncounterNotes] = useState('');
   const [encounterPlace, setEncounterPlace] = useState('');
@@ -256,21 +271,27 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
   const [leadLocation, setLeadLocation] = useState('');
   const [leadReason, setLeadReason] = useState('');
   const [leadOneWay, setLeadOneWay] = useState(false);
+  const [leadSecret, setLeadSecret] = useState(false);
+  const [leadBlocked, setLeadBlocked] = useState(false);
   const [logKind, setLogKind] = useState('decision');
   const [logBody, setLogBody] = useState('');
 
   if (!board || !pack) return null;
 
+  const showSection = (name) => sections == null || sections.includes(name);
   const scopeId = editing ? pickedPlaceId : (board.location_id == null ? '' : String(board.location_id));
   const here = locations.find((loc) => sameId(loc.id, board.location_id));
-  const atScope = (id) => (scopeId ? sameId(id, scopeId) : id == null);
+  const atScope = (id) => {
+    if (editing && !scopeId) return true;
+    return scopeId ? sameId(id, scopeId) : id == null;
+  };
   const npcs = (pack.npcs || []).filter((row) => atScope(row.location_id));
   const npcHere = (id) => npcs.some((row) => sameId(row.id, id));
   const clues = (pack.clues || []).filter((row) => atScope(row.location_id) || npcHere(row.npc_id));
   const objectives = pack.objectives || [];
   const scopedObjectives = objectives.filter((row) => atScope(row.location_id));
   const encounters = (pack.encounters || []).filter((row) => atScope(row.location_id));
-  const leads = pathsHere(pack.transitions, scopeId);
+  const leads = pathsHere(pack.transitions, scopeId, { showAll: editing });
   const knownObjectives = objectives.filter((row) => row.known);
   const hiddenHere = scopedObjectives.filter((row) => !row.known);
   const roomClues = clues.filter((row) => !row.discovered && atScope(row.location_id) && !npcHere(row.npc_id));
@@ -317,6 +338,7 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
     setEncounterEditId(null);
     setEncounterTitle('');
     setEncounterKind('discovery');
+    setEncounterDamage('');
     setEncounterPurpose('');
     setEncounterNotes('');
     setEncounterPlace(scopeId);
@@ -330,6 +352,8 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
     setLeadLocation('');
     setLeadReason('');
     setLeadOneWay(false);
+    setLeadSecret(false);
+    setLeadBlocked(false);
     setLeadError(null);
   };
 
@@ -371,6 +395,7 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
     setEncounterEditId(null);
     setEncounterTitle('');
     setEncounterKind('discovery');
+    setEncounterDamage('');
     setEncounterPurpose('');
     setEncounterNotes('');
     setEncounterPlace(place);
@@ -386,6 +411,8 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
     setLeadLocation('');
     setLeadReason('');
     setLeadOneWay(false);
+    setLeadSecret(false);
+    setLeadBlocked(false);
     setLeadError(null);
   };
 
@@ -497,12 +524,25 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
       setEncounterError('Encounter title is required.');
       return;
     }
+    let environmental_effect = null;
+    let environmental_amount = null;
+    if (encounterKind === 'hazard' && String(encounterDamage).trim() !== '') {
+      const amount = Number(encounterDamage);
+      if (!Number.isInteger(amount) || amount < 1 || amount > 100) {
+        setEncounterError('Damage each turn must be from 1 to 100.');
+        return;
+      }
+      environmental_effect = 'damage';
+      environmental_amount = amount;
+    }
     const payload = {
       title: name,
       kind: encounterKind,
       purpose: encounterPurpose,
       notes: encounterNotes,
       location_id: placePayload(encounterPlace),
+      environmental_effect,
+      environmental_amount,
     };
     const action = encounterEditId == null
       ? () => createPreparedEncounter(campaignId, payload)
@@ -566,6 +606,8 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
       to_location_id: Number(leadLocation),
       reason: leadReason,
       one_way: leadOneWay,
+      discovered: !leadSecret,
+      blocked: leadBlocked,
     };
     const action = leadEditId == null
       ? () => createTransition(campaignId, payload)
@@ -613,14 +655,17 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
   );
 
   return (
-    <div className={bare ? undefined : 'card'} style={{ marginBottom: '1rem' }}>
-      <h2 style={{ marginTop: 0 }}>Here</h2>
+    <div className={bare ? undefined : 'card'} style={{ marginBottom: bare ? 0 : '1rem' }}>
+      {!bare && (
+        <h2 style={{ marginTop: 0 }}>{editing ? 'Here' : (here ? here.name : 'Select a location')}</h2>
+      )}
       {editing && (
         <>
           <PlaceSelect
-            label="Place"
+            label="Location"
             value={pickedPlaceId}
             locations={locations}
+            emptyLabel="All"
             onChange={(value) => {
               setPickedPlaceId(value);
               clearChildren(value);
@@ -628,19 +673,17 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
           />
           <p className="muted">
             {pickedPlaceId
-              ? `New rows belong to ${locationName(locations, pickedPlaceId)}.`
-              : 'With no place selected, new rows stay with the party.'}
+              ? `Showing ${locationName(locations, pickedPlaceId)}. New rows belong there.`
+              : 'Showing all. New rows stay unassigned unless you pick a location on the form.'}
           </p>
         </>
       )}
       {!editing && pack.concluded && (
-        <p>This campaign is concluded. Starting the session runs it again from the base lines.</p>
+        <p>This campaign is concluded. The playthrough was reset to its base lines. Object facts return to their authored values. The log, hirelings, wander checks, room flags, and pending commands are already gone. Starting the session clears this flag and does not bring those rows back.</p>
       )}
-      {!editing && !here && <p className="muted">Select a location.</p>}
       {!editing && here && (
         <>
-          <p style={{ marginBottom: 4 }}><strong>{here.name}</strong></p>
-          {here.place === 'inside' ? (
+          {here.environment === 'inside' ? (
             <p className="muted" style={{ margin: '0.75rem 0 0' }}>
               {ambientLine({
                 ambientLight: here.ambient_light,
@@ -656,7 +699,7 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
               <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{here.summary}</p>
             </div>
           ) : null}
-          {here.place === 'inside' && here.dark_summary ? (
+          {here.environment === 'inside' && here.dark_summary ? (
             <div style={{ borderLeft: '3px solid #6e7c8a', padding: '0.35rem 0 0.35rem 0.75rem', margin: '0.75rem 0' }}>
               <div style={{ color: '#8aa0b4', fontSize: '0.8rem', marginBottom: 4 }}>In the dark</div>
               <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{here.dark_summary}</p>
@@ -671,7 +714,9 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
           <p>{board.in_encounter ? 'A fight is open.' : 'No fight is open.'}</p>
         </>
       )}
+      {sections == null && afterPlace}
 
+      {showSection('objectives') && <>
       <h3>Objectives</h3>
       {!editing && knownObjectives.length === 0 && hiddenHere.length === 0 && <p className="muted">None yet.</p>}
       {!editing && (
@@ -716,12 +761,14 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
             onCancel={blankObjective}
           >
             <input value={objective} onChange={(event) => setObjective(event.target.value)} placeholder="Objective" aria-label="Objective" style={FIELD} />
-            <PlaceSelect label="Place" value={objectivePlace} locations={locations} onChange={setObjectivePlace} />
+            <PlaceSelect label="Location" value={objectivePlace} locations={locations} onChange={setObjectivePlace} />
             <label><input type="checkbox" checked={objectiveKnown} onChange={(event) => setObjectiveKnown(event.target.checked)} /> Known to players</label>
           </EditorFrame>
         </>
       )}
+      </>}
 
+      {showSection('npcs') && <>
       <h3>NPCs</h3>
       {npcs.length === 0 && <p className="muted">{scopeId ? 'None at this place.' : 'None yet.'}</p>}
       <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
@@ -765,7 +812,10 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
           </span>
         </form>
       )}
+      {afterNpcs}
+      </>}
 
+      {showSection('clues') && <>
       <h3>Clues</h3>
       {!editing && roomClues.length === 0 && <p className="muted">{scopeId ? 'None in this place.' : 'None yet.'}</p>}
       {!editing && (
@@ -810,7 +860,7 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
             onCancel={blankClue}
           >
             <input value={clue} onChange={(event) => setClue(event.target.value)} placeholder="Clue" aria-label="Clue" style={FIELD} />
-            <PlaceSelect label="Place" value={cluePlace} locations={locations} onChange={setCluePlace} />
+            <PlaceSelect label="Location" value={cluePlace} locations={locations} onChange={setCluePlace} />
             <label>
               NPC
               <select value={clueNpcId} onChange={(event) => setClueNpcId(event.target.value)} aria-label="Clue NPC" style={{ ...FIELD, marginLeft: 6 }}>
@@ -828,7 +878,9 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
           </EditorFrame>
         </>
       )}
+      </>}
 
+      {showSection('encounters') && <>
       <h3>Prepared encounters</h3>
       {!editing && encounters.length === 0 && <p className="muted">{scopeId ? 'None at this place.' : 'None yet.'}</p>}
       {!editing && (
@@ -837,6 +889,9 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
             <li key={row.id} style={{ marginBottom: 8 }}>
               <strong>{row.title}</strong>
               <span className="muted"> · {row.kind} · {row.status}</span>
+              {row.environmental_effect === 'damage' ? (
+                <span className="muted">{` · ${row.environmental_amount} damage`}</span>
+              ) : null}
               {row.purpose ? <div className="muted">{row.purpose}</div> : null}
               {row.notes ? <div className="muted" style={{ whiteSpace: 'pre-wrap' }}>{row.notes}</div> : null}
               {row.members.length > 0 && (
@@ -866,6 +921,7 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
               setEncounterEditId(row.id);
               setEncounterTitle(row.title || '');
               setEncounterKind(row.kind || 'discovery');
+              setEncounterDamage(row.environmental_effect === 'damage' && row.environmental_amount != null ? String(row.environmental_amount) : '');
               setEncounterPurpose(row.purpose || '');
               setEncounterNotes(row.notes || '');
               setEncounterPlace(row.location_id ? String(row.location_id) : '');
@@ -899,7 +955,22 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
                 {KINDS.map((kind) => <option key={kind} value={kind}>{kind}</option>)}
               </select>
             </label>
-            <PlaceSelect label="Place" value={encounterPlace} locations={locations} onChange={setEncounterPlace} />
+            {encounterKind === 'hazard' && (
+              <label>
+                Damage each turn
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={encounterDamage}
+                  onChange={(event) => setEncounterDamage(event.target.value)}
+                  placeholder="None"
+                  aria-label="Damage each turn"
+                  style={{ ...FIELD, width: 90, marginLeft: 6 }}
+                />
+              </label>
+            )}
+            <PlaceSelect label="Location" value={encounterPlace} locations={locations} onChange={setEncounterPlace} />
             <textarea value={encounterPurpose} onChange={(event) => setEncounterPurpose(event.target.value)} placeholder="Purpose" aria-label="Encounter purpose" rows={2} style={FIELD} />
             <textarea value={encounterNotes} onChange={(event) => setEncounterNotes(event.target.value)} placeholder="Notes" aria-label="Encounter notes" rows={3} style={FIELD} />
             {encounterEditId == null ? (
@@ -930,7 +1001,9 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
           </EditorFrame>
         </>
       )}
+      </>}
 
+      {showSection('paths') && <>
       <h3>Paths</h3>
       {!editing && leads.length === 0 && <p className="muted">{scopeId ? 'None.' : 'None yet.'}</p>}
       {!editing && (
@@ -938,12 +1011,25 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
           {leads.map((row) => {
             const back = scopeId ? !sameId(row.from_location_id, scopeId) : false;
             const dest = back ? row.from_location_id : row.to_location_id;
+            const secret = row.discovered === false;
+            const shut = row.blocked === true;
             return (
               <li key={row.id} style={{ marginBottom: 6 }}>
                 <span>{locationName(locations, dest)}</span>
                 {row.reason ? <span className="muted"> · {row.reason}</span> : null}
                 {row.one_way ? <span className="muted"> · one way</span> : null}
-                <button type="button" className="btn btn-secondary" style={{ ...TINY, marginLeft: 8 }} disabled={busy} onClick={() => run(() => arriveTransition(campaignId, row.id, back))}>Go To</button>
+                {secret ? <span className="muted"> · secret</span> : null}
+                {shut ? <span className="muted"> · blocked</span> : null}
+                {!secret && !shut && (
+                  <button type="button" className="btn btn-secondary" style={{ ...TINY, marginLeft: 8 }} disabled={busy} onClick={() => run(() => arriveTransition(campaignId, row.id, { reverse: back }))}>Go To</button>
+                )}
+                {(secret || shut) && (
+                  <button type="button" className="btn btn-secondary" style={{ ...TINY, marginLeft: 8 }} disabled={busy} onClick={() => run(() => arriveTransition(campaignId, row.id, { reverse: back, override: true }))}>Go anyway</button>
+                )}
+                {secret && (
+                  <button type="button" className="btn btn-secondary" style={{ ...TINY, marginLeft: 8 }} disabled={busy} onClick={() => run(() => findTransition(campaignId, row.id))}>Mark found</button>
+                )}
+                <button type="button" className="btn btn-secondary" style={{ ...TINY, marginLeft: 8 }} disabled={busy} onClick={() => run(() => setTransitionAccess(campaignId, row.id, !shut))}>{shut ? 'Clear block' : 'Block'}</button>
               </li>
             );
           })}
@@ -967,6 +1053,8 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
               setLeadLocation(row.to_location_id ? String(row.to_location_id) : '');
               setLeadReason(row.reason || '');
               setLeadOneWay(row.one_way === true);
+              setLeadSecret(row.discovered === false);
+              setLeadBlocked(row.blocked === true);
               setLeadError(null);
             }}
             onAskRemove={() => setConfirmLead(true)}
@@ -975,8 +1063,10 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
             optionLabel={(row) => {
               const ends = `${locationName(locations, row.from_location_id)} → ${locationName(locations, row.to_location_id)}`;
               const flag = row.one_way ? ' · one way' : '';
+              const secret = row.discovered === false ? ' · secret' : '';
+              const shut = row.blocked === true ? ' · blocked' : '';
               const reason = row.reason ? ` · ${row.reason}` : '';
-              return shortText(`${ends}${flag}${reason}`);
+              return shortText(`${ends}${flag}${secret}${shut}${reason}`);
             }}
             confirmLabel={(row) => locationName(locations, row.to_location_id)}
           />
@@ -1003,11 +1093,20 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
               <input type="checkbox" checked={leadOneWay} onChange={(event) => setLeadOneWay(event.target.checked)} />
               {' '}One way
             </label>
+            <label>
+              <input type="checkbox" checked={leadSecret} onChange={(event) => setLeadSecret(event.target.checked)} />
+              {' '}Secret
+            </label>
+            <label>
+              <input type="checkbox" checked={leadBlocked} onChange={(event) => setLeadBlocked(event.target.checked)} />
+              {' '}Blocked
+            </label>
           </EditorFrame>
         </>
       )}
+      </>}
 
-      {!editing && (
+      {sections == null && !editing && (
         <>
           <h3>Discovered</h3>
           {discoveryGroups.length === 0 && <p className="muted">Nothing discovered yet.</p>}
@@ -1020,6 +1119,7 @@ export default function SituationPanel({ campaignId, board, busy, run, mode = 'p
             </div>
           ))}
 
+          {beforeLog}
           <h3>Log</h3>
           {(pack.log || []).length === 0 && <p className="muted">Nothing recorded.</p>}
           <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>

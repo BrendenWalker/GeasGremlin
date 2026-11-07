@@ -12,7 +12,7 @@ const cors = require('cors');
 const { createDbPool, testConnection } = require('./db-config');
 const { assignmentError, inCatalog } = require('./classAssignment');
 const { CAMPAIGN_SHEET_ERROR, authoringRefused, sheetEditRefused } = require('./sheetLock');
-const { pathDestination } = require('./pathWay');
+const { pathTravel, markPathFound, setPathAccess } = require('./pathWay');
 const { INSIDE_INTERVAL, OUTSIDE_INTERVAL, checksDue, checkHit, matchingRow, acceptRoll } = require('./wander');
 const { MIN_DELTA, MAX_DELTA, adjustedCopper } = require('./shopPrice');
 const { rollTreasure } = require('./treasure');
@@ -39,6 +39,7 @@ const { awardLine, splitAward, cappedAward } = require('./awards');
 const {
   rollLight,
   encumbrance,
+  formatPounds,
   slowestMember,
   requiredSleep,
   settleBody,
@@ -46,10 +47,32 @@ const {
 } = require('./body');
 const { applyCreatureHitPoints, catalogTreasure, fightCreature, recoverCreature } = require('./creature');
 const { nextVisitStamp, visitTurns, arrivedAfterSelect } = require('./visit');
+const { readPlace, placeIdField } = require('./place');
 const { readFlag, playerHere } = require('./room-flag');
+const {
+  listFacts,
+  readStateCommand,
+  setFact,
+  risingWaterPreview,
+  readPreviewCommand,
+  rejectRisingWater,
+  applyRisingWater,
+  readEnvironmentalDamage,
+  readEnvironmentalEffectCommand,
+  rejectEnvironmentalEffect,
+  environmentalEffectOnTurn,
+  applyEnvironmentalEffect,
+} = require('./playState');
+const { openPreparedEncounter } = require('./preparedEncounter');
 const { visitCheckDue, emptyCheckResult, currentVisitCheck } = require('./empty-check');
 const { TERRAINS, locationTerrain } = require('./terrain');
 const { objectiveKnownAfterClue } = require('./reveal');
+const {
+  START_SESSION_SQL,
+  endCampaignSession,
+  concludeCampaignRun,
+} = require('./campaignLifecycle');
+const { saveCampaignDetails } = require('./campaignDetails');
 const {
   adjustedMiles,
   forcedMiles,
@@ -419,13 +442,36 @@ app.put('/api/campaigns/:id', async (req, res) => {
   }
 });
 
+app.put('/api/campaigns/:id/details', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const member = await requireCampaign(req, res, req.params.id, true);
+    if (!member) return;
+    await client.query('BEGIN');
+    const saved = await saveCampaignDetails(client, req.params.id, req.body);
+    await client.query('COMMIT');
+    res.json(saved);
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch (_) { /* connection already failed */ }
+    if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    if (error.code === '23514') {
+      return res.status(400).json({ error: 'Intro or GM notes exceed 4000 characters' });
+    }
+    console.error('Error saving campaign details:', error);
+    res.status(500).json({ error: error.message || 'Failed to save campaign details' });
+  } finally {
+    client.release();
+  }
+});
+
 app.post('/api/campaigns/:id/start', async (req, res) => {
   try {
     const member = await requireCampaign(req, res, req.params.id, false);
     if (!member) return;
     if (member.role === 'gm') {
       const result = await pool.query(
-        'UPDATE campaign SET running = true, concluded = false, modified = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *',
+        START_SESSION_SQL,
         [req.params.id]
       );
       if (result.rows.length === 0) return res.status(404).json({ error: 'Campaign not found' });
@@ -818,7 +864,23 @@ app.get('/api/characters/:id', async (req, res) => {
     }
     character.abilities = abil.rows;
     character.spells = spells.rows;
-    character.items = items.rows;
+    character.items = items.rows.map((row) => ({
+      ...row,
+      item_pounds: row.item_weight == null ? null : formatPounds(row.item_weight),
+    }));
+    const armor = character.items.find((row) => String(row.id) === String(character.equipped_armor_id));
+    const carried = encumbrance({
+      raceName: character.race_name,
+      strength: character.str,
+      ounces: character.items.reduce((sum, row) => {
+        const qty = row.quantity == null || row.quantity === '' ? 1 : Number(row.quantity);
+        const weight = row.item_weight == null || row.item_weight === '' ? 0 : Number(row.item_weight);
+        return sum + (Number.isFinite(qty) ? qty : 0) * (Number.isFinite(weight) ? weight : 0);
+      }, 0),
+      armorAc: armor && armor.item_ac != null && armor.item_ac !== '' ? Number(armor.item_ac) : null,
+      armorMagic: armor != null && Number(armor.bonus) > 0,
+    });
+    character.encumbrance = { pounds: carried.pounds, label: carried.label };
     character.effects = effects.rows;
     character.spells_cast = casts.rows;
 
@@ -2378,7 +2440,7 @@ async function loadAdventuring(campaignId) {
             COALESCE(b.game_seconds, 0) AS game_seconds,
             b.visit_seconds,
             COALESCE(b.in_encounter, false) AS in_encounter,
-            COALESCE(b.place, 'outside') AS place,
+            COALESCE(b.environment, 'outside') AS environment,
             b.location_id
      FROM campaign c
      LEFT JOIN campaign_board b ON b.campaign_id = c.id
@@ -2388,7 +2450,7 @@ async function loadAdventuring(campaignId) {
   if (camp.rows.length === 0) return null;
   const gameSeconds = Number(camp.rows[0].game_seconds);
   const visitStamp = camp.rows[0].visit_seconds;
-  const [enemies, characters, marks, locations, tables, wanders, turnBlocks, bodies, hirelings, visitRows] = await Promise.all([
+  const [enemies, characters, marks, locations, places, tables, wanders, turnBlocks, bodies, hirelings, visitRows, detailRows] = await Promise.all([
     pool.query(
       `SELECT e.id, e.name, e.monster_id, e.treasure_type, e.hp, e.base_hp, e.location_id,
               m.hit_dice, m.morale, m.morale_engaged, m.armor_class, m.defense_note, m.attack_note, m.notes
@@ -2419,8 +2481,13 @@ async function loadAdventuring(campaignId) {
       [campaignId]
     ),
     pool.query(
-      `SELECT id, name, place, check_die, interval_seconds, encounter_table_id, terrain, movement_pct, summary, arrived_seconds, site, ambient_light, dark_summary, gm_text
+      `SELECT id, name, environment, place_id, check_die, interval_seconds, encounter_table_id, terrain, movement_pct, summary, arrived_seconds, ambient_light, dark_summary, gm_text
        FROM campaign_location WHERE campaign_id = $1 ORDER BY name, id`,
+      [campaignId]
+    ),
+    pool.query(
+      `SELECT id, name, description, place_type, gm_text
+       FROM campaign_place WHERE campaign_id = $1 ORDER BY name, id`,
       [campaignId]
     ),
     pool.query(
@@ -2483,6 +2550,11 @@ async function loadAdventuring(campaignId) {
          LIMIT 1`,
         [campaignId, visitStamp]
       ),
+    pool.query(
+      `SELECT intro, gm_notes, first_location_id
+       FROM campaign_details WHERE campaign_id = $1`,
+      [campaignId]
+    ),
   ]);
   const tableIds = tables.rows.map((row) => row.id);
   const faces = tableIds.length === 0
@@ -2516,6 +2588,7 @@ async function loadAdventuring(campaignId) {
       light_lb: carried ? carried.light_lb : null,
       heavy_lb: carried ? carried.heavy_lb : null,
       load: carried ? carried.load : null,
+      label: carried ? carried.label : null,
       armor: carried ? carried.armor : null,
       move: carried ? carried.move : null,
       turn_feet: carried ? carried.turn_feet : null,
@@ -2533,7 +2606,7 @@ async function loadAdventuring(campaignId) {
   });
   const slow = slowestMember(characterRows.filter((row) => row.move != null));
   const selected = locations.rows.find((row) => String(row.id) === String(camp.rows[0].location_id));
-  const outsidePct = selected && selected.place === 'outside' && selected.movement_pct != null
+  const outsidePct = selected && selected.environment === 'outside' && selected.movement_pct != null
     ? Number(selected.movement_pct)
     : null;
   const baseMiles = slow ? slow.miles : null;
@@ -2619,11 +2692,24 @@ async function loadAdventuring(campaignId) {
     if (!flagsByLocation.has(placeId)) flagsByLocation.set(placeId, []);
     flagsByLocation.get(placeId).push(flag);
   }
+  const playState = await listFacts(pool, campaignId);
+  const factsByLocation = new Map();
+  for (const fact of playState.facts) {
+    if (fact.location_id == null) continue;
+    if (!factsByLocation.has(fact.location_id)) factsByLocation.set(fact.location_id, []);
+    factsByLocation.get(fact.location_id).push(fact);
+  }
+  const situation = await loadSituation(campaignId, camp.rows[0].concluded === true);
   return {
     game_seconds: camp.rows[0].game_seconds,
     in_encounter: camp.rows[0].in_encounter,
-    place: camp.rows[0].place,
+    environment: camp.rows[0].environment,
     location_id: camp.rows[0].location_id,
+    intro: detailRows.rows[0]?.intro ?? null,
+    gm_notes: detailRows.rows[0]?.gm_notes ?? null,
+    first_location_id: detailRows.rows[0]?.first_location_id == null
+      ? null
+      : Number(detailRows.rows[0].first_location_id),
     enemies: enemies.rows.map((row) => ({
       ...row,
       hp: row.hp == null ? null : Number(row.hp),
@@ -2636,7 +2722,8 @@ async function loadAdventuring(campaignId) {
     party_turn: slow ? slow.turn_feet : null,
     party_miles: slow ? slow.miles : null,
     party_slow: slow ? slow.name : null,
-    visit_turns: selected && selected.site
+    party_load: slow ? slow.label : null,
+    visit_turns: selected && selected.place_id != null
       ? visitTurns(gameSeconds, camp.rows[0].visit_seconds, TURN_SECONDS)
       : null,
     overland_miles: overland,
@@ -2647,11 +2734,20 @@ async function loadAdventuring(campaignId) {
     specialists: SPECIALISTS,
     mercenaries: MERCENARIES,
     marks: marks.rows,
+    places: places.rows.map((row) => ({
+      id: Number(row.id),
+      name: row.name,
+      description: row.description,
+      place_type: row.place_type,
+      gm_text: row.gm_text,
+    })),
     locations: locations.rows.map((row) => ({
       ...row,
+      place_id: row.place_id == null ? null : Number(row.place_id),
       shops: shopsByLocation.get(Number(row.id)) || [],
       creatures: creaturesByLocation.get(Number(row.id)) || [],
       flags: flagsByLocation.get(Number(row.id)) || [],
+      facts: factsByLocation.get(Number(row.id)) || [],
     })),
     tables: tables.rows.map((row) => ({
       id: row.id,
@@ -2664,7 +2760,9 @@ async function loadAdventuring(campaignId) {
     wanders: wanders.rows,
     visit_check: currentVisitCheck(visitRows.rows, visitStamp == null ? null : Number(visitStamp)),
     turn_blocks: turnBlocks.rows,
-    situation: await loadSituation(campaignId, camp.rows[0].concluded === true),
+    water_flowing: playState.water_flowing,
+    rising_water: risingWaterPreview(playState.facts, situation.encounters),
+    situation,
   };
 }
 
@@ -2736,6 +2834,10 @@ app.post('/api/campaigns/:campaignId/adventuring/tick', async (req, res) => {
       checks = await applyWander(client, req.params.campaignId, clock);
       visit = await applyVisitCheck(client, req.params.campaignId, clock);
     }
+    // The question lives on this response. It is not stored, so a reload does not ask again.
+    const environmentalEffect = req.body.step === 'turn'
+      ? await environmentalEffectOnTurn(client, req.params.campaignId, now)
+      : null;
     let queued = null;
     if (step.command === 'new_day') {
       await copyIntendToMemorized(client, req.params.campaignId, null);
@@ -2751,7 +2853,7 @@ app.post('/api/campaigns/:campaignId/adventuring/tick', async (req, res) => {
       queued = inserted.rowCount;
     }
     await client.query('COMMIT');
-    res.json({ game_seconds: now, queued, checks, visit });
+    res.json({ game_seconds: now, queued, checks, visit, environmental_effect: environmentalEffect });
   } catch (error) {
     try { await client.query('ROLLBACK'); } catch (_) { /* connection already failed */ }
     if (adventuringMissing(res, error)) return;
@@ -3237,16 +3339,15 @@ function movementField(value) {
 }
 
 function locationConstraintMessage(constraint) {
-  if (constraint === 'campaign_location_site_check') return 'Site must be a name';
   if (constraint === 'campaign_location_light_check') return 'Ambient light must be from 0 to 100 indoors';
   return 'That terrain is not allowed on this location';
 }
 
-function locationLight(place, body) {
+function locationLight(environment, body) {
   const darkSummary = optionalText(body?.dark_summary, 'dark_summary', 4000);
   const raw = body?.ambient_light;
   const missing = raw == null || raw === '';
-  if (place === 'outside') {
+  if (environment === 'outside') {
     if (!missing || darkSummary) throw storedError('Ambient light is only stored indoors', 400);
     return { ambientLight: null, darkSummary: null };
   }
@@ -3257,20 +3358,23 @@ function locationLight(place, body) {
 
 function readLocationFields(body) {
   const name = String(body?.name || '').trim();
-  const place = body?.place;
+  const environment = body?.environment;
   if (!name || name.length > 80) throw storedError('name must be 1 to 80 characters', 400);
-  if (place !== 'outside' && place !== 'inside') throw storedError('place must be outside or inside', 400);
+  if (environment !== 'outside' && environment !== 'inside') {
+    throw storedError('environment must be outside or inside', 400);
+  }
   const checkDie = body?.check_die == null || body.check_die === '' ? 6 : positiveInt(body.check_die, 'check_die');
   if (checkDie < 2 || checkDie > 100) throw storedError('check_die must be from 2 to 100', 400);
   const interval = body?.interval_seconds == null || body.interval_seconds === ''
-    ? (place === 'inside' ? INSIDE_INTERVAL : OUTSIDE_INTERVAL)
+    ? (environment === 'inside' ? INSIDE_INTERVAL : OUTSIDE_INTERVAL)
     : positiveInt(body.interval_seconds, 'interval_seconds');
   const tableId = positiveInt(body?.encounter_table_id, 'encounter_table_id');
-  const terrain = locationTerrain(place, body?.terrain, movementField(body?.movement_pct));
+  const terrain = locationTerrain(environment, body?.terrain, movementField(body?.movement_pct));
   if (terrain.error) throw storedError(terrain.error, 400);
   return {
     name,
-    place,
+    environment,
+    placeId: placeIdField(body?.place_id),
     checkDie,
     interval,
     tableId,
@@ -3278,10 +3382,20 @@ function readLocationFields(body) {
     movementPct: terrain.movement_pct,
     summary: optionalText(body?.summary, 'summary', 4000),
     gmText: optionalText(body?.gm_text, 'gm_text', 4000),
-    site: optionalText(body?.site, 'site', 80),
-    ...locationLight(place, body),
+    ...locationLight(environment, body),
   };
 }
+
+async function placeForCampaign(client, campaignId, placeId) {
+  if (placeId == null) return null;
+  const found = await client.query(
+    'SELECT id FROM campaign_place WHERE id = $1 AND campaign_id = $2',
+    [placeId, campaignId]
+  );
+  return found.rows[0] || null;
+}
+
+const LOCATION_COLUMNS = 'id, name, environment, place_id, check_die, interval_seconds, encounter_table_id, terrain, movement_pct, summary, arrived_seconds, ambient_light, dark_summary, gm_text';
 
 function parseTableRows(die, rows) {
   if (!Array.isArray(rows) || rows.length === 0) throw storedError('A table needs at least one row', 400);
@@ -3354,6 +3468,86 @@ app.post('/api/campaigns/:campaignId/adventuring/tables', async (req, res) => {
   }
 });
 
+app.post('/api/campaigns/:campaignId/adventuring/places', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const fields = readPlace(req.body);
+    const inserted = await pool.query(
+      `INSERT INTO campaign_place (campaign_id, name, description, place_type, gm_text)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, name, description, place_type, gm_text`,
+      [req.params.campaignId, fields.name, fields.description, fields.placeType, fields.gmText]
+    );
+    res.status(201).json(inserted.rows[0]);
+  } catch (error) {
+    if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    if (error.code === '23505') return res.status(400).json({ error: 'A place with that name already exists' });
+    console.error('Error creating place:', error);
+    res.status(500).json({ error: error.message || 'Failed to create place' });
+  }
+});
+
+app.patch('/api/campaigns/:campaignId/adventuring/places/:placeId', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const fields = readPlace(req.body);
+    const updated = await pool.query(
+      `UPDATE campaign_place
+       SET name = $3, description = $4, place_type = $5, gm_text = $6
+       WHERE id = $1 AND campaign_id = $2
+       RETURNING id, name, description, place_type, gm_text`,
+      [req.params.placeId, req.params.campaignId, fields.name, fields.description, fields.placeType, fields.gmText]
+    );
+    if (updated.rows.length === 0) return res.status(404).json({ error: 'Place not found' });
+    res.json(updated.rows[0]);
+  } catch (error) {
+    if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    if (error.code === '23505') return res.status(400).json({ error: 'A place with that name already exists' });
+    console.error('Error updating place:', error);
+    res.status(500).json({ error: error.message || 'Failed to update place' });
+  }
+});
+
+app.delete('/api/campaigns/:campaignId/adventuring/places/:placeId', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    await client.query('BEGIN');
+    await client.query(
+      `UPDATE campaign_board b
+       SET visit_seconds = NULL
+       FROM campaign_location l
+       WHERE b.campaign_id = $1
+         AND b.location_id = l.id
+         AND l.place_id = $2
+         AND l.campaign_id = $1`,
+      [req.params.campaignId, req.params.placeId]
+    );
+    const deleted = await client.query(
+      'DELETE FROM campaign_place WHERE id = $1 AND campaign_id = $2 RETURNING id',
+      [req.params.placeId, req.params.campaignId]
+    );
+    if (deleted.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Place not found' });
+    }
+    await client.query('COMMIT');
+    res.json({ id: deleted.rows[0].id });
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch (_) { /* connection already failed */ }
+    if (adventuringMissing(res, error)) return;
+    console.error('Error deleting place:', error);
+    res.status(500).json({ error: error.message || 'Failed to delete place' });
+  } finally {
+    client.release();
+  }
+});
+
 app.post('/api/campaigns/:campaignId/adventuring/locations', async (req, res) => {
   try {
     const member = await requireCampaign(req, res, req.params.campaignId, true);
@@ -3362,12 +3556,15 @@ app.post('/api/campaigns/:campaignId/adventuring/locations', async (req, res) =>
     if (!(await tableForCampaign(pool, req.params.campaignId, fields.tableId))) {
       return res.status(400).json({ error: 'Table is not in this campaign' });
     }
+    if (fields.placeId != null && !(await placeForCampaign(pool, req.params.campaignId, fields.placeId))) {
+      return res.status(400).json({ error: 'Place is not in this campaign' });
+    }
     const inserted = await pool.query(
       `INSERT INTO campaign_location
-         (campaign_id, name, place, check_die, interval_seconds, encounter_table_id, terrain, movement_pct, summary, site, ambient_light, dark_summary, gm_text)
+         (campaign_id, name, environment, place_id, check_die, interval_seconds, encounter_table_id, terrain, movement_pct, summary, ambient_light, dark_summary, gm_text)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-       RETURNING id, name, place, check_die, interval_seconds, encounter_table_id, terrain, movement_pct, summary, arrived_seconds, site, ambient_light, dark_summary, gm_text`,
-      [req.params.campaignId, fields.name, fields.place, fields.checkDie, fields.interval, fields.tableId, fields.terrain, fields.movementPct, fields.summary, fields.site, fields.ambientLight, fields.darkSummary, fields.gmText]
+       RETURNING ${LOCATION_COLUMNS}`,
+      [req.params.campaignId, fields.name, fields.environment, fields.placeId, fields.checkDie, fields.interval, fields.tableId, fields.terrain, fields.movementPct, fields.summary, fields.ambientLight, fields.darkSummary, fields.gmText]
     );
     res.status(201).json(inserted.rows[0]);
   } catch (error) {
@@ -3384,12 +3581,12 @@ app.post('/api/campaigns/:campaignId/adventuring/locations', async (req, res) =>
 
 async function selectCampaignLocation(client, campaignId, locationId) {
   const loc = await client.query(
-    'SELECT id, place, site, arrived_seconds FROM campaign_location WHERE id = $1 AND campaign_id = $2',
+    'SELECT id, environment, place_id, arrived_seconds FROM campaign_location WHERE id = $1 AND campaign_id = $2',
     [locationId, campaignId]
   );
   if (loc.rows.length === 0) throw storedError('Location not found', 404);
   const board = await client.query(
-    `SELECT COALESCE(b.game_seconds, 0) AS game_seconds, b.visit_seconds, l.site
+    `SELECT COALESCE(b.game_seconds, 0) AS game_seconds, b.visit_seconds, l.place_id
      FROM campaign_board b
      LEFT JOIN campaign_location l ON l.id = b.location_id
      WHERE b.campaign_id = $1`,
@@ -3397,16 +3594,16 @@ async function selectCampaignLocation(client, campaignId, locationId) {
   );
   const gameSeconds = board.rows.length === 0 ? 0 : Number(board.rows[0].game_seconds);
   const visitSeconds = nextVisitStamp(
-    board.rows.length === 0 ? null : board.rows[0].site,
-    loc.rows[0].site,
+    board.rows.length === 0 ? null : board.rows[0].place_id,
+    loc.rows[0].place_id,
     gameSeconds,
     board.rows.length === 0 ? null : board.rows[0].visit_seconds
   );
   const updated = await client.query(
-    `INSERT INTO campaign_board (campaign_id, place, location_id, check_seconds, visit_seconds)
+    `INSERT INTO campaign_board (campaign_id, environment, location_id, check_seconds, visit_seconds)
      VALUES ($1, $2, $3, 0, $4)
      ON CONFLICT (campaign_id) DO UPDATE
-     SET place = EXCLUDED.place,
+     SET environment = EXCLUDED.environment,
          location_id = EXCLUDED.location_id,
          check_seconds = CASE
            WHEN campaign_board.location_id IS NOT DISTINCT FROM EXCLUDED.location_id
@@ -3414,8 +3611,8 @@ async function selectCampaignLocation(client, campaignId, locationId) {
            ELSE campaign_board.game_seconds
          END,
          visit_seconds = EXCLUDED.visit_seconds
-     RETURNING place, location_id, check_seconds, game_seconds, visit_seconds`,
-    [campaignId, loc.rows[0].place, loc.rows[0].id, visitSeconds]
+     RETURNING environment, location_id, check_seconds, game_seconds, visit_seconds`,
+    [campaignId, loc.rows[0].environment, loc.rows[0].id, visitSeconds]
   );
   await client.query(
     `UPDATE campaign_location
@@ -3491,7 +3688,7 @@ app.patch('/api/campaigns/:campaignId/adventuring/locations/:locationId', async 
     const fields = readLocationFields(req.body);
     await client.query('BEGIN');
     const prior = await client.query(
-      `SELECT l.site, b.location_id, b.visit_seconds, COALESCE(b.game_seconds, 0) AS game_seconds
+      `SELECT l.place_id, b.location_id, b.visit_seconds, COALESCE(b.game_seconds, 0) AS game_seconds
        FROM campaign_location l
        LEFT JOIN campaign_board b ON b.campaign_id = l.campaign_id
        WHERE l.id = $1 AND l.campaign_id = $2`,
@@ -3501,25 +3698,29 @@ app.patch('/api/campaigns/:campaignId/adventuring/locations/:locationId', async 
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Table is not in this campaign' });
     }
+    if (fields.placeId != null && !(await placeForCampaign(client, req.params.campaignId, fields.placeId))) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Place is not in this campaign' });
+    }
     const updated = await client.query(
       `UPDATE campaign_location
-       SET name = $3, place = $4, check_die = $5, interval_seconds = $6,
-           encounter_table_id = $7, terrain = $8, movement_pct = $9, summary = $10, site = $11,
+       SET name = $3, environment = $4, place_id = $5, check_die = $6, interval_seconds = $7,
+           encounter_table_id = $8, terrain = $9, movement_pct = $10, summary = $11,
            ambient_light = $12, dark_summary = $13, gm_text = $14
        WHERE id = $1 AND campaign_id = $2
-       RETURNING id, name, place, check_die, interval_seconds, encounter_table_id, terrain, movement_pct, summary, arrived_seconds, site, ambient_light, dark_summary, gm_text`,
+       RETURNING ${LOCATION_COLUMNS}`,
       [
         req.params.locationId,
         req.params.campaignId,
         fields.name,
-        fields.place,
+        fields.environment,
+        fields.placeId,
         fields.checkDie,
         fields.interval,
         fields.tableId,
         fields.terrain,
         fields.movementPct,
         fields.summary,
-        fields.site,
         fields.ambientLight,
         fields.darkSummary,
         fields.gmText,
@@ -3532,8 +3733,8 @@ app.patch('/api/campaigns/:campaignId/adventuring/locations/:locationId', async 
     const standing = prior.rows[0];
     if (standing && standing.location_id != null && String(standing.location_id) === String(req.params.locationId)) {
       const stamp = nextVisitStamp(
-        standing.site,
-        fields.site,
+        standing.place_id,
+        fields.placeId,
         Number(standing.game_seconds),
         standing.visit_seconds
       );
@@ -3543,9 +3744,9 @@ app.patch('/api/campaigns/:campaignId/adventuring/locations/:locationId', async 
       );
     }
     await client.query(
-      `UPDATE campaign_board SET place = $3
+      `UPDATE campaign_board SET environment = $3
        WHERE campaign_id = $1 AND location_id = $2`,
-      [req.params.campaignId, req.params.locationId, fields.place]
+      [req.params.campaignId, req.params.locationId, fields.environment]
     );
     await client.query('COMMIT');
     res.json(updated.rows[0]);
@@ -3742,6 +3943,119 @@ app.delete('/api/campaigns/:campaignId/adventuring/locations/:locationId/flags/:
     if (error.status) return res.status(error.status).json({ error: error.message });
     console.error('Error clearing room flag:', error);
     res.status(500).json({ error: error.message || 'Failed to clear flag' });
+  }
+});
+
+app.get('/api/campaigns/:campaignId/adventuring/state', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    res.json(await listFacts(pool, req.params.campaignId));
+  } catch (error) {
+    if (adventuringMissing(res, error)) return;
+    console.error('Error reading play facts:', error);
+    res.status(500).json({ error: error.message || 'Failed to read facts' });
+  }
+});
+
+app.post('/api/campaigns/:campaignId/adventuring/state', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const command = readStateCommand(req.body || {});
+    if (command.error) return res.status(400).json({ error: command.error });
+    await client.query('BEGIN');
+    const saved = await setFact(client, req.params.campaignId, command);
+    const listed = await listFacts(client, req.params.campaignId);
+    await client.query('COMMIT');
+    res.json({ changed: saved.changed, fact: saved.fact, water_flowing: listed.water_flowing });
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch (_) { /* connection already failed */ }
+    if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    console.error('Error setting play fact:', error);
+    res.status(500).json({ error: error.message || 'Failed to set fact' });
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/campaigns/:campaignId/adventuring/preview/apply', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const command = readPreviewCommand(req.body || {});
+    if (command.error) return res.status(400).json({ error: command.error });
+    await client.query('BEGIN');
+    const saved = await applyRisingWater(
+      client,
+      req.params.campaignId,
+      command.encounter_id,
+      openPreparedEncounter
+    );
+    await client.query('COMMIT');
+    res.json(saved);
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch (_) { /* connection already failed */ }
+    if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    console.error('Error applying rising water preview:', error);
+    res.status(500).json({ error: error.message || 'Failed to open Rising water' });
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/campaigns/:campaignId/adventuring/preview/reject', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    res.json(rejectRisingWater());
+  } catch (error) {
+    if (adventuringMissing(res, error)) return;
+    console.error('Error rejecting rising water preview:', error);
+    res.status(500).json({ error: error.message || 'Failed to leave Rising water' });
+  }
+});
+
+app.post('/api/campaigns/:campaignId/adventuring/environmental-effect/apply', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const command = readEnvironmentalEffectCommand(req.body || {});
+    if (command.error) return res.status(400).json({ error: command.error });
+    await client.query('BEGIN');
+    const saved = await applyEnvironmentalEffect(
+      client,
+      req.params.campaignId,
+      command,
+      writeCharacterHitPoints
+    );
+    await client.query('COMMIT');
+    res.json(saved);
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch (_) { /* connection already failed */ }
+    if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    console.error('Error applying environmental effect:', error);
+    res.status(500).json({ error: error.message || 'Failed to apply environmental effect' });
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/campaigns/:campaignId/adventuring/environmental-effect/reject', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    res.json(rejectEnvironmentalEffect());
+  } catch (error) {
+    if (adventuringMissing(res, error)) return;
+    console.error('Error rejecting environmental effect:', error);
+    res.status(500).json({ error: error.message || 'Failed to leave environmental effect' });
   }
 });
 
@@ -4462,10 +4776,10 @@ app.delete('/api/campaigns/:campaignId/adventuring/tables/:tableId', async (req,
   }
 });
 
-app.post('/api/campaigns/:campaignId/adventuring/place', async (req, res) => {
-  const place = req.body?.place;
-  if (place !== 'outside' && place !== 'inside') {
-    return res.status(400).json({ error: 'place must be outside or inside' });
+app.post('/api/campaigns/:campaignId/adventuring/environment', async (req, res) => {
+  const environment = req.body?.environment;
+  if (environment !== 'outside' && environment !== 'inside') {
+    return res.status(400).json({ error: 'environment must be outside or inside' });
   }
   try {
     const member = await requireCampaign(req, res, req.params.campaignId, true);
@@ -4473,17 +4787,17 @@ app.post('/api/campaigns/:campaignId/adventuring/place', async (req, res) => {
     const camp = await pool.query('SELECT id FROM campaign WHERE id = $1', [req.params.campaignId]);
     if (camp.rows.length === 0) return res.status(404).json({ error: 'Campaign not found' });
     const updated = await pool.query(
-      `INSERT INTO campaign_board (campaign_id, place)
+      `INSERT INTO campaign_board (campaign_id, environment)
        VALUES ($1, $2)
-       ON CONFLICT (campaign_id) DO UPDATE SET place = EXCLUDED.place
-       RETURNING place, game_seconds`,
-      [req.params.campaignId, place]
+       ON CONFLICT (campaign_id) DO UPDATE SET environment = EXCLUDED.environment
+       RETURNING environment, game_seconds`,
+      [req.params.campaignId, environment]
     );
-    res.json({ place: updated.rows[0].place, game_seconds: updated.rows[0].game_seconds });
+    res.json({ environment: updated.rows[0].environment, game_seconds: updated.rows[0].game_seconds });
   } catch (error) {
     if (adventuringMissing(res, error)) return;
-    console.error('Error setting campaign place:', error);
-    res.status(500).json({ error: error.message || 'Failed to set place' });
+    console.error('Error setting campaign environment:', error);
+    res.status(500).json({ error: error.message || 'Failed to set environment' });
   }
 });
 
@@ -6182,7 +6496,8 @@ async function loadSituation(campaignId, concluded) {
       [campaignId]
     ),
     pool.query(
-      `SELECT id, location_id, title, kind, purpose, notes, status
+      `SELECT id, location_id, title, kind, purpose, notes, status,
+              environmental_effect, environmental_amount
        FROM campaign_encounter WHERE campaign_id = $1 ORDER BY id`,
       [campaignId]
     ),
@@ -6196,7 +6511,7 @@ async function loadSituation(campaignId, concluded) {
       [campaignId]
     ),
     pool.query(
-      `SELECT id, from_location_id, to_location_id, reason, one_way
+      `SELECT id, from_location_id, to_location_id, reason, one_way, discovered, blocked
        FROM campaign_transition WHERE campaign_id = $1 ORDER BY id`,
       [campaignId]
     ),
@@ -6256,6 +6571,8 @@ async function loadSituation(campaignId, concluded) {
       purpose: row.purpose,
       notes: row.notes,
       status: row.status,
+      environmental_effect: row.environmental_effect,
+      environmental_amount: row.environmental_amount == null ? null : Number(row.environmental_amount),
       members: membersByEncounter.get(Number(row.id)) || [],
     })),
     transitions: transitions.rows.map((row) => ({
@@ -6263,6 +6580,9 @@ async function loadSituation(campaignId, concluded) {
       from_location_id: placeId(row.from_location_id),
       to_location_id: Number(row.to_location_id),
       reason: row.reason,
+      one_way: row.one_way === true,
+      discovered: row.discovered !== false,
+      blocked: row.blocked === true,
     })),
     log: logs.rows.map((row) => ({
       id: Number(row.id),
@@ -6474,13 +6794,25 @@ app.post('/api/campaigns/:campaignId/situation/encounters', (req, res) => withSi
   const kind = oneOf(request.body?.kind, ENCOUNTER_KINDS, 'kind');
   const purpose = optionalText(request.body?.purpose, 'purpose', PROSE_MAX);
   const notes = optionalText(request.body?.notes, 'notes', PROSE_MAX);
+  const damage = readEnvironmentalDamage(kind, request.body || {});
+  if (damage.error) throw storedError(damage.error, 400);
   const loc = await ownedLocation(client, request.params.campaignId, request.body?.location_id);
   const inserted = await client.query(
     `INSERT INTO campaign_encounter
-       (campaign_id, location_id, title, kind, purpose, notes, status, base_status)
-     VALUES ($1, $2, $3, $4, $5, $6, 'prepared', 'prepared')
+       (campaign_id, location_id, title, kind, purpose, notes, status, base_status,
+        environmental_effect, environmental_amount)
+     VALUES ($1, $2, $3, $4, $5, $6, 'prepared', 'prepared', $7, $8)
      RETURNING id`,
-    [request.params.campaignId, loc ? loc.id : null, title, kind, purpose, notes]
+    [
+      request.params.campaignId,
+      loc ? loc.id : null,
+      title,
+      kind,
+      purpose,
+      notes,
+      damage.environmental_effect,
+      damage.environmental_amount,
+    ]
   );
   return { statusCode: 201, body: { id: Number(inserted.rows[0].id) } };
 }));
@@ -6510,6 +6842,20 @@ app.patch('/api/campaigns/:campaignId/situation/encounters/:encounterId', (req, 
     const loc = await ownedLocation(client, request.params.campaignId, body.location_id);
     values.push(loc ? loc.id : null);
     sets.push(`location_id = $${values.length}`);
+  }
+  const nextKind = Object.prototype.hasOwnProperty.call(body, 'kind')
+    ? oneOf(body.kind, ENCOUNTER_KINDS, 'kind')
+    : encounter.kind;
+  const touchesEffect = Object.prototype.hasOwnProperty.call(body, 'environmental_effect')
+    || Object.prototype.hasOwnProperty.call(body, 'environmental_amount')
+    || nextKind !== 'hazard';
+  if (touchesEffect) {
+    const damage = readEnvironmentalDamage(nextKind, body);
+    if (damage.error) throw storedError(damage.error, 400);
+    values.push(damage.environmental_effect);
+    sets.push(`environmental_effect = $${values.length}`);
+    values.push(damage.environmental_amount);
+    sets.push(`environmental_amount = $${values.length}`);
   }
   if (sets.length === 0) throw storedError('Nothing to change', 400);
   values.push(encounter.id, request.params.campaignId);
@@ -6643,47 +6989,13 @@ app.delete('/api/campaigns/:campaignId/situation/encounters/:encounterId/members
   return { id: creatureId };
 }));
 
-app.post('/api/campaigns/:campaignId/situation/encounters/:encounterId/open', (req, res) => withSituation(req, res, 'Failed to open encounter', async (client, request) => {
-  const encounter = await client.query(
-    `SELECT id, kind, status FROM campaign_encounter
-     WHERE id = $1 AND campaign_id = $2
-     FOR UPDATE`,
-    [positiveInt(request.params.encounterId, 'encounter_id'), request.params.campaignId]
-  );
-  if (encounter.rows.length === 0) throw storedError('Encounter not found', 404);
-  const row = encounter.rows[0];
-  if (row.status === 'resolved') throw storedError('That encounter is not prepared', 400);
-  if (row.status !== 'prepared' && row.status !== 'opened') {
-    throw storedError('That encounter is not prepared', 400);
-  }
-  const members = await client.query(
-    'SELECT creature_id FROM campaign_encounter_member WHERE encounter_id = $1',
-    [row.id]
-  );
-  const openFight = row.kind === 'combat' || members.rows.length > 0;
-  if (openFight) {
-    await client.query(
-      `INSERT INTO campaign_board (campaign_id, in_encounter)
-       VALUES ($1, true)
-       ON CONFLICT (campaign_id) DO UPDATE SET in_encounter = true`,
-      [request.params.campaignId]
-    );
-    await client.query(
-      `UPDATE campaign_creature c
-       SET in_fight = true
-       FROM campaign_encounter_member m
-       WHERE m.encounter_id = $1 AND m.creature_id = c.id`,
-      [row.id]
-    );
-  }
-  if (row.status === 'prepared') {
-    await client.query(
-      `UPDATE campaign_encounter SET status = 'opened' WHERE id = $1`,
-      [row.id]
-    );
-  }
-  return { id: Number(row.id), in_encounter: openFight };
-}));
+app.post('/api/campaigns/:campaignId/situation/encounters/:encounterId/open', (req, res) => withSituation(req, res, 'Failed to open encounter', async (client, request) => (
+  openPreparedEncounter(
+    client,
+    request.params.campaignId,
+    positiveInt(request.params.encounterId, 'encounter_id')
+  )
+)));
 
 app.post('/api/campaigns/:campaignId/situation/encounters/:encounterId/resolve', (req, res) => withSituation(req, res, 'Failed to resolve encounter', async (client, request) => {
   const updated = await client.query(
@@ -6702,11 +7014,14 @@ app.post('/api/campaigns/:campaignId/situation/transitions', (req, res) => withS
   if (!loc) throw storedError('to_location_id is required', 400);
   const reason = optionalText(request.body?.reason, 'reason', PROSE_MAX);
   const oneWay = request.body?.one_way === true;
+  const discovered = request.body?.discovered == null ? true : booleanField(request.body.discovered, 'discovered');
+  const blocked = request.body?.blocked == null ? false : booleanField(request.body.blocked, 'blocked');
   const inserted = await client.query(
-    `INSERT INTO campaign_transition (campaign_id, from_location_id, to_location_id, reason, one_way)
-     VALUES ($1, $2, $3, $4, $5)
+    `INSERT INTO campaign_transition
+       (campaign_id, from_location_id, to_location_id, reason, one_way, discovered, base_discovered, blocked, base_blocked)
+     VALUES ($1, $2, $3, $4, $5, $6, $6, $7, $7)
      RETURNING id`,
-    [request.params.campaignId, from ? from.id : null, loc.id, reason, oneWay]
+    [request.params.campaignId, from ? from.id : null, loc.id, reason, oneWay, discovered, blocked]
   );
   return { statusCode: 201, body: { id: Number(inserted.rows[0].id) } };
 }));
@@ -6735,6 +7050,14 @@ app.patch('/api/campaigns/:campaignId/situation/transitions/:transitionId', (req
     values.push(body.one_way === true);
     sets.push(`one_way = $${values.length}`);
   }
+  if (Object.prototype.hasOwnProperty.call(body, 'discovered')) {
+    values.push(booleanField(body.discovered, 'discovered'));
+    sets.push(`discovered = $${values.length}`);
+  }
+  if (Object.prototype.hasOwnProperty.call(body, 'blocked')) {
+    values.push(booleanField(body.blocked, 'blocked'));
+    sets.push(`blocked = $${values.length}`);
+  }
   if (sets.length === 0) throw storedError('Nothing to change', 400);
   values.push(id, request.params.campaignId);
   const updated = await client.query(
@@ -6758,15 +7081,42 @@ app.delete('/api/campaigns/:campaignId/situation/transitions/:transitionId', (re
 
 app.post('/api/campaigns/:campaignId/situation/transitions/:transitionId/arrive', (req, res) => withSituation(req, res, 'Failed to arrive', async (client, request) => {
   const lead = await client.query(
-    'SELECT id, from_location_id, to_location_id, one_way FROM campaign_transition WHERE id = $1 AND campaign_id = $2',
+    `SELECT id, from_location_id, to_location_id, one_way, reason, discovered, blocked
+     FROM campaign_transition WHERE id = $1 AND campaign_id = $2`,
     [positiveInt(request.params.transitionId, 'transition_id'), request.params.campaignId]
   );
   if (lead.rows.length === 0) throw storedError('Lead not found', 404);
-  const way = pathDestination(lead.rows[0], request.body?.reverse === true);
+  const way = pathTravel(lead.rows[0], request.body?.reverse === true, request.body?.override === true);
   if (way.error) throw storedError(way.error, 400);
   const selected = await arriveAtLocation(client, request.params.campaignId, way.locationId);
-  return { location_id: selected.location_id, place: selected.place };
+  if (way.log) {
+    const at = await clockSeconds(client, request.params.campaignId);
+    const board = await client.query(
+      'SELECT location_id FROM campaign_board WHERE campaign_id = $1',
+      [request.params.campaignId]
+    );
+    const locationId = board.rows.length === 0 ? null : board.rows[0].location_id;
+    await client.query(
+      `INSERT INTO campaign_log (campaign_id, location_id, at_seconds, kind, body)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [request.params.campaignId, locationId, at, way.log.kind, way.log.body]
+    );
+  }
+  return { location_id: selected.location_id, environment: selected.environment };
 }));
+
+app.post('/api/campaigns/:campaignId/situation/transitions/:transitionId/found', (req, res) => withSituation(req, res, 'Failed to mark path found', async (client, request) => (
+  markPathFound(client, request.params.campaignId, positiveInt(request.params.transitionId, 'transition_id'))
+)));
+
+app.post('/api/campaigns/:campaignId/situation/transitions/:transitionId/access', (req, res) => withSituation(req, res, 'Failed to change path access', async (client, request) => (
+  setPathAccess(
+    client,
+    request.params.campaignId,
+    positiveInt(request.params.transitionId, 'transition_id'),
+    booleanField(request.body?.blocked, 'blocked')
+  )
+)));
 
 app.post('/api/campaigns/:campaignId/situation/log', (req, res) => withSituation(req, res, 'Failed to record log', async (client, request) => {
   const kind = oneOf(request.body?.kind, LOG_KINDS, 'kind');
@@ -6786,86 +7136,20 @@ app.post('/api/campaigns/:campaignId/situation/log', (req, res) => withSituation
   return { statusCode: 201, body: { id: Number(inserted.rows[0].id) } };
 }));
 
-app.post('/api/campaigns/:campaignId/situation/end', (req, res) => withSituation(req, res, 'Failed to end session', async (client, request) => {
-  const current = await client.query('SELECT id, concluded FROM campaign WHERE id = $1', [request.params.campaignId]);
-  if (current.rows.length === 0) throw storedError('Campaign not found', 404);
-  const updated = await client.query(
-    `UPDATE campaign SET running = false, modified = CURRENT_TIMESTAMP WHERE id = $1 RETURNING running, concluded`,
-    [request.params.campaignId]
-  );
-  return { running: updated.rows[0].running === true, concluded: updated.rows[0].concluded === true };
-}));
+app.post('/api/campaigns/:campaignId/situation/end', (req, res) => withSituation(req, res, 'Failed to end session', async (client, request) => (
+  endCampaignSession(client, request.params.campaignId)
+)));
 
-async function resetCampaignRun(client, campaignId) {
-  await client.query(
-    `UPDATE campaign_creature
-     SET hp = base_hp, disposition = base_disposition, in_fight = false
-     WHERE campaign_id = $1`,
-    [campaignId]
-  );
-  await client.query(
-    'UPDATE campaign_encounter SET status = base_status WHERE campaign_id = $1',
-    [campaignId]
-  );
-  await client.query(
-    'UPDATE campaign_clue SET discovered = base_discovered WHERE campaign_id = $1',
-    [campaignId]
-  );
-  await client.query(
-    'UPDATE campaign_objective SET known = base_known, status = base_status WHERE campaign_id = $1',
-    [campaignId]
-  );
-  await client.query(
-    `UPDATE campaign_board
-     SET game_seconds = 0, in_encounter = false, place = 'outside',
-         location_id = NULL, check_seconds = NULL, visit_seconds = NULL
-     WHERE campaign_id = $1`,
-    [campaignId]
-  );
-  await client.query(
-    'UPDATE campaign_location SET arrived_seconds = NULL WHERE campaign_id = $1',
-    [campaignId]
-  );
-  await client.query(
-    `UPDATE campaign_character
-     SET food_missed = 0, heal_food = false, heal_water = false,
-         march_days = 0, march_failed = false, hire_penalty = 0
-     WHERE campaign_id = $1`,
-    [campaignId]
-  );
-  await client.query('DELETE FROM campaign_wander WHERE campaign_id = $1', [campaignId]);
-  await client.query('DELETE FROM campaign_log WHERE campaign_id = $1', [campaignId]);
-  await client.query('DELETE FROM campaign_mark WHERE campaign_id = $1', [campaignId]);
-  await client.query('DELETE FROM campaign_turn_block WHERE campaign_id = $1', [campaignId]);
-  await client.query('DELETE FROM campaign_presence WHERE campaign_id = $1', [campaignId]);
-  await client.query(
-    `DELETE FROM campaign_location_flag f
-     USING campaign_location l
-     WHERE f.location_id = l.id AND l.campaign_id = $1`,
-    [campaignId]
-  );
-  await client.query('DELETE FROM campaign_command WHERE campaign_id = $1', [campaignId]);
-  await client.query('DELETE FROM campaign_hireling WHERE campaign_id = $1', [campaignId]);
-}
-
-app.post('/api/campaigns/:campaignId/situation/conclude', (req, res) => withSituation(req, res, 'Failed to conclude campaign', async (client, request) => {
-  const current = await client.query('SELECT id FROM campaign WHERE id = $1', [request.params.campaignId]);
-  if (current.rows.length === 0) throw storedError('Campaign not found', 404);
-  await resetCampaignRun(client, request.params.campaignId);
-  const updated = await client.query(
-    `UPDATE campaign SET concluded = true, running = false, modified = CURRENT_TIMESTAMP
-     WHERE id = $1 RETURNING running, concluded`,
-    [request.params.campaignId]
-  );
-  return { running: updated.rows[0].running === true, concluded: updated.rows[0].concluded === true };
-}));
+app.post('/api/campaigns/:campaignId/situation/conclude', (req, res) => withSituation(req, res, 'Failed to conclude campaign', async (client, request) => (
+  concludeCampaignRun(client, request.params.campaignId)
+)));
 
 app.get('/api/campaigns/:campaignId/here', async (req, res) => {
   try {
     const member = await requireCampaign(req, res, req.params.campaignId, false);
     if (!member) return;
     const here = await pool.query(
-      `SELECT l.name AS location_name
+      `SELECT b.location_id, l.name AS location_name
        FROM campaign c
        LEFT JOIN campaign_board b ON b.campaign_id = c.id
        LEFT JOIN campaign_location l ON l.id = b.location_id AND l.campaign_id = c.id
@@ -6880,9 +7164,22 @@ app.get('/api/campaigns/:campaignId/here', async (req, res) => {
        ORDER BY id`,
       [req.params.campaignId]
     );
+    const paths = await pool.query(
+      `SELECT t.id, t.from_location_id, t.to_location_id, t.reason, t.one_way, t.discovered, t.blocked,
+              f.name AS from_name, d.name AS to_name,
+              f.arrived_seconds AS from_arrived, d.arrived_seconds AS to_arrived
+       FROM campaign_transition t
+       LEFT JOIN campaign_location f ON f.id = t.from_location_id
+       JOIN campaign_location d ON d.id = t.to_location_id
+       WHERE t.campaign_id = $1
+       ORDER BY t.id`,
+      [req.params.campaignId]
+    );
     res.json(playerHere({
       location_name: here.rows[0].location_name,
+      location_id: here.rows[0].location_id,
       objectives: objectives.rows,
+      paths: paths.rows,
     }));
   } catch (error) {
     if (adventuringMissing(res, error)) return;
@@ -6916,5 +7213,5 @@ function startServer(portToUse = port) {
 if (require.main === module) {
   startServer();
 } else {
-  module.exports = { app, startServer };
+  module.exports = { app, startServer, writeCharacterHitPoints, pool };
 }

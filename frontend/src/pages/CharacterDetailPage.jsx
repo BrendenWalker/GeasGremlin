@@ -368,6 +368,7 @@ function keepLoadedLists(prev, row) {
     effects: prev?.effects ?? [],
     spells_cast: prev?.spells_cast ?? [],
     next_level_xp: prev?.next_level_xp ?? null,
+    encumbrance: prev?.encumbrance ?? null,
   };
 }
 
@@ -628,10 +629,8 @@ export default function CharacterDetailPage({ playerMode = false }) {
     e.preventDefault();
     setSaving(true);
     updateCharacter(id, form)
-      .then((r) => {
-        setCharacter((prev) => keepLoadedLists(prev, r.data));
-        setEditing(false);
-      })
+      .then(() => refreshCharacter())
+      .then(() => setEditing(false))
       .catch((err) => setError(err.response?.data?.error || err.message))
       .finally(() => setSaving(false));
   };
@@ -947,6 +946,20 @@ export default function CharacterDetailPage({ playerMode = false }) {
                   </li>
                 ))}
               </ul>
+            )}
+            {(here?.exits || []).length > 0 && (
+              <>
+                <h3 style={{ margin: '0.5rem 0 0.25rem', fontSize: '1rem' }}>Exits:</h3>
+                <ul style={{ margin: 0, paddingLeft: '1.25rem' }}>
+                {here.exits.map((row, index) => (
+                  <li key={`${row.destination_name || 'unseen'}-${row.reason || ''}-${index}`}>
+                    {row.destination_name || row.reason || 'That path'}
+                    {row.destination_name && row.reason ? <span className="muted"> · {row.reason}</span> : null}
+                    {row.blocked ? <span className="muted"> · blocked</span> : null}
+                  </li>
+                ))}
+                </ul>
+              </>
             )}
           </div>
           <ShopVisit
@@ -1285,7 +1298,14 @@ export default function CharacterDetailPage({ playerMode = false }) {
 
       <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h2>Inventory</h2>
+            <div>
+              <h2 style={{ margin: 0 }}>Inventory</h2>
+              {character.encumbrance && (
+                <p style={{ margin: '0.25rem 0 0' }}>
+                  {character.encumbrance.pounds} lb · {character.encumbrance.label}
+                </p>
+              )}
+            </div>
             {!sheetLocked && (
               <button type="button" className="btn btn-primary" onClick={() => setAddItemModal(true)}>Add item</button>
             )}
@@ -1341,7 +1361,7 @@ export default function CharacterDetailPage({ playerMode = false }) {
                 >
                   <span>{i.name || i.item_name} × {i.quantity ?? 1}</span>
                   <span style={{ color: '#8a7f72' }}>
-                    {i.item_weight != null && `${i.item_weight} lb`}
+                    {i.item_pounds != null && `${i.item_pounds} lb`}
                     {i.item_damage && ` · ${i.item_damage}`}
                     {i.item_ac != null && ` · AC ${i.item_ac}`}
                   </span>

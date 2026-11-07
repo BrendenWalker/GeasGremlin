@@ -1,0 +1,446 @@
+/**
+ * One confirmed damage effect on an opened hazard. The database section rolls back.
+ * It does not conclude a campaign and it does not commit.
+ */
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+const repoEnv = path.join(__dirname, '..', '.env');
+if (fs.existsSync(repoEnv)) require('dotenv').config({ path: repoEnv });
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+
+const { poolFromEnv } = require('./scripts/import-catalog');
+const { resetCampaignRun } = require('./campaignLifecycle');
+const { openPreparedEncounter } = require('./preparedEncounter');
+const { risingWaterPreview } = require('./playState');
+const {
+  effectLog,
+  environmentalEffectPreview,
+  readEnvironmentalDamage,
+  readEnvironmentalEffectCommand,
+  rejectEnvironmentalEffect,
+  environmentalEffectOnTurn,
+  applyEnvironmentalEffect,
+} = require('./playState');
+const { writeCharacterHitPoints, pool: serverPool } = require('./server');
+
+const opened = [{
+  id: 4,
+  title: 'Bad air',
+  status: 'opened',
+  kind: 'hazard',
+  member_count: 0,
+  location_id: 65,
+  environmental_effect: 'damage',
+  environmental_amount: 1,
+  already: false,
+}];
+const stair = {
+  step: 'turn',
+  in_encounter: false,
+  location_id: 65,
+  game_seconds: 600,
+  encounters: opened,
+};
+
+assert.equal(environmentalEffectPreview(stair).encounter_id, 4);
+assert.equal(environmentalEffectPreview(stair).title, 'Bad air');
+assert.equal(environmentalEffectPreview(stair).effect, 'damage');
+assert.equal(environmentalEffectPreview(stair).change, 'damage');
+assert.equal(environmentalEffectPreview(stair).amount, 1);
+assert.equal(environmentalEffectPreview(stair).delta, -1);
+assert.equal(environmentalEffectPreview(stair).game_seconds, 600);
+assert.equal(environmentalEffectPreview(stair).why, 'Bad air costs 1 damage.');
+assert.equal(environmentalEffectPreview({
+  ...stair,
+  encounters: [{ ...opened[0], title: 'Green gas', environmental_amount: 2 }],
+}).delta, -2);
+assert.equal(environmentalEffectPreview({ ...stair, step: 'round' }), null);
+assert.equal(environmentalEffectPreview({ ...stair, step: 'watch' }), null);
+assert.equal(environmentalEffectPreview({ ...stair, step: 'day' }), null);
+assert.equal(environmentalEffectPreview({ ...stair, in_encounter: true }), null);
+assert.equal(environmentalEffectPreview({ ...stair, location_id: 9 }), null);
+assert.equal(environmentalEffectPreview({ ...stair, location_id: null }), null);
+assert.equal(environmentalEffectPreview({
+  ...stair,
+  encounters: [{ ...opened[0], already: true }],
+}), null);
+assert.equal(environmentalEffectPreview({ ...stair, game_seconds: -1 }), null);
+assert.equal(environmentalEffectPreview({ ...stair, game_seconds: 1.5 }), null);
+assert.equal(environmentalEffectPreview({ ...stair, encounters: [{ ...opened[0], status: 'prepared' }] }), null);
+assert.equal(environmentalEffectPreview({ ...stair, encounters: [{ ...opened[0], status: 'resolved' }] }), null);
+assert.equal(environmentalEffectPreview({ ...stair, encounters: [{ ...opened[0], kind: 'environment' }] }), null);
+assert.equal(environmentalEffectPreview({ ...stair, encounters: [{ ...opened[0], member_count: 1 }] }), null);
+assert.equal(environmentalEffectPreview({ ...stair, encounters: [{ ...opened[0], members: [{ id: 9 }] }] }), null);
+assert.equal(environmentalEffectPreview({
+  ...stair,
+  encounters: [{ ...opened[0], environmental_effect: null, environmental_amount: null }],
+}), null);
+assert.equal(environmentalEffectPreview({
+  ...stair,
+  encounters: [{ ...opened[0], environmental_effect: 'acid', environmental_amount: 1 }],
+}), null);
+assert.equal(environmentalEffectPreview({
+  ...stair,
+  encounters: [opened[0], { ...opened[0], id: 5, title: 'Green gas' }],
+}), null);
+assert.equal(environmentalEffectPreview({ ...stair, encounters: [] }), null);
+assert.deepEqual(rejectEnvironmentalEffect(), { changed: false });
+assert.equal(readEnvironmentalEffectCommand({}).error, 'game_seconds is required');
+assert.equal(readEnvironmentalEffectCommand({ game_seconds: -1 }).error, 'game_seconds is required');
+assert.equal(readEnvironmentalEffectCommand({ game_seconds: 1.5 }).error, 'game_seconds is required');
+assert.equal(readEnvironmentalEffectCommand({ game_seconds: 600 }).error, 'encounter_id is required');
+assert.equal(readEnvironmentalEffectCommand({ game_seconds: 600, encounter_id: 4 }).encounter_id, 4);
+assert.equal(readEnvironmentalDamage('hazard', { environmental_effect: 'damage', environmental_amount: 1 }).environmental_amount, 1);
+assert.equal(readEnvironmentalDamage('hazard', {}).environmental_effect, null);
+assert.equal(readEnvironmentalDamage('combat', { environmental_effect: 'damage', environmental_amount: 1 }).environmental_effect, null);
+assert.equal(readEnvironmentalDamage('hazard', { environmental_effect: 'acid', environmental_amount: 1 }).error, 'environmental_effect must be damage');
+assert.equal(risingWaterPreview(
+  [{ subject_key: 'waterwheel', state_key: 'blocked', value: false }],
+  [{ id: 7, title: 'Rising water', status: 'prepared', kind: 'environment', member_count: 0 }]
+).change, 'open');
+assert.equal(environmentalEffectPreview({
+  ...stair,
+  encounters: [{ id: 7, title: 'Rising water', status: 'opened', kind: 'environment', member_count: 0, location_id: 65 }],
+}), null);
+
+const schema = fs.readFileSync(path.join(__dirname, '..', 'database', 'schema.sql'), 'utf8');
+assert.equal(schema.includes('CREATE TABLE IF NOT EXISTS public.campaign_situation'), false);
+assert.equal(schema.includes('campaign_automation_rule'), false);
+assert.equal(schema.includes("environmental_effect = 'damage'"), true);
+assert.equal(schema.includes("environmental_effect = 'acid'"), false);
+
+const serverSource = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
+const playSource = fs.readFileSync(path.join(__dirname, 'playState.js'), 'utf8');
+const pageSource = fs.readFileSync(path.join(__dirname, '..', 'frontend', 'src', 'pages', 'AdventuringPage.jsx'), 'utf8');
+
+const tickAt = serverSource.indexOf("app.post('/api/campaigns/:campaignId/adventuring/tick'");
+const tickEnd = serverSource.indexOf('function rollDie', tickAt);
+assert.ok(tickAt > 0 && tickEnd > tickAt);
+const tickSource = serverSource.slice(tickAt, tickEnd);
+assert.equal(tickSource.split('applyWander(').length - 1, 1);
+assert.equal(tickSource.split('applyVisitCheck(').length - 1, 1);
+assert.ok(tickSource.indexOf('applyWander(') < tickSource.indexOf('environmentalEffectOnTurn('));
+assert.ok(tickSource.indexOf('applyVisitCheck(') < tickSource.indexOf('environmentalEffectOnTurn('));
+assert.equal(tickSource.includes("req.body.step === 'turn'"), true);
+assert.equal(tickSource.includes('environmental_effect: environmentalEffect'), true);
+
+const loadAt = serverSource.indexOf('async function loadAdventuring');
+const loadEnd = serverSource.indexOf('async function queueForParty', loadAt);
+assert.ok(loadAt > 0 && loadEnd > loadAt);
+const loadSource = serverSource.slice(loadAt, loadEnd);
+assert.equal(loadSource.includes('environmental_effect'), false);
+assert.equal(loadSource.includes('environmentalEffect'), false);
+assert.equal(loadSource.includes('rising_water: risingWaterPreview'), true);
+
+const hereAt = serverSource.indexOf("app.get('/api/campaigns/:campaignId/here'");
+const hereEnd = serverSource.indexOf('// ==================== HEALTH', hereAt);
+assert.ok(hereAt > 0 && hereEnd > hereAt);
+const hereSource = serverSource.slice(hereAt, hereEnd);
+assert.equal(hereSource.includes('environmental_effect'), false);
+assert.equal(hereSource.includes('environmentalEffect'), false);
+
+const badApply = serverSource.indexOf("app.post('/api/campaigns/:campaignId/adventuring/environmental-effect/apply'");
+const badReject = serverSource.indexOf("app.post('/api/campaigns/:campaignId/adventuring/environmental-effect/reject'");
+const badEnd = serverSource.indexOf("app.post('/api/campaigns/:campaignId/adventuring/creatures/take'", badReject);
+assert.ok(badApply > 0 && badReject > badApply && badEnd > badReject);
+const badRoutes = serverSource.slice(badApply, badEnd);
+assert.equal((badRoutes.match(/requireCampaign\(req, res, req\.params\.campaignId, true\)/g) || []).length, 2);
+assert.equal(badRoutes.includes('requireCampaign(req, res, req.params.campaignId, false)'), false);
+assert.equal(badRoutes.includes('applyEnvironmentalEffect'), true);
+assert.equal(badRoutes.includes('writeCharacterHitPoints'), true);
+const rejectRoute = serverSource.slice(badReject, badEnd);
+assert.equal(rejectRoute.includes('rejectEnvironmentalEffect()'), true);
+assert.equal(rejectRoute.includes('INSERT'), false);
+assert.equal(rejectRoute.includes('UPDATE'), false);
+assert.equal(rejectRoute.includes('DELETE'), false);
+
+const applyFn = playSource.slice(
+  playSource.indexOf('async function applyEnvironmentalEffect'),
+  playSource.indexOf('module.exports')
+);
+assert.equal(applyFn.includes('writeHitPoints(client, Number(person.id), -preview.amount, effectNote(preview.title))'), true);
+assert.equal(applyFn.includes('campaign_creature'), false);
+assert.equal(applyFn.includes('campaign_hireling'), false);
+assert.equal(applyFn.includes('roll'), false);
+const characterSql = playSource.slice(
+  playSource.indexOf('const EFFECT_CHARACTERS_SQL'),
+  playSource.indexOf('const EFFECT_MARK_SQL')
+);
+assert.equal(characterSql.includes('campaign_character'), true);
+assert.equal(characterSql.includes('campaign_creature'), false);
+assert.equal(characterSql.includes('campaign_hireling'), false);
+assert.equal(effectLog('Bad air', 1), 'Bad air costs 1 damage.');
+
+assert.equal(pageSource.includes('board?.environmental_effect'), false);
+assert.equal(pageSource.includes('res?.data?.environmental_effect'), true);
+assert.equal(pageSource.includes('Apply ${environmentalAsk.amount} damage'), true);
+assert.equal(pageSource.includes('game_seconds: environmentalAsk.game_seconds'), true);
+assert.equal(pageSource.includes('encounter_id: environmentalAsk.encounter_id'), true);
+
+async function withRollback(run) {
+  const pool = poolFromEnv();
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await run(client);
+  } finally {
+    try { await client.query('ROLLBACK'); } catch (_) { /* already closed */ }
+    client.release();
+    await pool.end();
+  }
+}
+
+(async () => {
+  try {
+    await withRollback(async (client) => {
+      const ruleset = await client.query('SELECT id FROM ruleset ORDER BY id LIMIT 1');
+      assert.ok(ruleset.rows.length === 1, 'ruleset');
+      const table = await client.query(
+        'SELECT id FROM encounter_table WHERE ruleset_id IS NOT NULL ORDER BY id LIMIT 1'
+      );
+      assert.ok(table.rows.length === 1, 'encounter table');
+      const hpStat = await client.query(`SELECT id FROM stat WHERE name = 'HP' ORDER BY id LIMIT 1`);
+      assert.ok(hpStat.rows.length === 1, 'HP stat');
+      const rulesetId = ruleset.rows[0].id;
+      const tableId = table.rows[0].id;
+      const stamp = Date.now();
+      const situation = await client.query(
+        `SELECT table_name FROM information_schema.tables
+         WHERE table_schema = 'public' AND table_name = 'campaign_situation'`
+      );
+      assert.equal(situation.rows.length, 0);
+
+      async function campaign(suffix) {
+        const inserted = await client.query(
+          `INSERT INTO campaign (name, ruleset_id, running, concluded)
+           VALUES ($1, $2, false, false) RETURNING id`,
+          [`zz-phase4-${suffix}-${stamp}`, rulesetId]
+        );
+        return inserted.rows[0].id;
+      }
+
+      async function place(campaignId, name) {
+        const inserted = await client.query(
+          `INSERT INTO campaign_location
+             (campaign_id, name, environment, check_die, interval_seconds, encounter_table_id, ambient_light)
+           VALUES ($1, $2, 'inside', 6, 1800, $3, 0)
+           RETURNING id`,
+          [campaignId, name, tableId]
+        );
+        return Number(inserted.rows[0].id);
+      }
+
+      async function person(name, hp, campaignId) {
+        const idRow = await client.query('SELECT COALESCE(MAX(id), 0) + 1 AS id FROM characters');
+        const inserted = await client.query(
+          `INSERT INTO characters (id, name, "user", hp, ruleset_id)
+           VALUES ($1, $2, 'zz', $3, $4)
+           RETURNING id`,
+          [idRow.rows[0].id, name, hp, rulesetId]
+        );
+        const id = Number(inserted.rows[0].id);
+        if (campaignId != null) {
+          await client.query(
+            `INSERT INTO campaign_character (campaign_id, character_id)
+             VALUES ($1, $2)`,
+            [campaignId, id]
+          );
+        }
+        return id;
+      }
+
+      async function wound(characterId) {
+        const result = await client.query(
+          `SELECT COALESCE(SUM(e.value), 0) AS wound, count(e.id)::int AS rows,
+                  COALESCE(string_agg(trim(e.note), ',' ORDER BY e.id), '') AS notes
+           FROM character_effects e
+           JOIN stat s ON s.id = e.effect AND s.name = 'HP'
+           WHERE e.character_id = $1`,
+          [characterId]
+        );
+        return {
+          wound: Number(result.rows[0].wound),
+          rows: Number(result.rows[0].rows),
+          notes: result.rows[0].notes,
+        };
+      }
+
+      const id = await campaign('stair');
+      const other = await campaign('other');
+      const stairId = await place(id, 'Cistern Stair');
+      const townId = await place(id, 'Millbridge');
+      const alive = await person(`zz-air-a-${stamp}`, 4, id);
+      const second = await person(`zz-air-b-${stamp}`, 2, id);
+      const dead = await person(`zz-air-c-${stamp}`, 0, id);
+      const unknown = await person(`zz-air-d-${stamp}`, null, id);
+      const outsider = await person(`zz-air-e-${stamp}`, 9, other);
+      const bystander = await person(`zz-air-f-${stamp}`, 8, null);
+      await client.query(
+        `INSERT INTO campaign_board (campaign_id, game_seconds, in_encounter, environment, location_id)
+         VALUES ($1, 600, false, 'inside', $2)`,
+        [id, stairId]
+      );
+      const scene = await client.query(
+        `INSERT INTO campaign_encounter
+           (campaign_id, location_id, title, kind, purpose, status, base_status,
+            environmental_effect, environmental_amount)
+         VALUES ($1, $2, 'Bad air', 'hazard', 'A turn of searching costs 1 damage.', 'prepared', 'prepared', 'damage', 1)
+         RETURNING id`,
+        [id, stairId]
+      );
+      const encounterId = Number(scene.rows[0].id);
+      const foe = await client.query(
+        `INSERT INTO campaign_creature
+           (campaign_id, location_id, name, hp, base_hp, disposition, base_disposition, in_fight)
+         VALUES ($1, $2, 'Bat', 6, 6, 'present', 'present', false)
+         RETURNING id`,
+        [id, stairId]
+      );
+      await client.query(
+        `INSERT INTO campaign_hireling (campaign_id, employer_id, kind, name, cost_gp)
+         VALUES ($1, $2, 'specialist', 'Porter', 1)`,
+        [id, alive]
+      );
+
+      assert.equal(await environmentalEffectOnTurn(client, id, 600), null);
+      const prepared = await applyEnvironmentalEffect(client, id, { game_seconds: 600, encounter_id: encounterId }, writeCharacterHitPoints);
+      assert.equal(prepared.changed, false);
+      assert.equal((await wound(alive)).rows, 0);
+      const openedEncounter = await openPreparedEncounter(client, id, encounterId);
+      assert.equal(openedEncounter.changed, true);
+      assert.equal(openedEncounter.in_encounter, false);
+      const afterOpen = await client.query(
+        'SELECT status, in_encounter, game_seconds FROM campaign_encounter e, campaign_board b WHERE e.id = $1 AND b.campaign_id = $2',
+        [encounterId, id]
+      );
+      assert.equal(afterOpen.rows[0].status, 'opened');
+      assert.equal(afterOpen.rows[0].in_encounter, false);
+      assert.equal(Number(afterOpen.rows[0].game_seconds), 600);
+      assert.equal((await wound(alive)).rows, 0);
+      const logsAfterOpen = await client.query('SELECT id FROM campaign_log WHERE campaign_id = $1', [id]);
+      assert.equal(logsAfterOpen.rows.length, 0);
+
+      const asked = await environmentalEffectOnTurn(client, id, 600);
+      assert.equal(asked.encounter_id, encounterId);
+      assert.equal(asked.delta, -1);
+      assert.equal(asked.game_seconds, 600);
+      assert.equal(await environmentalEffectOnTurn(client, id, 1200), null);
+      const stale = await applyEnvironmentalEffect(client, id, { game_seconds: 1200, encounter_id: encounterId }, writeCharacterHitPoints);
+      assert.equal(stale.changed, false);
+      assert.equal(rejectEnvironmentalEffect().changed, false);
+      const before = await client.query('SELECT id FROM campaign_log WHERE campaign_id = $1', [id]);
+      assert.equal(before.rows.length, 0);
+
+      const applied = await applyEnvironmentalEffect(client, id, { game_seconds: 600, encounter_id: encounterId }, writeCharacterHitPoints);
+      assert.equal(applied.changed, true);
+      assert.equal(applied.damaged, 2);
+      assert.equal((await wound(alive)).wound, -1);
+      assert.equal((await wound(alive)).notes, 'bad air');
+      assert.equal((await wound(second)).wound, -1);
+      assert.equal((await wound(second)).notes, 'bad air');
+      assert.equal((await wound(dead)).rows, 0);
+      assert.equal((await wound(unknown)).rows, 0);
+      assert.equal((await wound(outsider)).rows, 0);
+      assert.equal((await wound(bystander)).rows, 0);
+      const maxima = await client.query(
+        'SELECT id, hp FROM characters WHERE id = ANY($1::int[]) ORDER BY id',
+        [[alive, second, dead, unknown]]
+      );
+      assert.deepEqual(maxima.rows.map((row) => row.hp == null ? null : Number(row.hp)), [4, 2, 0, null]);
+      const foeHp = await client.query('SELECT hp FROM campaign_creature WHERE id = $1', [foe.rows[0].id]);
+      assert.equal(Number(foeHp.rows[0].hp), 6);
+      const porters = await client.query(
+        'SELECT name, cost_gp FROM campaign_hireling WHERE campaign_id = $1',
+        [id]
+      );
+      assert.equal(porters.rows.length, 1);
+      assert.equal(porters.rows[0].name, 'Porter');
+      const marked = await client.query(
+        'SELECT kind, body, at_seconds, location_id FROM campaign_log WHERE campaign_id = $1',
+        [id]
+      );
+      assert.equal(marked.rows.length, 1);
+      assert.equal(marked.rows[0].kind, 'consequence');
+      assert.equal(marked.rows[0].body, effectLog('Bad air', 1));
+      assert.equal(Number(marked.rows[0].at_seconds), 600);
+      assert.equal(Number(marked.rows[0].location_id), stairId);
+      const wanders = await client.query('SELECT id FROM campaign_wander WHERE campaign_id = $1', [id]);
+      assert.equal(wanders.rows.length, 0);
+
+      const again = await applyEnvironmentalEffect(client, id, { game_seconds: 600, encounter_id: encounterId }, writeCharacterHitPoints);
+      assert.equal(again.changed, false);
+      assert.equal((await wound(alive)).rows, 1);
+      assert.equal((await wound(second)).wound, -1);
+      const stillOne = await client.query('SELECT id FROM campaign_log WHERE campaign_id = $1', [id]);
+      assert.equal(stillOne.rows.length, 1);
+      assert.equal(await environmentalEffectOnTurn(client, id, 600), null);
+
+      await client.query(
+        'UPDATE campaign_board SET in_encounter = true, game_seconds = 1200 WHERE campaign_id = $1',
+        [id]
+      );
+      assert.equal(await environmentalEffectOnTurn(client, id, 1200), null);
+      const fighting = await applyEnvironmentalEffect(client, id, { game_seconds: 1200, encounter_id: encounterId }, writeCharacterHitPoints);
+      assert.equal(fighting.changed, false);
+      assert.equal((await wound(alive)).wound, -1);
+
+      await client.query(
+        'UPDATE campaign_board SET in_encounter = false, location_id = $2 WHERE campaign_id = $1',
+        [id, townId]
+      );
+      assert.equal(await environmentalEffectOnTurn(client, id, 1200), null);
+      const elsewhere = await applyEnvironmentalEffect(client, id, { game_seconds: 1200, encounter_id: encounterId }, writeCharacterHitPoints);
+      assert.equal(elsewhere.changed, false);
+
+      await client.query(
+        'UPDATE campaign_board SET location_id = $2 WHERE campaign_id = $1',
+        [id, stairId]
+      );
+      await client.query(`UPDATE campaign_encounter SET status = 'resolved' WHERE id = $1`, [encounterId]);
+      assert.equal(await environmentalEffectOnTurn(client, id, 1200), null);
+      const resolved = await applyEnvironmentalEffect(client, id, { game_seconds: 1200, encounter_id: encounterId }, writeCharacterHitPoints);
+      assert.equal(resolved.changed, false);
+
+      await client.query(`UPDATE campaign_encounter SET status = 'opened' WHERE id = $1`, [encounterId]);
+      await client.query(
+        'INSERT INTO campaign_encounter_member (encounter_id, creature_id) VALUES ($1, $2)',
+        [encounterId, foe.rows[0].id]
+      );
+      assert.equal(await environmentalEffectOnTurn(client, id, 1200), null);
+      await client.query('DELETE FROM campaign_encounter_member WHERE encounter_id = $1', [encounterId]);
+      const later = await environmentalEffectOnTurn(client, id, 1200);
+      assert.equal(later.game_seconds, 1200);
+      const secondTurn = await applyEnvironmentalEffect(client, id, { game_seconds: 1200, encounter_id: encounterId }, writeCharacterHitPoints);
+      assert.equal(secondTurn.changed, true);
+      assert.equal(secondTurn.damaged, 2);
+      assert.equal((await wound(alive)).wound, -2);
+      assert.equal((await wound(second)).wound, -2);
+      assert.equal((await wound(dead)).rows, 0);
+      const twoLogs = await client.query(
+        'SELECT at_seconds FROM campaign_log WHERE campaign_id = $1 ORDER BY at_seconds',
+        [id]
+      );
+      assert.deepEqual(twoLogs.rows.map((row) => Number(row.at_seconds)), [600, 1200]);
+      const repeatLater = await applyEnvironmentalEffect(client, id, { game_seconds: 1200, encounter_id: encounterId }, writeCharacterHitPoints);
+      assert.equal(repeatLater.changed, false);
+      assert.equal((await wound(alive)).rows, 2);
+
+      await resetCampaignRun(client, id);
+      const restored = await client.query('SELECT status FROM campaign_encounter WHERE id = $1', [encounterId]);
+      assert.equal(restored.rows[0].status, 'prepared');
+      const logGone = await client.query('SELECT id FROM campaign_log WHERE campaign_id = $1', [id]);
+      assert.equal(logGone.rows.length, 0);
+      assert.equal((await wound(alive)).wound, -2);
+      assert.equal((await wound(alive)).notes, 'bad air,bad air');
+      const foeRestored = await client.query('SELECT hp FROM campaign_creature WHERE id = $1', [foe.rows[0].id]);
+      assert.equal(Number(foeRestored.rows[0].hp), 6);
+    });
+    console.log('environmental effect ok');
+  } finally {
+    await serverPool.end();
+  }
+})().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

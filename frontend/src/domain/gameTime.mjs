@@ -2,6 +2,19 @@ export const ROUND_SECONDS = 10;
 export const TURN_SECONDS = 600;
 export const WATCH_SECONDS = 14400;
 export const DAY_SECONDS = 86400;
+export const INSIDE_INTERVAL = 3 * TURN_SECONDS;
+export const OUTSIDE_INTERVAL = WATCH_SECONDS;
+
+export function intervalForPlace(place) {
+  return place === 'inside' ? INSIDE_INTERVAL : OUTSIDE_INTERVAL;
+}
+
+/** Blank or the previous place default follows the new place. Any other value stays. */
+export function nextPlaceInterval(current, fromPlace, toPlace) {
+  const text = String(current ?? '').trim();
+  if (text !== '' && text !== String(intervalForPlace(fromPlace))) return current;
+  return String(intervalForPlace(toPlace));
+}
 
 /** Next Round in an encounter, Next Turn inside, Next Watch outside. */
 export function primaryStep(place, inEncounter) {
