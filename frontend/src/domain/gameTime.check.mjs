@@ -8,7 +8,11 @@ import {
   effectEndSeconds,
   effectTurnsLeft,
   formatGameTime,
+  INSIDE_INTERVAL,
+  intervalForPlace,
   markStatus,
+  nextPlaceInterval,
+  OUTSIDE_INTERVAL,
   primaryStep,
   splitGameTime,
 } from './gameTime.mjs';
@@ -48,3 +52,17 @@ assert.equal(effectTurnsLeft(torch, 5 * TURN_SECONDS), 0);
 assert.equal(effectTurnsLeft(torch, -1), null);
 assert.equal(effectTurnsLeft({ kind: 'effect', at_seconds: 100, duration_minutes: 10 }, 0), null);
 assert.equal(effectTurnsLeft({ kind: 'event', at_seconds: 0 }, 0), null);
+assert.equal(INSIDE_INTERVAL, 1800);
+assert.equal(INSIDE_INTERVAL, 3 * TURN_SECONDS);
+assert.equal(OUTSIDE_INTERVAL, 14400);
+assert.equal(OUTSIDE_INTERVAL, WATCH_SECONDS);
+assert.equal(intervalForPlace('inside'), INSIDE_INTERVAL);
+assert.equal(intervalForPlace('outside'), OUTSIDE_INTERVAL);
+assert.equal(intervalForPlace(undefined), OUTSIDE_INTERVAL);
+assert.equal(nextPlaceInterval('', 'outside', 'inside'), '1800');
+assert.equal(nextPlaceInterval('   ', 'inside', 'outside'), '14400');
+assert.equal(nextPlaceInterval(null, 'outside', 'inside'), '1800');
+assert.equal(nextPlaceInterval('14400', 'outside', 'inside'), '1800');
+assert.equal(nextPlaceInterval('1800', 'inside', 'outside'), '14400');
+assert.equal(nextPlaceInterval('3600', 'outside', 'inside'), '3600');
+assert.equal(nextPlaceInterval('1800', 'outside', 'inside'), '1800');

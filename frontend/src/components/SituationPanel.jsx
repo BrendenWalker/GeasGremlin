@@ -220,6 +220,7 @@ export default function SituationPanel({
   afterPlace = null,
   afterNpcs = null,
   beforeLog = null,
+  sections = null,
 }) {
   const editing = mode === 'edit';
   const pack = board?.situation;
@@ -276,6 +277,7 @@ export default function SituationPanel({
 
   if (!board || !pack) return null;
 
+  const showSection = (name) => sections == null || sections.includes(name);
   const scopeId = editing ? pickedPlaceId : (board.location_id == null ? '' : String(board.location_id));
   const here = locations.find((loc) => sameId(loc.id, board.location_id));
   const atScope = (id) => (scopeId ? sameId(id, scopeId) : id == null);
@@ -707,8 +709,9 @@ export default function SituationPanel({
           <p>{board.in_encounter ? 'A fight is open.' : 'No fight is open.'}</p>
         </>
       )}
-      {afterPlace}
+      {sections == null && afterPlace}
 
+      {showSection('objectives') && <>
       <h3>Objectives</h3>
       {!editing && knownObjectives.length === 0 && hiddenHere.length === 0 && <p className="muted">None yet.</p>}
       {!editing && (
@@ -758,7 +761,9 @@ export default function SituationPanel({
           </EditorFrame>
         </>
       )}
+      </>}
 
+      {showSection('npcs') && <>
       <h3>NPCs</h3>
       {npcs.length === 0 && <p className="muted">{scopeId ? 'None at this place.' : 'None yet.'}</p>}
       <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
@@ -803,7 +808,9 @@ export default function SituationPanel({
         </form>
       )}
       {afterNpcs}
+      </>}
 
+      {showSection('clues') && <>
       <h3>Clues</h3>
       {!editing && roomClues.length === 0 && <p className="muted">{scopeId ? 'None in this place.' : 'None yet.'}</p>}
       {!editing && (
@@ -866,7 +873,9 @@ export default function SituationPanel({
           </EditorFrame>
         </>
       )}
+      </>}
 
+      {showSection('encounters') && <>
       <h3>Prepared encounters</h3>
       {!editing && encounters.length === 0 && <p className="muted">{scopeId ? 'None at this place.' : 'None yet.'}</p>}
       {!editing && (
@@ -987,7 +996,9 @@ export default function SituationPanel({
           </EditorFrame>
         </>
       )}
+      </>}
 
+      {showSection('paths') && <>
       <h3>Paths</h3>
       {!editing && leads.length === 0 && <p className="muted">{scopeId ? 'None.' : 'None yet.'}</p>}
       {!editing && (
@@ -1088,8 +1099,9 @@ export default function SituationPanel({
           </EditorFrame>
         </>
       )}
+      </>}
 
-      {!editing && (
+      {sections == null && !editing && (
         <>
           <h3>Discovered</h3>
           {discoveryGroups.length === 0 && <p className="muted">Nothing discovered yet.</p>}

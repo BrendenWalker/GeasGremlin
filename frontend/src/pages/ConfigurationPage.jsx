@@ -21,6 +21,7 @@ import {
   updateShop,
 } from '../api/api';
 import SituationPanel from '../components/SituationPanel';
+import { intervalForPlace, nextPlaceInterval } from '../domain/gameTime.mjs';
 
 const FIELD = {
   padding: '0.45rem',
@@ -137,6 +138,7 @@ export default function ConfigurationPage({ campaignName }) {
   const [gmNotes, setGmNotes] = useState('');
   const [firstLocationId, setFirstLocationId] = useState('');
   const [detailsDirty, setDetailsDirty] = useState(false);
+  const [tab, setTab] = useState('intro');
 
   const load = useCallback(() => {
     return Promise.all([getAdventuring(campaignId), getPrep(campaignId), getItemCategories()])
@@ -236,6 +238,7 @@ export default function ConfigurationPage({ campaignName }) {
   };
 
   const onPlace = (value) => {
+    setLocInterval((current) => nextPlaceInterval(current, locPlace, value));
     setLocPlace(value);
   };
 
@@ -303,7 +306,9 @@ export default function ConfigurationPage({ campaignName }) {
       ? () => createLocation(campaignId, body)
       : () => updateLocation(campaignId, locId, body);
     run(action, setLocError).then((res) => {
-      if (res) blankLocation();
+      if (!res?.data?.id) return;
+      setPickedId(res.data.id);
+      editLocation(res.data);
     });
   };
 
@@ -537,6 +542,65 @@ export default function ConfigurationPage({ campaignName }) {
   const pickedLocation = locations.find((loc) => String(loc.id) === String(pickedId));
   const locationShops = editingLocation?.shops || [];
 
+  const locationPicker = (
+    <>
+      {locations.length === 0 && <p className="muted">No locations yet.</p>}
+      {locations.length > 0 && (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <label>
+            Location
+            <select
+              value={pickedId == null ? '' : String(pickedId)}
+              disabled={busy}
+              onChange={(e) => {
+                const id = e.target.value;
+                setConfirmRemove(false);
+                if (!id) {
+                  setPickedId(null);
+                  blankLocation();
+                  return;
+                }
+                setPickedId(id);
+                const loc = locations.find((row) => String(row.id) === String(id));
+                if (loc) editLocation(loc);
+              }}
+              style={{ ...FIELD, marginLeft: 6, maxWidth: 420 }}
+            >
+              <option value="">New location</option>
+              {locations.map((loc) => (
+                <option key={loc.id} value={loc.id}>
+                  {loc.name}{String(board.location_id) === String(loc.id) ? ' · selected' : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+          {pickedLocation && !confirmRemove && (
+            <button type="button" className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem' }} disabled={busy} onClick={() => setConfirmRemove(true)}>Remove</button>
+          )}
+          {pickedLocation && confirmRemove && (
+            <>
+              <span className="muted">Remove {pickedLocation.name}?</span>
+              <button type="button" className="btn btn-danger" style={{ padding: '0.2rem 0.5rem' }} disabled={busy} onClick={removeLocation}>Remove</button>
+              <button type="button" className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem' }} disabled={busy} onClick={() => setConfirmRemove(false)}>Cancel</button>
+            </>
+          )}
+        </div>
+      )}
+    </>
+  );
+
+  const situation = (sections) => (
+    <SituationPanel
+      campaignId={campaignId}
+      board={board}
+      busy={busy}
+      run={run}
+      mode="edit"
+      bare
+      sections={sections}
+    />
+  );
+
   return (
     <div>
       <div className="card">
@@ -545,6 +609,30 @@ export default function ConfigurationPage({ campaignName }) {
         {error && <p style={{ color: '#c95858' }}>{error}</p>}
         {loading && !board && <p className="muted">Loading…</p>}
 
+        <div className="catalog-tabs" role="tablist" aria-label="Configuration">
+          {[
+            ['intro', 'Intro'],
+            ['locations', 'Locations'],
+            ['npcs', 'NPCs'],
+            ['creatures', 'Creatures'],
+            ['encounters', 'Encounters'],
+            ['tables', 'Campaign Tables'],
+          ].map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={tab === id}
+              className={`catalog-tab${tab === id ? ' active' : ''}`}
+              onClick={() => setTab(id)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'intro' && (
+        <>
         <h2>Intro</h2>
         <p className="muted">Shown on Home until Begin Campaign selects the first location. Players do not see this.</p>
         <form onSubmit={saveDetails} style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
@@ -591,47 +679,14 @@ export default function ConfigurationPage({ campaignName }) {
             <button type="submit" className="btn btn-secondary" disabled={busy || !board}>Save intro</button>
           </span>
         </form>
-
-        <h2>Locations</h2>
-        {locations.length === 0 && <p className="muted">No locations yet.</p>}
-        {locations.length > 0 && (
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <label>
-              Location
-              <select
-                value={pickedId == null ? '' : String(pickedId)}
-                disabled={busy}
-                onChange={(e) => {
-                  const id = e.target.value;
-                  setPickedId(id || null);
-                  setConfirmRemove(false);
-                  if (locId != null && String(locId) !== String(id)) blankLocation();
-                }}
-                style={{ ...FIELD, marginLeft: 6, maxWidth: 420 }}
-              >
-                <option value="">New location</option>
-                {locations.map((loc) => (
-                  <option key={loc.id} value={loc.id}>
-                    {loc.name}{String(board.location_id) === String(loc.id) ? ' · selected' : ''}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {pickedLocation && !confirmRemove && (
-              <>
-                <button type="button" className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem' }} disabled={busy} onClick={() => editLocation(pickedLocation)}>Edit</button>
-                <button type="button" className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem' }} disabled={busy} onClick={() => setConfirmRemove(true)}>Remove</button>
-              </>
-            )}
-            {pickedLocation && confirmRemove && (
-              <>
-                <span className="muted">Remove {pickedLocation.name}?</span>
-                <button type="button" className="btn btn-danger" style={{ padding: '0.2rem 0.5rem' }} disabled={busy} onClick={removeLocation}>Remove</button>
-                <button type="button" className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem' }} disabled={busy} onClick={() => setConfirmRemove(false)}>Cancel</button>
-              </>
-            )}
-          </div>
+        {situation(['objectives'])}
+        </>
         )}
+
+        {tab === 'locations' && (
+        <>
+        <h2>Locations</h2>
+        {locationPicker}
         {pickedId != null && locId == null && locError && <p style={{ color: '#c95858', margin: '0.5rem 0 0' }}>{locError}</p>}
 
         {(pickedId == null || locId != null) && (
@@ -677,7 +732,7 @@ export default function ConfigurationPage({ campaignName }) {
               min={1}
               value={locInterval}
               onChange={(e) => setLocInterval(e.target.value)}
-              placeholder={locPlace === 'inside' ? '1800' : '14400'}
+              placeholder={String(intervalForPlace(locPlace))}
               style={{ ...FIELD, width: 100, marginLeft: 6 }}
             />
           </label>
@@ -734,7 +789,7 @@ export default function ConfigurationPage({ campaignName }) {
               {locId == null ? 'Add location' : 'Save location'}
             </button>
             {locId != null && (
-              <button type="button" className="btn btn-secondary" disabled={busy} onClick={blankLocation}>Cancel</button>
+              <button type="button" className="btn btn-secondary" disabled={busy} onClick={() => { if (pickedLocation) editLocation(pickedLocation); else blankLocation(); }}>Cancel</button>
             )}
           </span>
         </form>
@@ -812,38 +867,6 @@ export default function ConfigurationPage({ campaignName }) {
         )}
 
         {locId != null && (
-          <form onSubmit={saveCreatures} style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
-            <h2 style={{ marginBottom: 0 }}>Creatures</h2>
-            <p className="muted">One number plus a count repeats it. A comma list is one creature per total. Dead stay at 0.</p>
-            {(editingLocation?.creatures || []).length === 0 && <p className="muted">No creatures at this location yet.</p>}
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-              {creatureGroups(editingLocation?.creatures).map((group) => (
-                <li key={group.key} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 6, alignItems: 'center' }}>
-                  <span>{creatureLine(group)}</span>
-                  <button type="button" className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem' }} disabled={busy} onClick={() => removeCreature(group.ids[0])}>Remove one</button>
-                </li>
-              ))}
-            </ul>
-            <input value={creatureName} onChange={(e) => setCreatureName(e.target.value)} placeholder="Name" maxLength={80} aria-label="Creature name" style={FIELD} />
-            <input value={creatureBoxes} onChange={(e) => setCreatureBoxes(e.target.value)} placeholder="Hit points, such as 5, 7, 2 or 4" aria-label="Creature hit points" style={FIELD} />
-            <label>
-              Count
-              <input
-                type="number"
-                min={1}
-                max={100}
-                value={creatureCount}
-                onChange={(e) => setCreatureCount(e.target.value)}
-                aria-label="Creature count"
-                style={{ ...FIELD, width: 70, marginLeft: 6 }}
-              />
-            </label>
-            <input value={creatureNote} onChange={(e) => setCreatureNote(e.target.value)} placeholder="Note" maxLength={400} aria-label="Creature note" style={FIELD} />
-            <button type="submit" className="btn btn-secondary" disabled={busy || !board}>Add creatures</button>
-          </form>
-        )}
-
-        {locId != null && (
           <form onSubmit={saveFlag} style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
             <h2 style={{ marginBottom: 0 }}>Room flags</h2>
             <p className="muted">Sprung, taken, or found. A sentence stays a clue.</p>
@@ -868,11 +891,99 @@ export default function ConfigurationPage({ campaignName }) {
             <button type="submit" className="btn btn-secondary" disabled={busy || !board}>Set flag</button>
           </form>
         )}
-      </div>
+        {situation(['paths'])}
+        </>
+        )}
 
-      <SituationPanel campaignId={campaignId} board={board} busy={busy} run={run} mode="edit" />
+        {tab === 'npcs' && situation(['npcs', 'clues'])}
 
-      <div className="card">
+        {tab === 'creatures' && (
+          <>
+            <h2>Creatures</h2>
+            {locationPicker}
+            {locId == null && <p className="muted">Choose a location.</p>}
+            {locId != null && (
+              <form onSubmit={saveCreatures} style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
+                <p className="muted">One number plus a count repeats it. A comma list is one creature per total. Dead stay at 0.</p>
+                {(editingLocation?.creatures || []).length === 0 && <p className="muted">No creatures at this location yet.</p>}
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                  {creatureGroups(editingLocation?.creatures).map((group) => (
+                    <li key={group.key} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 6, alignItems: 'center' }}>
+                      <span>{creatureLine(group)}</span>
+                      <button type="button" className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem' }} disabled={busy} onClick={() => removeCreature(group.ids[0])}>Remove one</button>
+                    </li>
+                  ))}
+                </ul>
+                <input value={creatureName} onChange={(e) => setCreatureName(e.target.value)} placeholder="Name" maxLength={80} aria-label="Creature name" style={FIELD} />
+                <input value={creatureBoxes} onChange={(e) => setCreatureBoxes(e.target.value)} placeholder="Hit points, such as 5, 7, 2 or 4" aria-label="Creature hit points" style={FIELD} />
+                <label>
+                  Count
+                  <input
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={creatureCount}
+                    onChange={(e) => setCreatureCount(e.target.value)}
+                    aria-label="Creature count"
+                    style={{ ...FIELD, width: 70, marginLeft: 6 }}
+                  />
+                </label>
+                <input value={creatureNote} onChange={(e) => setCreatureNote(e.target.value)} placeholder="Note" maxLength={400} aria-label="Creature note" style={FIELD} />
+                <button type="submit" className="btn btn-secondary" disabled={busy || !board}>Add creatures</button>
+              </form>
+            )}
+          </>
+        )}
+
+        {tab === 'encounters' && (
+          <>
+            {situation(['encounters'])}
+            <h2>Prep</h2>
+            <p className="muted">These help write an adventure. They do not open an encounter or move the clock.</p>
+            <h3 style={{ marginBottom: 6 }}>Dungeon stocking</h3>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              disabled={busy}
+              onClick={() => {
+                run(() => stockRoom(campaignId)).then((res) => {
+                  if (res) setStockText(`d% ${res.data.roll}: ${res.data.contents}`);
+                });
+              }}
+            >
+              Stock a room
+            </button>
+            {stockText && <p>{stockText}</p>}
+            <h3 style={{ marginBottom: 6 }}>Traps</h3>
+            <p className="muted">A pick fills the note. It does not roll the trap.</p>
+            <select
+              aria-label="Trap"
+              value={trapName}
+              onChange={(e) => {
+                const name = e.target.value;
+                const trap = (prep?.traps || []).find((row) => row.name === name);
+                setTrapName(name);
+                setTrapNote(trap ? trap.note : '');
+              }}
+              style={FIELD}
+            >
+              <option value="">Choose a trap</option>
+              {(prep?.traps || []).map((trap) => (
+                <option key={trap.name} value={trap.name}>{trap.name}</option>
+              ))}
+            </select>
+            <textarea
+              aria-label="Trap note"
+              value={trapNote}
+              maxLength={500}
+              onChange={(e) => setTrapNote(e.target.value)}
+              style={{ ...FIELD, display: 'block', width: '100%', minHeight: 72, marginTop: 8 }}
+            />
+          </>
+        )}
+
+        {tab === 'tables' && (
+        <>
         <h2>Campaign tables</h2>
         {customTables.length === 0 && <p className="muted">No campaign tables yet.</p>}
         {customTables.length > 0 && (
@@ -967,48 +1078,8 @@ export default function ConfigurationPage({ campaignName }) {
             </li>
           ))}
         </ul>
-
-        <h2>Prep</h2>
-        <p className="muted">These help write an adventure. They do not open an encounter or move the clock.</p>
-        <h3 style={{ marginBottom: 6 }}>Dungeon stocking</h3>
-        <button
-          type="button"
-          className="btn btn-secondary"
-          disabled={busy}
-          onClick={() => {
-            run(() => stockRoom(campaignId)).then((res) => {
-              if (res) setStockText(`d% ${res.data.roll}: ${res.data.contents}`);
-            });
-          }}
-        >
-          Stock a room
-        </button>
-        {stockText && <p>{stockText}</p>}
-        <h3 style={{ marginBottom: 6 }}>Traps</h3>
-        <p className="muted">A pick fills the note. It does not roll the trap.</p>
-        <select
-          aria-label="Trap"
-          value={trapName}
-          onChange={(e) => {
-            const name = e.target.value;
-            const trap = (prep?.traps || []).find((row) => row.name === name);
-            setTrapName(name);
-            setTrapNote(trap ? trap.note : '');
-          }}
-          style={FIELD}
-        >
-          <option value="">Choose a trap</option>
-          {(prep?.traps || []).map((trap) => (
-            <option key={trap.name} value={trap.name}>{trap.name}</option>
-          ))}
-        </select>
-        <textarea
-          aria-label="Trap note"
-          value={trapNote}
-          maxLength={500}
-          onChange={(e) => setTrapNote(e.target.value)}
-          style={{ ...FIELD, display: 'block', width: '100%', minHeight: 72, marginTop: 8 }}
-        />
+        </>
+        )}
       </div>
     </div>
   );
