@@ -59,7 +59,8 @@ function locationName(locations, id) {
   return found ? found.name : 'location';
 }
 
-function pathsHere(rows, scopeId) {
+function pathsHere(rows, scopeId, { showAll = false } = {}) {
+  if (showAll && !scopeId) return rows || [];
   return (rows || []).filter((row) => {
     const fromHere = scopeId ? sameId(row.from_location_id, scopeId) : row.from_location_id == null;
     if (fromHere) return true;
@@ -137,12 +138,12 @@ function keepField(event, save) {
   save();
 }
 
-function PlaceSelect({ label, value, locations, onChange, allowEmpty = true }) {
+function PlaceSelect({ label, value, locations, onChange, allowEmpty = true, emptyLabel = 'None' }) {
   return (
     <label>
       {label}
       <select value={value} onChange={(event) => onChange(event.target.value)} aria-label={label} style={{ ...FIELD, marginLeft: 6 }}>
-        {allowEmpty && <option value="">None</option>}
+        {allowEmpty && <option value="">{emptyLabel}</option>}
         {locations.map((loc) => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
       </select>
     </label>
@@ -280,14 +281,17 @@ export default function SituationPanel({
   const showSection = (name) => sections == null || sections.includes(name);
   const scopeId = editing ? pickedPlaceId : (board.location_id == null ? '' : String(board.location_id));
   const here = locations.find((loc) => sameId(loc.id, board.location_id));
-  const atScope = (id) => (scopeId ? sameId(id, scopeId) : id == null);
+  const atScope = (id) => {
+    if (editing && !scopeId) return true;
+    return scopeId ? sameId(id, scopeId) : id == null;
+  };
   const npcs = (pack.npcs || []).filter((row) => atScope(row.location_id));
   const npcHere = (id) => npcs.some((row) => sameId(row.id, id));
   const clues = (pack.clues || []).filter((row) => atScope(row.location_id) || npcHere(row.npc_id));
   const objectives = pack.objectives || [];
   const scopedObjectives = objectives.filter((row) => atScope(row.location_id));
   const encounters = (pack.encounters || []).filter((row) => atScope(row.location_id));
-  const leads = pathsHere(pack.transitions, scopeId);
+  const leads = pathsHere(pack.transitions, scopeId, { showAll: editing });
   const knownObjectives = objectives.filter((row) => row.known);
   const hiddenHere = scopedObjectives.filter((row) => !row.known);
   const roomClues = clues.filter((row) => !row.discovered && atScope(row.location_id) && !npcHere(row.npc_id));
@@ -658,9 +662,10 @@ export default function SituationPanel({
       {editing && (
         <>
           <PlaceSelect
-            label="Place"
+            label="Location"
             value={pickedPlaceId}
             locations={locations}
+            emptyLabel="All"
             onChange={(value) => {
               setPickedPlaceId(value);
               clearChildren(value);
@@ -668,8 +673,8 @@ export default function SituationPanel({
           />
           <p className="muted">
             {pickedPlaceId
-              ? `New rows belong to ${locationName(locations, pickedPlaceId)}.`
-              : 'With no place selected, new rows stay with the party.'}
+              ? `Showing ${locationName(locations, pickedPlaceId)}. New rows belong there.`
+              : 'Showing all. New rows stay unassigned unless you pick a location on the form.'}
           </p>
         </>
       )}
@@ -678,7 +683,7 @@ export default function SituationPanel({
       )}
       {!editing && here && (
         <>
-          {here.place === 'inside' ? (
+          {here.environment === 'inside' ? (
             <p className="muted" style={{ margin: '0.75rem 0 0' }}>
               {ambientLine({
                 ambientLight: here.ambient_light,
@@ -694,7 +699,7 @@ export default function SituationPanel({
               <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{here.summary}</p>
             </div>
           ) : null}
-          {here.place === 'inside' && here.dark_summary ? (
+          {here.environment === 'inside' && here.dark_summary ? (
             <div style={{ borderLeft: '3px solid #6e7c8a', padding: '0.35rem 0 0.35rem 0.75rem', margin: '0.75rem 0' }}>
               <div style={{ color: '#8aa0b4', fontSize: '0.8rem', marginBottom: 4 }}>In the dark</div>
               <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{here.dark_summary}</p>
@@ -756,7 +761,7 @@ export default function SituationPanel({
             onCancel={blankObjective}
           >
             <input value={objective} onChange={(event) => setObjective(event.target.value)} placeholder="Objective" aria-label="Objective" style={FIELD} />
-            <PlaceSelect label="Place" value={objectivePlace} locations={locations} onChange={setObjectivePlace} />
+            <PlaceSelect label="Location" value={objectivePlace} locations={locations} onChange={setObjectivePlace} />
             <label><input type="checkbox" checked={objectiveKnown} onChange={(event) => setObjectiveKnown(event.target.checked)} /> Known to players</label>
           </EditorFrame>
         </>
@@ -855,7 +860,7 @@ export default function SituationPanel({
             onCancel={blankClue}
           >
             <input value={clue} onChange={(event) => setClue(event.target.value)} placeholder="Clue" aria-label="Clue" style={FIELD} />
-            <PlaceSelect label="Place" value={cluePlace} locations={locations} onChange={setCluePlace} />
+            <PlaceSelect label="Location" value={cluePlace} locations={locations} onChange={setCluePlace} />
             <label>
               NPC
               <select value={clueNpcId} onChange={(event) => setClueNpcId(event.target.value)} aria-label="Clue NPC" style={{ ...FIELD, marginLeft: 6 }}>
@@ -965,7 +970,7 @@ export default function SituationPanel({
                 />
               </label>
             )}
-            <PlaceSelect label="Place" value={encounterPlace} locations={locations} onChange={setEncounterPlace} />
+            <PlaceSelect label="Location" value={encounterPlace} locations={locations} onChange={setEncounterPlace} />
             <textarea value={encounterPurpose} onChange={(event) => setEncounterPurpose(event.target.value)} placeholder="Purpose" aria-label="Encounter purpose" rows={2} style={FIELD} />
             <textarea value={encounterNotes} onChange={(event) => setEncounterNotes(event.target.value)} placeholder="Notes" aria-label="Encounter notes" rows={3} style={FIELD} />
             {encounterEditId == null ? (

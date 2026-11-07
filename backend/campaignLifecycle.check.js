@@ -179,14 +179,14 @@ async function withRollback(run) {
     const otherId = Number(other.rows[0].id);
     const place = await client.query(
       `INSERT INTO campaign_location
-         (campaign_id, name, place, check_die, interval_seconds, encounter_table_id, ambient_light)
+         (campaign_id, name, environment, check_die, interval_seconds, encounter_table_id, ambient_light)
        VALUES ($1, 'Stair', 'inside', 6, 1800, $2, 0)
        RETURNING id`,
       [id, tableId]
     );
     const locationId = Number(place.rows[0].id);
     await client.query(
-      `INSERT INTO campaign_board (campaign_id, game_seconds, place, location_id)
+      `INSERT INTO campaign_board (campaign_id, game_seconds, environment, location_id)
        VALUES ($1, 2400, 'inside', $2)`,
       [id, locationId]
     );

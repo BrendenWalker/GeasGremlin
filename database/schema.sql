@@ -686,9 +686,9 @@ CREATE INDEX IF NOT EXISTS idx_character_transfer_to ON public.character_transfe
 CREATE INDEX IF NOT EXISTS idx_character_transfer_from ON public.character_transfer USING btree (from_character_id);
 CREATE INDEX IF NOT EXISTS idx_character_transfer_pending ON public.character_transfer (to_character_id, status) WHERE status = 'pending';
 
--- Clock and encounter flag. A row is created on the first tick, place change, or encounter.
+-- Clock and encounter flag. A row is created on the first tick, environment change, or encounter.
 -- game_seconds: day 1 is 0. A round is 10 seconds, a turn 600, a watch 14400, a day 86400.
--- place is outside or inside. An open encounter does not change it and does not reset the clock.
+-- environment is outside or inside. An open encounter does not change it and does not reset the clock.
 CREATE TABLE IF NOT EXISTS public.campaign_board (
 	campaign_id int4 NOT NULL,
 	game_seconds int4 NOT NULL DEFAULT 0,
@@ -698,14 +698,36 @@ CREATE TABLE IF NOT EXISTS public.campaign_board (
 	CONSTRAINT campaign_board_campaign_fkey FOREIGN KEY (campaign_id) REFERENCES public.campaign(id) ON DELETE CASCADE,
 	CONSTRAINT campaign_board_place_check CHECK (place IN ('outside', 'inside'))
 );
-ALTER TABLE public.campaign_board ADD COLUMN IF NOT EXISTS place varchar(8) NOT NULL DEFAULT 'outside';
+DO $$
+BEGIN
+	IF EXISTS (
+		SELECT 1 FROM information_schema.columns
+		WHERE table_schema = 'public' AND table_name = 'campaign_board'
+			AND column_name = 'place'
+	) AND NOT EXISTS (
+		SELECT 1 FROM information_schema.columns
+		WHERE table_schema = 'public' AND table_name = 'campaign_board'
+			AND column_name = 'environment'
+	) THEN
+		ALTER TABLE public.campaign_board RENAME COLUMN place TO environment;
+	END IF;
+	IF EXISTS (
+		SELECT 1 FROM pg_constraint WHERE conname = 'campaign_board_place_check'
+	) AND NOT EXISTS (
+		SELECT 1 FROM pg_constraint WHERE conname = 'campaign_board_environment_check'
+	) THEN
+		ALTER TABLE public.campaign_board
+			RENAME CONSTRAINT campaign_board_place_check TO campaign_board_environment_check;
+	END IF;
+END $$;
+ALTER TABLE public.campaign_board ADD COLUMN IF NOT EXISTS environment varchar(8) NOT NULL DEFAULT 'outside';
 DO $$
 BEGIN
 	IF NOT EXISTS (
-		SELECT 1 FROM pg_constraint WHERE conname = 'campaign_board_place_check'
+		SELECT 1 FROM pg_constraint WHERE conname = 'campaign_board_environment_check'
 	) THEN
 		ALTER TABLE public.campaign_board
-			ADD CONSTRAINT campaign_board_place_check CHECK (place IN ('outside', 'inside'));
+			ADD CONSTRAINT campaign_board_environment_check CHECK (environment IN ('outside', 'inside'));
 	END IF;
 END $$;
 
@@ -838,7 +860,22 @@ CREATE TABLE IF NOT EXISTS public.encounter_table_row (
 CREATE INDEX IF NOT EXISTS idx_encounter_table_row_table ON public.encounter_table_row USING btree (encounter_table_id);
 CREATE INDEX IF NOT EXISTS idx_encounter_table_row_monster ON public.encounter_table_row USING btree (monster_id);
 
--- A place the party can be. Selecting it sets the board place. The check is 1 or below on check_die.
+-- A named destination that groups locations in one campaign. Deleting it leaves locations unassigned.
+CREATE TABLE IF NOT EXISTS public.campaign_place (
+	id serial4 NOT NULL,
+	campaign_id int4 NOT NULL,
+	"name" varchar(80) NOT NULL,
+	description text NULL,
+	place_type varchar(30) NULL,
+	gm_text text NULL,
+	CONSTRAINT campaign_place_pkey PRIMARY KEY (id),
+	CONSTRAINT campaign_place_campaign_name_key UNIQUE (campaign_id, name),
+	CONSTRAINT campaign_place_id_campaign_key UNIQUE (id, campaign_id),
+	CONSTRAINT campaign_place_campaign_fkey FOREIGN KEY (campaign_id) REFERENCES public.campaign(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_campaign_place_campaign ON public.campaign_place USING btree (campaign_id);
+
+-- A location the party can be. Selecting it sets the board environment. The check is 1 or below on check_die.
 -- Inside defaults to every 3 turns (1800). Outside defaults to every watch (14400). The table is a real row.
 -- Outside may set terrain and movement_pct together. Inside leaves both empty. The percent is not travel.
 CREATE TABLE IF NOT EXISTS public.campaign_location (
@@ -860,20 +897,72 @@ CREATE TABLE IF NOT EXISTS public.campaign_location (
 	CONSTRAINT campaign_location_table_fkey FOREIGN KEY (encounter_table_id) REFERENCES public.encounter_table(id) ON DELETE RESTRICT
 );
 CREATE INDEX IF NOT EXISTS idx_campaign_location_campaign ON public.campaign_location USING btree (campaign_id);
-ALTER TABLE public.campaign_location ADD COLUMN IF NOT EXISTS terrain varchar(40) NULL;
-ALTER TABLE public.campaign_location ADD COLUMN IF NOT EXISTS movement_pct int4 NULL;
 DO $$
 BEGIN
+	IF EXISTS (
+		SELECT 1 FROM information_schema.columns
+		WHERE table_schema = 'public' AND table_name = 'campaign_location'
+			AND column_name = 'place'
+	) AND NOT EXISTS (
+		SELECT 1 FROM information_schema.columns
+		WHERE table_schema = 'public' AND table_name = 'campaign_location'
+			AND column_name = 'environment'
+	) THEN
+		ALTER TABLE public.campaign_location RENAME COLUMN place TO environment;
+	END IF;
+	IF EXISTS (
+		SELECT 1 FROM pg_constraint WHERE conname = 'campaign_location_place_check'
+	) AND NOT EXISTS (
+		SELECT 1 FROM pg_constraint WHERE conname = 'campaign_location_environment_check'
+	) THEN
+		ALTER TABLE public.campaign_location
+			RENAME CONSTRAINT campaign_location_place_check TO campaign_location_environment_check;
+	END IF;
+END $$;
+ALTER TABLE public.campaign_location ADD COLUMN IF NOT EXISTS environment varchar(8);
+UPDATE public.campaign_location SET environment = 'outside' WHERE environment IS NULL;
+DO $$
+BEGIN
+	IF EXISTS (
+		SELECT 1 FROM information_schema.columns
+		WHERE table_schema = 'public' AND table_name = 'campaign_location'
+			AND column_name = 'environment' AND is_nullable = 'YES'
+	) THEN
+		ALTER TABLE public.campaign_location ALTER COLUMN environment SET NOT NULL;
+	END IF;
+END $$;
+ALTER TABLE public.campaign_location ADD COLUMN IF NOT EXISTS terrain varchar(40) NULL;
+ALTER TABLE public.campaign_location ADD COLUMN IF NOT EXISTS movement_pct int4 NULL;
+ALTER TABLE public.campaign_location ADD COLUMN IF NOT EXISTS place_id int4 NULL;
+CREATE INDEX IF NOT EXISTS idx_campaign_location_place ON public.campaign_location USING btree (place_id);
+DO $$
+BEGIN
+	IF NOT EXISTS (
+		SELECT 1 FROM pg_constraint WHERE conname = 'campaign_location_environment_check'
+	) THEN
+		ALTER TABLE public.campaign_location
+			ADD CONSTRAINT campaign_location_environment_check
+			CHECK (environment IN ('outside', 'inside'));
+	END IF;
+	IF NOT EXISTS (
+		SELECT 1 FROM pg_constraint WHERE conname = 'campaign_location_place_fkey'
+	) THEN
+		ALTER TABLE public.campaign_location
+			ADD CONSTRAINT campaign_location_place_fkey
+			FOREIGN KEY (place_id, campaign_id)
+			REFERENCES public.campaign_place(id, campaign_id)
+			ON DELETE SET NULL (place_id);
+	END IF;
 	IF NOT EXISTS (
 		SELECT 1 FROM pg_constraint WHERE conname = 'campaign_location_terrain_check'
 	) THEN
 		ALTER TABLE public.campaign_location
 			ADD CONSTRAINT campaign_location_terrain_check
 			CHECK (
-				(place = 'inside' AND terrain IS NULL AND movement_pct IS NULL)
-				OR (place = 'outside' AND terrain IS NULL AND movement_pct IS NULL)
+				(environment = 'inside' AND terrain IS NULL AND movement_pct IS NULL)
+				OR (environment = 'outside' AND terrain IS NULL AND movement_pct IS NULL)
 				OR (
-					place = 'outside'
+					environment = 'outside'
 					AND terrain IN ('Clear', 'Road', 'Forest', 'Hills', 'Desert', 'Jungle', 'Swamp', 'Mountains')
 					AND movement_pct BETWEEN -100 AND 200
 				)
@@ -883,10 +972,8 @@ END $$;
 
 -- summary is the standing description the GM reads. Players do not receive it.
 -- arrived_seconds is the clock the first time this location was selected. Later selects leave it.
--- site is the shared label for one visit. Empty means this place is outside every site.
 ALTER TABLE public.campaign_location ADD COLUMN IF NOT EXISTS summary text NULL;
 ALTER TABLE public.campaign_location ADD COLUMN IF NOT EXISTS arrived_seconds int4 NULL;
-ALTER TABLE public.campaign_location ADD COLUMN IF NOT EXISTS site varchar(80) NULL;
 DO $$
 BEGIN
 	IF NOT EXISTS (
@@ -896,12 +983,35 @@ BEGIN
 			ADD CONSTRAINT campaign_location_arrived_seconds_check
 			CHECK (arrived_seconds IS NULL OR arrived_seconds >= 0);
 	END IF;
-	IF NOT EXISTS (
-		SELECT 1 FROM pg_constraint WHERE conname = 'campaign_location_site_check'
+END $$;
+-- site was the shared visit label. One Place per distinct site, then the column is dropped.
+-- Only runs when an older database still has site. Fresh installs never create it.
+DO $$
+BEGIN
+	IF EXISTS (
+		SELECT 1 FROM information_schema.columns
+		WHERE table_schema = 'public' AND table_name = 'campaign_location'
+			AND column_name = 'site'
 	) THEN
-		ALTER TABLE public.campaign_location
-			ADD CONSTRAINT campaign_location_site_check
-			CHECK (site IS NULL OR char_length(btrim(site)) >= 1);
+		INSERT INTO public.campaign_place (campaign_id, name)
+		SELECT DISTINCT campaign_id, btrim(site)
+		FROM public.campaign_location
+		WHERE site IS NOT NULL AND btrim(site) <> ''
+		ON CONFLICT (campaign_id, name) DO NOTHING;
+		UPDATE public.campaign_location loc
+		SET place_id = p.id
+		FROM public.campaign_place p
+		WHERE loc.place_id IS NULL
+			AND loc.site IS NOT NULL
+			AND btrim(loc.site) <> ''
+			AND p.campaign_id = loc.campaign_id
+			AND p.name = btrim(loc.site);
+		IF EXISTS (
+			SELECT 1 FROM pg_constraint WHERE conname = 'campaign_location_site_check'
+		) THEN
+			ALTER TABLE public.campaign_location DROP CONSTRAINT campaign_location_site_check;
+		END IF;
+		ALTER TABLE public.campaign_location DROP COLUMN site;
 	END IF;
 END $$;
 
@@ -911,7 +1021,7 @@ ALTER TABLE public.campaign_location ADD COLUMN IF NOT EXISTS dark_summary text 
 ALTER TABLE public.campaign_location ADD COLUMN IF NOT EXISTS ambient_light int4 NULL;
 UPDATE public.campaign_location
 	SET ambient_light = 0
-	WHERE place = 'inside' AND ambient_light IS NULL;
+	WHERE environment = 'inside' AND ambient_light IS NULL;
 DO $$
 BEGIN
 	IF NOT EXISTS (
@@ -920,9 +1030,9 @@ BEGIN
 		ALTER TABLE public.campaign_location
 			ADD CONSTRAINT campaign_location_light_check
 			CHECK (
-				(place = 'outside' AND ambient_light IS NULL AND dark_summary IS NULL)
+				(environment = 'outside' AND ambient_light IS NULL AND dark_summary IS NULL)
 				OR (
-					place = 'inside'
+					environment = 'inside'
 					AND ambient_light BETWEEN 0 AND 100
 					AND (dark_summary IS NULL OR char_length(btrim(dark_summary)) >= 1)
 				)
@@ -985,7 +1095,7 @@ CREATE TABLE IF NOT EXISTS public.campaign_location_flag (
 );
 CREATE INDEX IF NOT EXISTS idx_campaign_location_flag_location ON public.campaign_location_flag USING btree (location_id);
 
--- One stored roll per check. A wander miss has no table roll. A visit row is the once-per-site empty check.
+-- One stored roll per check. A wander miss has no table roll. A visit row is the once-per-Place empty check.
 -- A visit row has no table roll. A label is the living creature named. No label on a hit means the pool was empty.
 -- This does not open an encounter.
 CREATE TABLE IF NOT EXISTS public.campaign_wander (
@@ -1030,8 +1140,8 @@ CREATE TABLE IF NOT EXISTS public.campaign_wander (
 );
 CREATE INDEX IF NOT EXISTS idx_campaign_wander_campaign ON public.campaign_wander USING btree (campaign_id, at_seconds, id);
 
--- visit_seconds is game_seconds when the party entered the current site. It does not tick.
--- Selecting a place outside that site clears it. The next entry starts at 0 turns.
+-- visit_seconds is game_seconds when the party entered the current Place. It does not tick.
+-- Selecting a location with a different place_id, or none, clears it. The next Place entry starts at 0 turns.
 ALTER TABLE public.campaign_board ADD COLUMN IF NOT EXISTS location_id int4 NULL;
 ALTER TABLE public.campaign_board ADD COLUMN IF NOT EXISTS check_seconds int4 NULL;
 ALTER TABLE public.campaign_board ADD COLUMN IF NOT EXISTS visit_seconds int4 NULL;

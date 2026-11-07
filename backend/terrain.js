@@ -17,9 +17,9 @@ const TERRAINS = [
 
 const TERRAIN_PERCENT = new Map(TERRAINS.map((row) => [row.name, row.movement_pct]));
 
-function locationTerrain(place, terrain, movementPct) {
-  if (place === 'inside') return { terrain: null, movement_pct: null };
-  if (place !== 'outside') return { error: 'place must be outside or inside' };
+function locationTerrain(environment, terrain, movementPct) {
+  if (environment === 'inside') return { terrain: null, movement_pct: null };
+  if (environment !== 'outside') return { error: 'environment must be outside or inside' };
   const name = terrain == null || String(terrain).trim() === '' ? null : String(terrain).trim();
   const hasPct = movementPct != null && movementPct !== '';
   if (name == null && !hasPct) return { terrain: null, movement_pct: null };

@@ -114,12 +114,12 @@ async function main() {
     }
 
     const outside = (name, terrain, pct, tableName, summary) => ({
-      name, place: 'outside', terrain, pct, tableName, summary, site: null,
+      name, environment: 'outside', terrain, pct, tableName, summary, destination: null,
       die: 6, interval: 14400, ambient: null, dark: null,
     });
     const inside = (name, tableName, summary, interval, die) => ({
-      name, place: 'inside', terrain: null, pct: null, tableName, summary,
-      site: 'Cistern', die, interval, ambient: 0, dark: null,
+      name, environment: 'inside', terrain: null, pct: null, tableName, summary,
+      destination: 'Cistern', die, interval, ambient: 0, dark: null,
     });
     const places = [
       outside(
@@ -159,19 +159,29 @@ async function main() {
     ];
     places.find((row) => row.name === 'Cistern Well').tableId = custom.id;
 
+    const cistern = await one(
+      client,
+      `INSERT INTO campaign_place (campaign_id, name, place_type)
+       VALUES ($1, 'Cistern', 'Dungeon') RETURNING id`,
+      [campaignId]
+    );
+    const cisternId = Number(cistern.id);
+
     const locationIds = {};
     for (const place of places) {
       const table = place.tableId || tableId(place.tableName);
       const inserted = await one(
         client,
         `INSERT INTO campaign_location
-           (campaign_id, name, place, check_die, interval_seconds, encounter_table_id,
-            terrain, movement_pct, summary, site, arrived_seconds, ambient_light, dark_summary)
+           (campaign_id, name, environment, place_id, check_die, interval_seconds, encounter_table_id,
+            terrain, movement_pct, summary, arrived_seconds, ambient_light, dark_summary)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
          RETURNING id`,
         [
-          campaignId, place.name, place.place, place.die, place.interval, table,
-          place.terrain, place.pct, place.summary, place.site,
+          campaignId, place.name, place.environment,
+          place.destination ? cisternId : null,
+          place.die, place.interval, table,
+          place.terrain, place.pct, place.summary,
           place.name === 'Millbridge' ? CLOCK : null,
           place.ambient, place.dark,
         ]
@@ -181,7 +191,7 @@ async function main() {
 
     await client.query(
       `INSERT INTO campaign_board
-         (campaign_id, game_seconds, in_encounter, place, location_id, check_seconds, visit_seconds)
+         (campaign_id, game_seconds, in_encounter, environment, location_id, check_seconds, visit_seconds)
        VALUES ($1, $2, false, 'outside', $3, $2, NULL)`,
       [campaignId, CLOCK, locationIds.Millbridge]
     );

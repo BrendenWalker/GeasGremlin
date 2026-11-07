@@ -102,7 +102,7 @@ async function withRollback(run) {
     const otherId = Number(other.rows[0].id);
     const place = await client.query(
       `INSERT INTO campaign_location
-         (campaign_id, name, place, check_die, interval_seconds, encounter_table_id, ambient_light)
+         (campaign_id, name, environment, check_die, interval_seconds, encounter_table_id, ambient_light)
        VALUES ($1, 'Millbridge', 'inside', 6, 1800, $2, 0)
        RETURNING id`,
       [id, tableId]
@@ -110,7 +110,7 @@ async function withRollback(run) {
     const locationId = Number(place.rows[0].id);
     const elsewhere = await client.query(
       `INSERT INTO campaign_location
-         (campaign_id, name, place, check_die, interval_seconds, encounter_table_id)
+         (campaign_id, name, environment, check_die, interval_seconds, encounter_table_id)
        VALUES ($1, 'Other town', 'outside', 6, 14400, $2)
        RETURNING id`,
       [otherId, tableId]
@@ -151,7 +151,7 @@ async function withRollback(run) {
     assert.equal(Number(kept.rows[0].first_location_id), locationId);
 
     await client.query(
-      `INSERT INTO campaign_board (campaign_id, game_seconds, place, location_id)
+      `INSERT INTO campaign_board (campaign_id, game_seconds, environment, location_id)
        VALUES ($1, 600, 'inside', $2)`,
       [id, locationId]
     );

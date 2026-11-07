@@ -364,7 +364,7 @@ async function databaseProof(client) {
       );
       await client.query(
         `INSERT INTO public.campaign_location
-           (campaign_id, name, place, interval_seconds, encounter_table_id)
+           (campaign_id, name, environment, interval_seconds, encounter_table_id)
          VALUES ($1, 'Woods', 'outside', 14400, $2)`,
         [campaignId, table.rows[0].id]
       );

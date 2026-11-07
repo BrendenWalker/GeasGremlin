@@ -223,7 +223,7 @@ async function withRollback(run) {
       async function place(campaignId, name) {
         const inserted = await client.query(
           `INSERT INTO campaign_location
-             (campaign_id, name, place, check_die, interval_seconds, encounter_table_id, ambient_light)
+             (campaign_id, name, environment, check_die, interval_seconds, encounter_table_id, ambient_light)
            VALUES ($1, $2, 'inside', 6, 1800, $3, 0)
            RETURNING id`,
           [campaignId, name, tableId]
@@ -277,7 +277,7 @@ async function withRollback(run) {
       const outsider = await person(`zz-air-e-${stamp}`, 9, other);
       const bystander = await person(`zz-air-f-${stamp}`, 8, null);
       await client.query(
-        `INSERT INTO campaign_board (campaign_id, game_seconds, in_encounter, place, location_id)
+        `INSERT INTO campaign_board (campaign_id, game_seconds, in_encounter, environment, location_id)
          VALUES ($1, 600, false, 'inside', $2)`,
         [id, stairId]
       );

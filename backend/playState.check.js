@@ -254,7 +254,7 @@ async function withRollback(run) {
     async function place(campaignId, name) {
       await client.query(
         `INSERT INTO campaign_location
-           (campaign_id, name, place, check_die, interval_seconds, encounter_table_id, ambient_light)
+           (campaign_id, name, environment, check_die, interval_seconds, encounter_table_id, ambient_light)
          VALUES ($1, $2, 'inside', 6, 1800, $3, 0)`,
         [campaignId, name, tableId]
       );
@@ -276,7 +276,7 @@ async function withRollback(run) {
     assert.equal(other.length, 2);
 
     await client.query(
-      `INSERT INTO campaign_board (campaign_id, game_seconds, in_encounter, place)
+      `INSERT INTO campaign_board (campaign_id, game_seconds, in_encounter, environment)
        VALUES ($1, 28800, false, 'outside')`,
       [left]
     );
@@ -379,7 +379,7 @@ async function withRollback(run) {
     await place(water, 'Cistern Deep');
     await attachAuthoredFacts(client, water);
     await client.query(
-      `INSERT INTO campaign_board (campaign_id, game_seconds, in_encounter, place)
+      `INSERT INTO campaign_board (campaign_id, game_seconds, in_encounter, environment)
        VALUES ($1, 28800, false, 'inside')`,
       [water]
     );

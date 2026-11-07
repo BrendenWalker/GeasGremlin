@@ -47,6 +47,7 @@ const {
 } = require('./body');
 const { applyCreatureHitPoints, catalogTreasure, fightCreature, recoverCreature } = require('./creature');
 const { nextVisitStamp, visitTurns, arrivedAfterSelect } = require('./visit');
+const { readPlace, placeIdField } = require('./place');
 const { readFlag, playerHere } = require('./room-flag');
 const {
   listFacts,
@@ -2439,7 +2440,7 @@ async function loadAdventuring(campaignId) {
             COALESCE(b.game_seconds, 0) AS game_seconds,
             b.visit_seconds,
             COALESCE(b.in_encounter, false) AS in_encounter,
-            COALESCE(b.place, 'outside') AS place,
+            COALESCE(b.environment, 'outside') AS environment,
             b.location_id
      FROM campaign c
      LEFT JOIN campaign_board b ON b.campaign_id = c.id
@@ -2449,7 +2450,7 @@ async function loadAdventuring(campaignId) {
   if (camp.rows.length === 0) return null;
   const gameSeconds = Number(camp.rows[0].game_seconds);
   const visitStamp = camp.rows[0].visit_seconds;
-  const [enemies, characters, marks, locations, tables, wanders, turnBlocks, bodies, hirelings, visitRows, detailRows] = await Promise.all([
+  const [enemies, characters, marks, locations, places, tables, wanders, turnBlocks, bodies, hirelings, visitRows, detailRows] = await Promise.all([
     pool.query(
       `SELECT e.id, e.name, e.monster_id, e.treasure_type, e.hp, e.base_hp, e.location_id,
               m.hit_dice, m.morale, m.morale_engaged, m.armor_class, m.defense_note, m.attack_note, m.notes
@@ -2480,8 +2481,13 @@ async function loadAdventuring(campaignId) {
       [campaignId]
     ),
     pool.query(
-      `SELECT id, name, place, check_die, interval_seconds, encounter_table_id, terrain, movement_pct, summary, arrived_seconds, site, ambient_light, dark_summary, gm_text
+      `SELECT id, name, environment, place_id, check_die, interval_seconds, encounter_table_id, terrain, movement_pct, summary, arrived_seconds, ambient_light, dark_summary, gm_text
        FROM campaign_location WHERE campaign_id = $1 ORDER BY name, id`,
+      [campaignId]
+    ),
+    pool.query(
+      `SELECT id, name, description, place_type, gm_text
+       FROM campaign_place WHERE campaign_id = $1 ORDER BY name, id`,
       [campaignId]
     ),
     pool.query(
@@ -2600,7 +2606,7 @@ async function loadAdventuring(campaignId) {
   });
   const slow = slowestMember(characterRows.filter((row) => row.move != null));
   const selected = locations.rows.find((row) => String(row.id) === String(camp.rows[0].location_id));
-  const outsidePct = selected && selected.place === 'outside' && selected.movement_pct != null
+  const outsidePct = selected && selected.environment === 'outside' && selected.movement_pct != null
     ? Number(selected.movement_pct)
     : null;
   const baseMiles = slow ? slow.miles : null;
@@ -2697,7 +2703,7 @@ async function loadAdventuring(campaignId) {
   return {
     game_seconds: camp.rows[0].game_seconds,
     in_encounter: camp.rows[0].in_encounter,
-    place: camp.rows[0].place,
+    environment: camp.rows[0].environment,
     location_id: camp.rows[0].location_id,
     intro: detailRows.rows[0]?.intro ?? null,
     gm_notes: detailRows.rows[0]?.gm_notes ?? null,
@@ -2717,7 +2723,7 @@ async function loadAdventuring(campaignId) {
     party_miles: slow ? slow.miles : null,
     party_slow: slow ? slow.name : null,
     party_load: slow ? slow.label : null,
-    visit_turns: selected && selected.site
+    visit_turns: selected && selected.place_id != null
       ? visitTurns(gameSeconds, camp.rows[0].visit_seconds, TURN_SECONDS)
       : null,
     overland_miles: overland,
@@ -2728,8 +2734,16 @@ async function loadAdventuring(campaignId) {
     specialists: SPECIALISTS,
     mercenaries: MERCENARIES,
     marks: marks.rows,
+    places: places.rows.map((row) => ({
+      id: Number(row.id),
+      name: row.name,
+      description: row.description,
+      place_type: row.place_type,
+      gm_text: row.gm_text,
+    })),
     locations: locations.rows.map((row) => ({
       ...row,
+      place_id: row.place_id == null ? null : Number(row.place_id),
       shops: shopsByLocation.get(Number(row.id)) || [],
       creatures: creaturesByLocation.get(Number(row.id)) || [],
       flags: flagsByLocation.get(Number(row.id)) || [],
@@ -3325,16 +3339,15 @@ function movementField(value) {
 }
 
 function locationConstraintMessage(constraint) {
-  if (constraint === 'campaign_location_site_check') return 'Site must be a name';
   if (constraint === 'campaign_location_light_check') return 'Ambient light must be from 0 to 100 indoors';
   return 'That terrain is not allowed on this location';
 }
 
-function locationLight(place, body) {
+function locationLight(environment, body) {
   const darkSummary = optionalText(body?.dark_summary, 'dark_summary', 4000);
   const raw = body?.ambient_light;
   const missing = raw == null || raw === '';
-  if (place === 'outside') {
+  if (environment === 'outside') {
     if (!missing || darkSummary) throw storedError('Ambient light is only stored indoors', 400);
     return { ambientLight: null, darkSummary: null };
   }
@@ -3345,20 +3358,23 @@ function locationLight(place, body) {
 
 function readLocationFields(body) {
   const name = String(body?.name || '').trim();
-  const place = body?.place;
+  const environment = body?.environment;
   if (!name || name.length > 80) throw storedError('name must be 1 to 80 characters', 400);
-  if (place !== 'outside' && place !== 'inside') throw storedError('place must be outside or inside', 400);
+  if (environment !== 'outside' && environment !== 'inside') {
+    throw storedError('environment must be outside or inside', 400);
+  }
   const checkDie = body?.check_die == null || body.check_die === '' ? 6 : positiveInt(body.check_die, 'check_die');
   if (checkDie < 2 || checkDie > 100) throw storedError('check_die must be from 2 to 100', 400);
   const interval = body?.interval_seconds == null || body.interval_seconds === ''
-    ? (place === 'inside' ? INSIDE_INTERVAL : OUTSIDE_INTERVAL)
+    ? (environment === 'inside' ? INSIDE_INTERVAL : OUTSIDE_INTERVAL)
     : positiveInt(body.interval_seconds, 'interval_seconds');
   const tableId = positiveInt(body?.encounter_table_id, 'encounter_table_id');
-  const terrain = locationTerrain(place, body?.terrain, movementField(body?.movement_pct));
+  const terrain = locationTerrain(environment, body?.terrain, movementField(body?.movement_pct));
   if (terrain.error) throw storedError(terrain.error, 400);
   return {
     name,
-    place,
+    environment,
+    placeId: placeIdField(body?.place_id),
     checkDie,
     interval,
     tableId,
@@ -3366,10 +3382,20 @@ function readLocationFields(body) {
     movementPct: terrain.movement_pct,
     summary: optionalText(body?.summary, 'summary', 4000),
     gmText: optionalText(body?.gm_text, 'gm_text', 4000),
-    site: optionalText(body?.site, 'site', 80),
-    ...locationLight(place, body),
+    ...locationLight(environment, body),
   };
 }
+
+async function placeForCampaign(client, campaignId, placeId) {
+  if (placeId == null) return null;
+  const found = await client.query(
+    'SELECT id FROM campaign_place WHERE id = $1 AND campaign_id = $2',
+    [placeId, campaignId]
+  );
+  return found.rows[0] || null;
+}
+
+const LOCATION_COLUMNS = 'id, name, environment, place_id, check_die, interval_seconds, encounter_table_id, terrain, movement_pct, summary, arrived_seconds, ambient_light, dark_summary, gm_text';
 
 function parseTableRows(die, rows) {
   if (!Array.isArray(rows) || rows.length === 0) throw storedError('A table needs at least one row', 400);
@@ -3442,6 +3468,86 @@ app.post('/api/campaigns/:campaignId/adventuring/tables', async (req, res) => {
   }
 });
 
+app.post('/api/campaigns/:campaignId/adventuring/places', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const fields = readPlace(req.body);
+    const inserted = await pool.query(
+      `INSERT INTO campaign_place (campaign_id, name, description, place_type, gm_text)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, name, description, place_type, gm_text`,
+      [req.params.campaignId, fields.name, fields.description, fields.placeType, fields.gmText]
+    );
+    res.status(201).json(inserted.rows[0]);
+  } catch (error) {
+    if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    if (error.code === '23505') return res.status(400).json({ error: 'A place with that name already exists' });
+    console.error('Error creating place:', error);
+    res.status(500).json({ error: error.message || 'Failed to create place' });
+  }
+});
+
+app.patch('/api/campaigns/:campaignId/adventuring/places/:placeId', async (req, res) => {
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    const fields = readPlace(req.body);
+    const updated = await pool.query(
+      `UPDATE campaign_place
+       SET name = $3, description = $4, place_type = $5, gm_text = $6
+       WHERE id = $1 AND campaign_id = $2
+       RETURNING id, name, description, place_type, gm_text`,
+      [req.params.placeId, req.params.campaignId, fields.name, fields.description, fields.placeType, fields.gmText]
+    );
+    if (updated.rows.length === 0) return res.status(404).json({ error: 'Place not found' });
+    res.json(updated.rows[0]);
+  } catch (error) {
+    if (adventuringMissing(res, error)) return;
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    if (error.code === '23505') return res.status(400).json({ error: 'A place with that name already exists' });
+    console.error('Error updating place:', error);
+    res.status(500).json({ error: error.message || 'Failed to update place' });
+  }
+});
+
+app.delete('/api/campaigns/:campaignId/adventuring/places/:placeId', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const member = await requireCampaign(req, res, req.params.campaignId, true);
+    if (!member) return;
+    await client.query('BEGIN');
+    await client.query(
+      `UPDATE campaign_board b
+       SET visit_seconds = NULL
+       FROM campaign_location l
+       WHERE b.campaign_id = $1
+         AND b.location_id = l.id
+         AND l.place_id = $2
+         AND l.campaign_id = $1`,
+      [req.params.campaignId, req.params.placeId]
+    );
+    const deleted = await client.query(
+      'DELETE FROM campaign_place WHERE id = $1 AND campaign_id = $2 RETURNING id',
+      [req.params.placeId, req.params.campaignId]
+    );
+    if (deleted.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Place not found' });
+    }
+    await client.query('COMMIT');
+    res.json({ id: deleted.rows[0].id });
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch (_) { /* connection already failed */ }
+    if (adventuringMissing(res, error)) return;
+    console.error('Error deleting place:', error);
+    res.status(500).json({ error: error.message || 'Failed to delete place' });
+  } finally {
+    client.release();
+  }
+});
+
 app.post('/api/campaigns/:campaignId/adventuring/locations', async (req, res) => {
   try {
     const member = await requireCampaign(req, res, req.params.campaignId, true);
@@ -3450,12 +3556,15 @@ app.post('/api/campaigns/:campaignId/adventuring/locations', async (req, res) =>
     if (!(await tableForCampaign(pool, req.params.campaignId, fields.tableId))) {
       return res.status(400).json({ error: 'Table is not in this campaign' });
     }
+    if (fields.placeId != null && !(await placeForCampaign(pool, req.params.campaignId, fields.placeId))) {
+      return res.status(400).json({ error: 'Place is not in this campaign' });
+    }
     const inserted = await pool.query(
       `INSERT INTO campaign_location
-         (campaign_id, name, place, check_die, interval_seconds, encounter_table_id, terrain, movement_pct, summary, site, ambient_light, dark_summary, gm_text)
+         (campaign_id, name, environment, place_id, check_die, interval_seconds, encounter_table_id, terrain, movement_pct, summary, ambient_light, dark_summary, gm_text)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-       RETURNING id, name, place, check_die, interval_seconds, encounter_table_id, terrain, movement_pct, summary, arrived_seconds, site, ambient_light, dark_summary, gm_text`,
-      [req.params.campaignId, fields.name, fields.place, fields.checkDie, fields.interval, fields.tableId, fields.terrain, fields.movementPct, fields.summary, fields.site, fields.ambientLight, fields.darkSummary, fields.gmText]
+       RETURNING ${LOCATION_COLUMNS}`,
+      [req.params.campaignId, fields.name, fields.environment, fields.placeId, fields.checkDie, fields.interval, fields.tableId, fields.terrain, fields.movementPct, fields.summary, fields.ambientLight, fields.darkSummary, fields.gmText]
     );
     res.status(201).json(inserted.rows[0]);
   } catch (error) {
@@ -3472,12 +3581,12 @@ app.post('/api/campaigns/:campaignId/adventuring/locations', async (req, res) =>
 
 async function selectCampaignLocation(client, campaignId, locationId) {
   const loc = await client.query(
-    'SELECT id, place, site, arrived_seconds FROM campaign_location WHERE id = $1 AND campaign_id = $2',
+    'SELECT id, environment, place_id, arrived_seconds FROM campaign_location WHERE id = $1 AND campaign_id = $2',
     [locationId, campaignId]
   );
   if (loc.rows.length === 0) throw storedError('Location not found', 404);
   const board = await client.query(
-    `SELECT COALESCE(b.game_seconds, 0) AS game_seconds, b.visit_seconds, l.site
+    `SELECT COALESCE(b.game_seconds, 0) AS game_seconds, b.visit_seconds, l.place_id
      FROM campaign_board b
      LEFT JOIN campaign_location l ON l.id = b.location_id
      WHERE b.campaign_id = $1`,
@@ -3485,16 +3594,16 @@ async function selectCampaignLocation(client, campaignId, locationId) {
   );
   const gameSeconds = board.rows.length === 0 ? 0 : Number(board.rows[0].game_seconds);
   const visitSeconds = nextVisitStamp(
-    board.rows.length === 0 ? null : board.rows[0].site,
-    loc.rows[0].site,
+    board.rows.length === 0 ? null : board.rows[0].place_id,
+    loc.rows[0].place_id,
     gameSeconds,
     board.rows.length === 0 ? null : board.rows[0].visit_seconds
   );
   const updated = await client.query(
-    `INSERT INTO campaign_board (campaign_id, place, location_id, check_seconds, visit_seconds)
+    `INSERT INTO campaign_board (campaign_id, environment, location_id, check_seconds, visit_seconds)
      VALUES ($1, $2, $3, 0, $4)
      ON CONFLICT (campaign_id) DO UPDATE
-     SET place = EXCLUDED.place,
+     SET environment = EXCLUDED.environment,
          location_id = EXCLUDED.location_id,
          check_seconds = CASE
            WHEN campaign_board.location_id IS NOT DISTINCT FROM EXCLUDED.location_id
@@ -3502,8 +3611,8 @@ async function selectCampaignLocation(client, campaignId, locationId) {
            ELSE campaign_board.game_seconds
          END,
          visit_seconds = EXCLUDED.visit_seconds
-     RETURNING place, location_id, check_seconds, game_seconds, visit_seconds`,
-    [campaignId, loc.rows[0].place, loc.rows[0].id, visitSeconds]
+     RETURNING environment, location_id, check_seconds, game_seconds, visit_seconds`,
+    [campaignId, loc.rows[0].environment, loc.rows[0].id, visitSeconds]
   );
   await client.query(
     `UPDATE campaign_location
@@ -3579,7 +3688,7 @@ app.patch('/api/campaigns/:campaignId/adventuring/locations/:locationId', async 
     const fields = readLocationFields(req.body);
     await client.query('BEGIN');
     const prior = await client.query(
-      `SELECT l.site, b.location_id, b.visit_seconds, COALESCE(b.game_seconds, 0) AS game_seconds
+      `SELECT l.place_id, b.location_id, b.visit_seconds, COALESCE(b.game_seconds, 0) AS game_seconds
        FROM campaign_location l
        LEFT JOIN campaign_board b ON b.campaign_id = l.campaign_id
        WHERE l.id = $1 AND l.campaign_id = $2`,
@@ -3589,25 +3698,29 @@ app.patch('/api/campaigns/:campaignId/adventuring/locations/:locationId', async 
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Table is not in this campaign' });
     }
+    if (fields.placeId != null && !(await placeForCampaign(client, req.params.campaignId, fields.placeId))) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Place is not in this campaign' });
+    }
     const updated = await client.query(
       `UPDATE campaign_location
-       SET name = $3, place = $4, check_die = $5, interval_seconds = $6,
-           encounter_table_id = $7, terrain = $8, movement_pct = $9, summary = $10, site = $11,
+       SET name = $3, environment = $4, place_id = $5, check_die = $6, interval_seconds = $7,
+           encounter_table_id = $8, terrain = $9, movement_pct = $10, summary = $11,
            ambient_light = $12, dark_summary = $13, gm_text = $14
        WHERE id = $1 AND campaign_id = $2
-       RETURNING id, name, place, check_die, interval_seconds, encounter_table_id, terrain, movement_pct, summary, arrived_seconds, site, ambient_light, dark_summary, gm_text`,
+       RETURNING ${LOCATION_COLUMNS}`,
       [
         req.params.locationId,
         req.params.campaignId,
         fields.name,
-        fields.place,
+        fields.environment,
+        fields.placeId,
         fields.checkDie,
         fields.interval,
         fields.tableId,
         fields.terrain,
         fields.movementPct,
         fields.summary,
-        fields.site,
         fields.ambientLight,
         fields.darkSummary,
         fields.gmText,
@@ -3620,8 +3733,8 @@ app.patch('/api/campaigns/:campaignId/adventuring/locations/:locationId', async 
     const standing = prior.rows[0];
     if (standing && standing.location_id != null && String(standing.location_id) === String(req.params.locationId)) {
       const stamp = nextVisitStamp(
-        standing.site,
-        fields.site,
+        standing.place_id,
+        fields.placeId,
         Number(standing.game_seconds),
         standing.visit_seconds
       );
@@ -3631,9 +3744,9 @@ app.patch('/api/campaigns/:campaignId/adventuring/locations/:locationId', async 
       );
     }
     await client.query(
-      `UPDATE campaign_board SET place = $3
+      `UPDATE campaign_board SET environment = $3
        WHERE campaign_id = $1 AND location_id = $2`,
-      [req.params.campaignId, req.params.locationId, fields.place]
+      [req.params.campaignId, req.params.locationId, fields.environment]
     );
     await client.query('COMMIT');
     res.json(updated.rows[0]);
@@ -4663,10 +4776,10 @@ app.delete('/api/campaigns/:campaignId/adventuring/tables/:tableId', async (req,
   }
 });
 
-app.post('/api/campaigns/:campaignId/adventuring/place', async (req, res) => {
-  const place = req.body?.place;
-  if (place !== 'outside' && place !== 'inside') {
-    return res.status(400).json({ error: 'place must be outside or inside' });
+app.post('/api/campaigns/:campaignId/adventuring/environment', async (req, res) => {
+  const environment = req.body?.environment;
+  if (environment !== 'outside' && environment !== 'inside') {
+    return res.status(400).json({ error: 'environment must be outside or inside' });
   }
   try {
     const member = await requireCampaign(req, res, req.params.campaignId, true);
@@ -4674,17 +4787,17 @@ app.post('/api/campaigns/:campaignId/adventuring/place', async (req, res) => {
     const camp = await pool.query('SELECT id FROM campaign WHERE id = $1', [req.params.campaignId]);
     if (camp.rows.length === 0) return res.status(404).json({ error: 'Campaign not found' });
     const updated = await pool.query(
-      `INSERT INTO campaign_board (campaign_id, place)
+      `INSERT INTO campaign_board (campaign_id, environment)
        VALUES ($1, $2)
-       ON CONFLICT (campaign_id) DO UPDATE SET place = EXCLUDED.place
-       RETURNING place, game_seconds`,
-      [req.params.campaignId, place]
+       ON CONFLICT (campaign_id) DO UPDATE SET environment = EXCLUDED.environment
+       RETURNING environment, game_seconds`,
+      [req.params.campaignId, environment]
     );
-    res.json({ place: updated.rows[0].place, game_seconds: updated.rows[0].game_seconds });
+    res.json({ environment: updated.rows[0].environment, game_seconds: updated.rows[0].game_seconds });
   } catch (error) {
     if (adventuringMissing(res, error)) return;
-    console.error('Error setting campaign place:', error);
-    res.status(500).json({ error: error.message || 'Failed to set place' });
+    console.error('Error setting campaign environment:', error);
+    res.status(500).json({ error: error.message || 'Failed to set environment' });
   }
 });
 
@@ -6989,7 +7102,7 @@ app.post('/api/campaigns/:campaignId/situation/transitions/:transitionId/arrive'
       [request.params.campaignId, locationId, at, way.log.kind, way.log.body]
     );
   }
-  return { location_id: selected.location_id, place: selected.place };
+  return { location_id: selected.location_id, environment: selected.environment };
 }));
 
 app.post('/api/campaigns/:campaignId/situation/transitions/:transitionId/found', (req, res) => withSituation(req, res, 'Failed to mark path found', async (client, request) => (

@@ -48,7 +48,7 @@ import {
   applyEnvironmentalEffect,
   rejectEnvironmentalEffect,
   clearLocationFlag,
-  setAdventuringPlace,
+  setAdventuringEnvironment,
   tickAdventuring,
   selectLocation,
   concludeCampaign,
@@ -84,9 +84,10 @@ function intervalLabel(seconds) {
   return `every ${n} seconds`;
 }
 
-function locationFacts(loc) {
-  const bits = [loc.place];
-  if (loc.site) bits.push(loc.site);
+function locationFacts(loc, places) {
+  const bits = [loc.environment];
+  const parent = (places || []).find((place) => String(place.id) === String(loc.place_id));
+  if (parent) bits.push(parent.name);
   if (loc.terrain) {
     const pct = Number(loc.movement_pct);
     const shown = Number.isInteger(pct) ? `${pct > 0 ? '+' : ''}${pct}%` : '';
@@ -95,6 +96,19 @@ function locationFacts(loc) {
   bits.push(`d${loc.check_die}`);
   bits.push(intervalLabel(loc.interval_seconds));
   return bits.join(' · ');
+}
+
+function locationOptions(board) {
+  const places = board?.places || [];
+  const locations = board?.locations || [];
+  const groups = places.map((place) => ({
+    id: place.id,
+    label: place.name,
+    locations: locations.filter((loc) => String(loc.place_id) === String(place.id)),
+  })).filter((group) => group.locations.length > 0);
+  const unassigned = locations.filter((loc) => loc.place_id == null);
+  if (unassigned.length > 0) groups.push({ id: 'unassigned', label: 'Unassigned Locations', locations: unassigned });
+  return groups;
 }
 
 function errText(err) {
@@ -1087,11 +1101,12 @@ export default function AdventuringPage() {
   const hereLine = here
     ? [here.name, here.terrain, hereTable?.name].filter(Boolean).join(' · ')
     : 'No location';
-  const visitLine = here?.site && Number.isInteger(board?.visit_turns)
-    ? `${board.visit_turns} ${board.visit_turns === 1 ? 'turn' : 'turns'} on ${here.site}`
+  const herePlace = here && (board?.places || []).find((place) => String(place.id) === String(here.place_id));
+  const visitLine = herePlace && Number.isInteger(board?.visit_turns)
+    ? `${board.visit_turns} ${board.visit_turns === 1 ? 'turn' : 'turns'} in ${herePlace.name}`
     : null;
-  const place = board?.place === 'inside' ? 'inside' : 'outside';
-  const primary = primaryStep(place, board?.in_encounter);
+  const environment = board?.environment === 'inside' ? 'inside' : 'outside';
+  const primary = primaryStep(environment, board?.in_encounter);
   const fighters = fighterOptions(board);
   const attackerChoice = fighters.find((option) => option.key === blowAttacker);
   const defenderChoice = fighters.find((option) => option.key === blowDefender);
@@ -1801,10 +1816,14 @@ export default function AdventuringPage() {
           <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', margin: '0.75rem 0' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-              <h2 style={{ margin: 0 }}>{here ? here.name : 'Select a location'}</h2>
+              <h2 style={{ margin: 0 }}>
+                {here
+                  ? (herePlace ? `${herePlace.name} · ${here.name}` : here.name)
+                  : 'Select a location'}
+              </h2>
               {here ? (
                 <span className="muted">
-                  {locationFacts(here)}
+                  {locationFacts(here, board?.places)}
                   {(here.flags || []).length ? ` · ${(here.flags || []).length} flag${(here.flags || []).length === 1 ? '' : 's'}` : ''}
                 </span>
               ) : (board.locations || []).length === 0 ? (
@@ -1827,8 +1846,12 @@ export default function AdventuringPage() {
                   style={{ ...FIELD, maxWidth: 280 }}
                 >
                   <option value="">Choose…</option>
-                  {(board.locations || []).map((loc) => (
-                    <option key={loc.id} value={loc.id}>{loc.name}</option>
+                  {locationOptions(board).map((group) => (
+                    <optgroup key={group.id} label={group.label}>
+                      {group.locations.map((loc) => (
+                        <option key={loc.id} value={loc.id}>{loc.name}</option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
                 <button
@@ -2120,17 +2143,17 @@ export default function AdventuringPage() {
           ))}
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 8 }}>
-          <span className="muted">Place</span>
+          <span className="muted">Environment</span>
           {['outside', 'inside'].map((value) => (
             <button
               key={value}
               type="button"
-              className={place === value ? 'btn btn-primary' : 'btn btn-secondary'}
-              aria-pressed={place === value}
+              className={environment === value ? 'btn btn-primary' : 'btn btn-secondary'}
+              aria-pressed={environment === value}
               disabled={busy || !board}
               onClick={() => {
-                if (place === value) return;
-                run(() => setAdventuringPlace(campaignId, value));
+                if (environment === value) return;
+                run(() => setAdventuringEnvironment(campaignId, value));
               }}
             >
               {value === 'outside' ? 'Outside' : 'Inside'}

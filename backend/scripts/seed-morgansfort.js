@@ -360,17 +360,17 @@ function assertShape(model) {
 function buildModel(moduleText, supplementXml) {
   const rumors = rumorsFrom(supplementXml);
   const stafeldRooms = parseRooms(between(moduleText, '1. ENTRANCE ROOM:', 'The Nameless Dungeon')).map((room) => ({
-    ...room, prefix: 'Stafeld', site: 'Stafeld', interval: 1800, table: 'Stafeld',
+    ...room, prefix: 'Stafeld', destination: 'Stafeld', interval: 1800, table: 'Stafeld',
   }));
   const namelessRooms = parseRooms(between(moduleText, '1. ENTRANCE: (10', 'Nameless Dungeon Level 1 Map')).map((room) => ({
     ...room,
     prefix: 'Nameless',
-    site: 'Nameless Dungeon',
+    destination: 'Nameless Dungeon',
     interval: 1800,
     table: room.number <= 35 ? 'Nameless 1' : room.number <= 68 ? 'Nameless 2' : 'Nameless 3',
   }));
   const caveRooms = parseRooms(between(moduleText, '1. ORC COMMON ROOM:', 'Cave of the Unknown Map')).map((room) => ({
-    ...room, prefix: 'Cave', site: 'Cave of the Unknown', interval: 1200, table: 'Cave',
+    ...room, prefix: 'Cave', destination: 'Cave of the Unknown', interval: 1200, table: 'Cave',
   }));
   const rooms = [...stafeldRooms, ...namelessRooms, ...caveRooms];
   for (const room of rooms) {
@@ -381,11 +381,11 @@ function buildModel(moduleText, supplementXml) {
     room.name = `${room.prefix} ${room.number}. ${room.title}`.slice(0, 80);
   }
   const wanders = [
-    { key: 'Stafeld', name: 'Stafeld Wander', site: 'Stafeld', interval: 1800, block: between(moduleText, 'Random Encounters', '1. ENTRANCE ROOM:') },
-    { key: 'Nameless 1', name: 'Nameless 1 Wander', site: 'Nameless Dungeon', interval: 1800, block: between(moduleText, 'rolled every 3 turns (half an hour)', 'Level 2\nRoll 1d6') },
-    { key: 'Nameless 2', name: 'Nameless 2 Wander', site: 'Nameless Dungeon', interval: 1800, block: between(moduleText, 'Level 2\nRoll 1d6 for the type of encounter.', 'Level 3\nRoll 1d6') },
-    { key: 'Nameless 3', name: 'Nameless 3 Wander', site: 'Nameless Dungeon', interval: 1800, block: between(moduleText, 'Level 3\nRoll 1d6 for the type of encounter.', 'Dungeon Level 1') },
-    { key: 'Cave', name: 'Cave Wander', site: 'Cave of the Unknown', interval: 1200, block: between(moduleText, 'An encounter should be rolled for every second turn', 'The Orcs (and their leaders)') },
+    { key: 'Stafeld', name: 'Stafeld Wander', destination: 'Stafeld', interval: 1800, block: between(moduleText, 'Random Encounters', '1. ENTRANCE ROOM:') },
+    { key: 'Nameless 1', name: 'Nameless 1 Wander', destination: 'Nameless Dungeon', interval: 1800, block: between(moduleText, 'rolled every 3 turns (half an hour)', 'Level 2\nRoll 1d6') },
+    { key: 'Nameless 2', name: 'Nameless 2 Wander', destination: 'Nameless Dungeon', interval: 1800, block: between(moduleText, 'Level 2\nRoll 1d6 for the type of encounter.', 'Level 3\nRoll 1d6') },
+    { key: 'Nameless 3', name: 'Nameless 3 Wander', destination: 'Nameless Dungeon', interval: 1800, block: between(moduleText, 'Level 3\nRoll 1d6 for the type of encounter.', 'Dungeon Level 1') },
+    { key: 'Cave', name: 'Cave Wander', destination: 'Cave of the Unknown', interval: 1200, block: between(moduleText, 'An encounter should be rolled for every second turn', 'The Orcs (and their leaders)') },
   ];
   for (const wander of wanders) {
     wander.entries = parseWander(wander.block);
@@ -419,12 +419,19 @@ function buildModel(moduleText, supplementXml) {
 function townPlaces() {
   const day = 'City, Town, or Village (Day)';
   const place = (name, summary, gmText) => ({
-    name, place: 'outside', terrain: null, pct: null, table: day, summary, gmText, site: 'Morgansfort', die: 6, interval: 14400,
+    name, environment: 'outside', terrain: null, pct: null, table: day, summary, gmText, destination: 'Morgansfort', die: 6, interval: 14400,
+  });
+  const inside = (name, summary, gmText, ambientLight, darkSummary = null) => ({
+    ...place(name, summary, gmText),
+    environment: 'inside',
+    interval: 1800,
+    ambientLight,
+    darkSummary,
   });
   return [
-    place('1. Gatehouse', 'A stone gatehouse. The passage through is ten feet wide, with a heavy door at each end.', 'By day, two soldiers and a corporal or sergeant, plus one scribe. Hobeth and his apprentice Glorin split the duty. About 70 percent of the time it is Glorin. They record names and charge 1 sp a person and 1 cp an animal, unless the tax was paid this month. Antique coin from a ruin is taxed 10 percent here and then stamped. Hiding it is a flogging and confiscation. The stamp chest goes to the keep when the gates shut.'),
-    place('1. Gatehouse Upper', 'The upper gatehouse is a barracks over the passage, with murder holes in the floor.', 'Twelve bunks, oil vats, and braziers sit ready over the holes. The racks hold sword, dagger, and crossbow for each guard.'),
-    place('2. Southeast Tower', 'A corner tower given over to bunks and weapon racks.', 'Nine bunks. Sword, spear, crossbow, and a pair of daggers for each guard. Nothing of value in the trunks.'),
+    inside('1. Gatehouse', 'A stone gatehouse. The passage through is ten feet wide, with a heavy door at each end.', 'By day, two soldiers and a corporal or sergeant, plus one scribe. Hobeth and his apprentice Glorin split the duty. About 70 percent of the time it is Glorin. They record names and charge 1 sp a person and 1 cp an animal, unless the tax was paid this month. Antique coin from a ruin is taxed 10 percent here and then stamped. Hiding it is a flogging and confiscation. The stamp chest goes to the keep when the gates shut.', 60),
+    inside('1. Gatehouse Upper', 'The upper gatehouse is a barracks over the passage, with murder holes in the floor.', 'Twelve bunks, oil vats, and braziers sit ready over the holes. The racks hold sword, dagger, and crossbow for each guard.', 60),
+    inside('2. Southeast Tower', 'A corner tower given over to bunks and weapon racks.', 'Nine bunks. Sword, spear, crossbow, and a pair of daggers for each guard. Nothing of value in the trunks.', 55),
     place('3. Common Stable', 'The common stable. Horses, mules, and donkeys stand in the stalls.', 'Hardel and his three sons keep it. One of them is always here. Stabling is 5 cp a day or 25 cp a week, feed and exercise included. The boys sleep in the hayloft when their father is out.'),
     place('4. Bank', 'A thick stone bank. Iron bars cut the room in half, with a counter behind the slots.', '1d4 clerks at the counter. One or two off-duty soldiers stand guard day and night. The vault door is four inches of steel. Only the bank officers have the keys.'),
     place('5. Trader', 'Jeroh Lotherra\'s shop. Dry goods, packed to the beams.', 'He stocks the usual equipment list, not weapons, armor, or livestock, at list price. He buys serviceable goods he believes are not stolen, dungeon finds included, at 4 sp per gp of listed value. Jewelry and other rich goods he will not buy, but he will take them in trade at 6 sp per gp.'),
@@ -432,38 +439,32 @@ function townPlaces() {
     place('7. Herbalist', 'A faded bunch of herbs hangs outside Maien Brai\'s house. The rooms smell of drying plants.', 'Maien is a friendly middle-aged widow. Her daughter Jyni lives with her. About 60 percent of the time she has a few healing potions at 250 gp. Given a reason, she can make stronger poisons.'),
     place('8. Stableman\'s House', 'Hardel\'s house. The outside is tired. The inside is worse.', 'He and his three sons live in the clutter. They will invite a favored visitor in for a drink or a bad dinner.'),
     place('9. Gambling House', 'Bargus\'s house looks like nothing from the street.', 'A concealed stair drops to a gambling hall. Invitation only. 2d6 patrons, Bargus, 1d3+2 dealers, and two bouncers. He pays the watch to look away. Most illicit wants can be arranged here.'),
-    place('10. Thelan Taramedes', 'An iron-bound door with a small mystical mark, easy to miss.', 'Thelan is a semi-retired 4th level magic-user, vain and kind. The bedroom trunk hides scrolls: protection from magic, detect magic, detect evil, shield, and web.'),
-    place('11. Smithy', 'The smithy announces itself with heat, smoke, and the hammer.', 'Rugarr works with his apprentice Tob. Rugarr lives upstairs. Tob sleeps in the shop, and sometimes goes home to a nearby farm.'),
-    place('12. Warehouse', 'A long wooden warehouse full of crates, barrels, and sacks.', 'The merchant guild rents space at 1 gp a week. By day: clerk Sardas and laborers Valdin, Tamas, and Kaino, each a normal man with 3 hit points. At need they have leather, shortbow, and spear. The laborers sleep here. Sardas rooms at the inn. Locked at night.'),
-    {
-      ...place('13. Toothless Dragon', 'The Toothless Dragon serves beer, wine, and three hearty meals a day.', `${RUMOR_HOW}\n\nGarnoth, a retired 3rd level fighter, runs it with his wife Lianna. Their daughters Irene and Louise serve. Rude patrons get thrown out. Garnoth fights with a club if he must: AC 11, attack +2, 17 hit points.`),
-      place: 'inside',
-      interval: 1800,
-      ambientLight: 70,
-      darkSummary: null,
-    },
-    place('14. Iron Helm Inn', 'The inn has a common room downstairs and four rooms above.', 'Lorynn, Lianna\'s older brother, keeps it. A cot in the common room is 1 sp. A room is 1 gp, plus 1 sp for an extra cot. The bath is 1 sp. He is unmarried and pays awkward attention to unattended human or elven women.'),
-    place('15. Chapel of St. Queril', 'The Reformers\' chapel. Plain, and unusually well kept.', 'Father Thelbain, a 6th level cleric, will not adventure. He casts for parishioners free and for adventurers against a real donation. He usually has cure light wounds twice, bless, hold person, and cure disease. His assistants are Baris, Jerard, and Melean, all 1st level.'),
-    place('16. East Tower', 'Another wall tower of bunks and racks.', 'Nine bunks. The same guard weapons as the other towers. No private valuables.'),
-    place('17. Northeast Tower', 'The northeast tower. Bunks line the outer walls.', 'Nine bunks and the usual racks. Nothing worth stealing in the trunks.'),
-    place('18. Southwest Tower', 'The southwest tower, fitted like the northeast one.', 'Nine bunks, racks, and no private coin.'),
-    place('19. Inner Tower', 'A tower on the inner wall. The door opens onto stairs and the watch above.', 'Nothing else is kept here. A secret stair into tunnels under the fort would start in this tower, if those tunnels are ever dug. They are not in this seed.'),
+    inside('10. Residence of Thelan Taramedes', 'An iron-bound door with a small mystical mark, easy to miss.', 'Thelan is a semi-retired 4th level magic-user, vain and kind. The bedroom trunk hides scrolls: protection from magic, detect magic, detect evil, shield, and web.', 80),
+    inside('11. Smithy', 'The smithy announces itself with heat, smoke, and the hammer.', 'Rugarr works with his apprentice Tob. Rugarr lives upstairs. Tob sleeps in the shop, and sometimes goes home to a nearby farm.', 50, 'The only light come from the glowing forge and hot iron worked by the smith and his apprentice.'),
+    inside('12. Warehouse', 'A long wooden warehouse full of crates, barrels, and sacks.', 'The merchant guild rents space at 1 gp a week. By day: clerk Sardas and laborers Valdin, Tamas, and Kaino, each a normal man with 3 hit points. At need they have leather, shortbow, and spear. The laborers sleep here. Sardas rooms at the inn. Locked at night.', 40, 'It\'s a dark storage building'),
+    inside('13. Toothless Dragon', 'The Toothless Dragon serves beer, wine, and three hearty meals a day.', `${RUMOR_HOW}\n\nGarnoth, a retired 3rd level fighter, runs it with his wife Lianna. Their daughters Irene and Louise serve. Rude patrons get thrown out. Garnoth fights with a club if he must: AC 11, attack +2, 17 hit points.`, 70),
+    inside('14. Iron Helm Inn', 'The inn has a common room downstairs and four rooms above.', 'Lorynn, Lianna\'s older brother, keeps it. A cot in the common room is 1 sp. A room is 1 gp, plus 1 sp for an extra cot. The bath is 1 sp. He is unmarried and pays awkward attention to unattended human or elven women.', 80),
+    inside('15. Chapel of St. Queril', 'The Reformers\' chapel. Plain, and unusually well kept.', 'Father Thelbain, a 6th level cleric, will not adventure. He casts for parishioners free and for adventurers against a real donation. He usually has cure light wounds twice, bless, hold person, and cure disease. His assistants are Baris, Jerard, and Melean, all 1st level.', 80),
+    inside('16. East Tower', 'Another wall tower of bunks and racks.', 'Nine bunks. The same guard weapons as the other towers. No private valuables.', 45),
+    inside('17. Northeast Tower', 'The northeast tower. Bunks line the outer walls.', 'Nine bunks and the usual racks. Nothing worth stealing in the trunks.', 66),
+    inside('18. Southwest Tower', 'The southwest tower, fitted like the northeast one.', 'Nine bunks, racks, and no private coin.', 55),
+    inside('19. Inner Tower', 'A tower on the inner wall. The door opens onto stairs and the watch above.', 'Nothing else is kept here. A secret stair into tunnels under the fort would start in this tower, if those tunnels are ever dug. They are not in this seed.', 55),
     place('20. Green', 'The Green is packed earth, not grass. The fort drills here.', 'In good daylight weather, 85 percent chance of 1d4+1 knights or 3d6 soldiers practicing. At night, 1 on 1d6 each turn of 2d4 soldiers passing the barracks or the keep. The keep and barracks doors are under continual light.'),
-    place('21. Northwest Tower', 'The northwest tower. Bunks and racks, like the others.', 'Nine guards\' worth of ordinary weapons. No coin in the trunks.'),
-    place('22. North Tower', 'The north tower. Bunks stand on both the inner and outer walls.', 'Nine bunks. Racks by the east and west doors.'),
+    inside('21. Northwest Tower', 'The northwest tower. Bunks and racks, like the others.', 'Nine guards\' worth of ordinary weapons. No coin in the trunks.', 55),
+    inside('22. North Tower', 'The north tower. Bunks stand on both the inner and outer walls.', 'Nine bunks. Racks by the east and west doors.', 55),
     place('23. Garrison Stable', 'The knights\' horses, and the squires who sleep with them.', 'Stairs on the south wall go up to the knights\' quarters.'),
-    place('23. Knights\' Quarters', 'A long upper hall. Five small rooms face west and two large rooms face east.', 'The west rooms are the junior knights. Sir Galadin and Sir Kellin have the east rooms. They swore to Baron Morgan and stayed to steady his son. The junior knights, Gervus among them, swore to Halden.'),
-    place('24. Barracks', 'The first and second squads are packed into this floor.', 'Twenty-two men, at least half of the bunks full at any hour. They keep quiet. The officers sleep upstairs. Weapon racks fill the east wall.'),
-    place('24. Officers\' Quarters', 'Thin wooden partitions make seven sleeping closets, and the stair door can lock.', 'Captain Argos, Lieutenants Kellos, Aeos, Haydin, and Korbl, Top Sergeant Aldric, and Master Sergeant Karstein. A locked closet holds garrison valuables. The module says to roll treasure types J, K, and L for the closet, and P through T for each foot locker.'),
-    place('25. Keep', 'The keep\'s ground floor is the great room, where Halden holds court and the household eats.', 'Kitchen behind. Offices and servants along the outer walls.'),
-    place('25. Keep Upper', 'The upper keep. The baron\'s rooms are shut. Halden sleeps here.', 'Morgan has not come south in more than five years.'),
-    place('25. Keep Cellar', 'Stores, a well near the kitchen stair, and a vault behind a metal door.', 'Only Halden and Bailiff Tomandy have vault keys. The gate chest is emptied here each night.'),
+    inside('23. Knights\' Quarters', 'A long upper hall. Five small rooms face west and two large rooms face east.', 'The west rooms are the junior knights. Sir Galadin and Sir Kellin have the east rooms. They swore to Baron Morgan and stayed to steady his son. The junior knights, Gervus among them, swore to Halden.', 77),
+    inside('24. Barracks', 'The first and second squads are packed into this floor.', 'Twenty-two men, at least half of the bunks full at any hour. They keep quiet. The officers sleep upstairs. Weapon racks fill the east wall.', 50),
+    inside('24. Officers\' Quarters', 'Thin wooden partitions make seven sleeping closets, and the stair door can lock.', 'Captain Argos, Lieutenants Kellos, Aeos, Haydin, and Korbl, Top Sergeant Aldric, and Master Sergeant Karstein. A locked closet holds garrison valuables. The module says to roll treasure types J, K, and L for the closet, and P through T for each foot locker.', 70),
+    inside('25. Keep', 'The keep\'s ground floor is the great room, where Halden holds court and the household eats.', 'Kitchen behind. Offices and servants along the outer walls.', 80),
+    inside('25. Keep Upper', 'The upper keep. The baron\'s rooms are shut. Halden sleeps here.', 'Morgan has not come south in more than five years.', 75),
+    inside('25. Keep Cellar', 'Stores, a well near the kitchen stair, and a vault behind a metal door.', 'Only Halden and Bailiff Tomandy have vault keys. The gate chest is emptied here each night.', 40),
   ];
 }
 
 function wildPlaces() {
   const outside = (name, terrain, pct, table, summary, gmText) => ({
-    name, place: 'outside', terrain, pct, table, summary, gmText, site: null, die: 6, interval: 14400,
+    name, environment: 'outside', terrain, pct, table, summary, gmText, destination: null, die: 6, interval: 14400,
   });
   return [
     outside('Old Road North', 'Road', 33, 'Inhabited Territories', 'The Old Road north of the fort is cleared and in good repair. Farms sit back from it in small hamlets.', 'A day\'s march this way is the wood where the Nameless Dungeon waits. The module\'s cave is also north. This campaign moved that cave west.'),
@@ -491,7 +492,7 @@ const TOWN_PATHS = [
   ['6. Square', '7. Herbalist', 'Across the Square', false, true],
   ['6. Square', '8. Stableman\'s House', 'Across the Square', false, true],
   ['6. Square', '9. Gambling House', 'Across the Square', false, true],
-  ['6. Square', '10. Thelan Taramedes', 'Across the Square', false, true],
+  ['6. Square', '10. Residence of Thelan Taramedes', 'Across the Square', false, true],
   ['6. Square', '11. Smithy', 'Across the Square', false, true],
   ['6. Square', '12. Warehouse', 'Across the Square', false, true],
   ['6. Square', '13. Toothless Dragon', 'Across the Square', false, true],
@@ -669,29 +670,48 @@ async function main() {
       }
     }
 
+    const destinations = [
+      { name: 'Morgansfort', place_type: 'Settlement' },
+      { name: 'Stafeld', place_type: 'Fortress' },
+      { name: 'Nameless Dungeon', place_type: 'Dungeon' },
+      { name: 'Cave of the Unknown', place_type: 'Dungeon' },
+    ];
+    const placeIds = {};
+    for (const destination of destinations) {
+      const inserted = await one(
+        client,
+        `INSERT INTO campaign_place (campaign_id, name, place_type)
+         VALUES ($1, $2, $3) RETURNING id`,
+        [campaignId, destination.name, destination.place_type]
+      );
+      placeIds[destination.name] = inserted.id;
+    }
+
     const locationIds = {};
     async function addPlace(place) {
       const table = place.tableId || tableIds[place.table] || stockId(place.table);
+      const placeId = place.destination ? placeIds[place.destination] : null;
+      if (place.destination && placeId == null) throw new Error(`Missing place ${place.destination}`);
       const inserted = await one(
         client,
         `INSERT INTO campaign_location
-           (campaign_id, name, place, check_die, interval_seconds, encounter_table_id,
-            terrain, movement_pct, summary, site, ambient_light, dark_summary, gm_text)
+           (campaign_id, name, environment, place_id, check_die, interval_seconds, encounter_table_id,
+            terrain, movement_pct, summary, ambient_light, dark_summary, gm_text)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
          RETURNING id`,
         [
           campaignId,
           place.name,
-          place.place,
+          place.environment,
+          placeId,
           place.die,
           place.interval,
           table,
           place.terrain,
           place.pct,
           clip(place.summary),
-          place.site,
-          place.ambientLight === undefined ? (place.place === 'inside' ? 0 : null) : place.ambientLight,
-          place.darkSummary === undefined ? (place.place === 'inside' ? 'Dark. Bring a light.' : null) : place.darkSummary,
+          place.ambientLight === undefined ? (place.environment === 'inside' ? 0 : null) : place.ambientLight,
+          place.darkSummary === undefined ? (place.environment === 'inside' ? 'Dark. Bring a light.' : null) : place.darkSummary,
           clip(place.gmText),
         ]
       );
@@ -703,13 +723,13 @@ async function main() {
       const extra = Object.entries(ROOM_NOTES).find(([key]) => room.name.startsWith(key));
       await addPlace({
         name: room.name,
-        place: 'inside',
+        environment: 'inside',
         terrain: null,
         pct: null,
         table: room.table,
         summary: room.summary,
         gmText: extra ? `${room.gmText || ''}\n${extra[1]}` : room.gmText,
-        site: room.site,
+        destination: room.destination,
         die: 6,
         interval: room.interval,
       });
@@ -717,26 +737,26 @@ async function main() {
     for (const wander of model.wanders) {
       await addPlace({
         name: wander.name,
-        place: 'inside',
+        environment: 'inside',
         terrain: null,
         pct: null,
         table: wander.key,
         summary: 'Not a room. The printed wandering hit points for this level are here.',
         gmText: 'The rooms use this level\'s die table. These creatures are the module\'s printed totals. Take one of them for a wander check. Accepting the check also offers a new creature with blank hit points. Do not use both for the same check.',
-        site: wander.site,
+        destination: wander.destination,
         die: 6,
         interval: wander.interval,
       });
     }
     await addPlace({
       name: 'Cave Orc Tribe',
-      place: 'inside',
+      environment: 'inside',
       terrain: null,
       pct: null,
       table: 'Cave',
       summary: 'Not a room. The orc tribe\'s printed hit points are kept here.',
       gmText: 'Room 1 usually has 2d6+4 of the warriors, the rest being out raiding. The armed women are in room 3. Onyg and Badushna are moved to room 4. Thirteen pregnant women are noncombatants at 3 hit points if you need them. They are not given rows.',
-      site: 'Cave of the Unknown',
+      destination: 'Cave of the Unknown',
       die: 6,
       interval: 1200,
     });
@@ -768,9 +788,9 @@ async function main() {
         );
       }
     }
-    await shop('5. Trader', 'Lotherra\'s Goods', 0, -60, ['Goods', 'Clothing', 'Storage', 'Provisions', 'Consumables']);
+    await shop('5. Trader', 'Lotherra\'s Goods', -5, 10, ['Goods', 'Clothing', 'Storage', 'Provisions', 'Consumables']);
     await shop('11. Smithy', 'Rugarr\'s Forge', 0, 0, ['Weapon', 'Armor']);
-    await shop('13. Toothless Dragon', 'Toothless Dragon', 0, -50, ['Provisions']);
+    await shop('13. Toothless Dragon', 'Toothless Dragon', -20, -10, ['Provisions']);
 
     const listedHoard = (room) => room && /\d+\s*(gp|sp|cp|pp|ep)\b/i.test(room.lines.join('\n'));
     const creatureIdsByLocation = {};
@@ -1019,7 +1039,7 @@ async function main() {
     await npc('5. Trader', 'Jeroh Lotherra', 'Buy cheap and sell the list.', 'Pays 4 sp on the gp for ordinary goods. Takes jewelry only in trade, at 6 sp on the gp.', 'Commercial');
     await npc('11. Smithy', 'Rugarr', 'Keep the fort in iron.', 'Bachelor. Tob is the apprentice.', 'Friendly');
     await npc('7. Herbalist', 'Maien Brai', 'Sell what she has grown.', 'Healing potions on hand about 60 percent of the time, 250 gp. She knew the kind of work Jerard was doing.', 'Friendly');
-    await npc('10. Thelan Taramedes', 'Thelan Taramedes', 'Be left with his books, and be admired.', '4th level magic-user. The useful scrolls are at the bottom of the bedroom trunk.', 'Pompous');
+    await npc('10. Residence of Thelan Taramedes', 'Thelan Taramedes', 'Be left with his books, and be admired.', '4th level magic-user. The useful scrolls are at the bottom of the bedroom trunk.', 'Pompous');
     await npc('9. Gambling House', 'Bargus', 'Keep the cellar full and the watch paid.', 'Invitation only. He can arrange most quiet crimes.', 'Sly');
     await npc(stafeld22.name, 'Gobphloc Hogstone', 'Scout the fortress for Brect and get out alive if the scouts die.', 'He knows Brect wants a hidden power in a cave to the west, and he does not know Nelaser. He will talk after the knights have him.', 'Haughty');
     await npc(null, 'Brect Hammerhand', 'Take the coast, which he thinks is his own idea.', 'Bugbear chieftain. Nelaser has him, by charm and by greed. He is smarter than a bugbear is supposed to be.', 'Proud');

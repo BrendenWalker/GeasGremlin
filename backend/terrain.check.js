@@ -22,6 +22,6 @@ assert.equal(locationTerrain('outside', 'City', 0).error, 'Unknown terrain');
 assert.equal(locationTerrain('outside', 'Swamp', 201).error, 'Movement percent must be an integer from -100 to 200');
 assert.equal(locationTerrain('outside', 'Swamp', -101).error, 'Movement percent must be an integer from -100 to 200');
 assert.equal(locationTerrain('outside', 'Swamp', 1.5).error, 'Movement percent must be an integer from -100 to 200');
-assert.equal(locationTerrain('up', 'Clear', 0).error, 'place must be outside or inside');
+assert.equal(locationTerrain('up', 'Clear', 0).error, 'environment must be outside or inside');
 
 console.log('terrain ok');

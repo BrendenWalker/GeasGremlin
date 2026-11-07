@@ -63,7 +63,7 @@ const RESET_STEPS = [
     table: 'campaign_board',
     phrase: 'the clock',
     sql: `UPDATE campaign_board
-     SET game_seconds = 0, in_encounter = false, place = 'outside',
+     SET game_seconds = 0, in_encounter = false, environment = 'outside',
          location_id = NULL, check_seconds = NULL, visit_seconds = NULL
      WHERE campaign_id = $1`,
   },
