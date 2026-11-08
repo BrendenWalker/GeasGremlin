@@ -1036,6 +1036,7 @@ async function main() {
     await npc('23. Knights\' Quarters', 'Sir Gervus', 'In public, a pious junior knight. In fact, he reports to Nelaser.', 'He wears a ring of spell turning only part of the time, afraid of using it up. Half the time it is in his lockbox. On the Nameless delve he means to take the orb, let the party die, and teleport to Ramsgate.', 'Polite');
     await npc('24. Officers\' Quarters', 'Top Sergeant Aldric', 'Keep the squads alive.', 'Thelbain names him, with Kellin, as the man who should hear real proof of a goblin campaign.', 'Blunt');
     await npc('13. Toothless Dragon', 'Garnoth', 'Run a quiet tavern.', 'Retired fighter. He throws out anyone who bothers his daughters.', 'Gruff');
+    await addCreature('13. Toothless Dragon', 'Garnoth', 17, 'AC 11 · Attack +2 · Club');
     await npc('5. Trader', 'Jeroh Lotherra', 'Buy cheap and sell the list.', 'Pays 4 sp on the gp for ordinary goods. Takes jewelry only in trade, at 6 sp on the gp.', 'Commercial');
     await npc('11. Smithy', 'Rugarr', 'Keep the fort in iron.', 'Bachelor. Tob is the apprentice.', 'Friendly');
     await npc('7. Herbalist', 'Maien Brai', 'Sell what she has grown.', 'Healing potions on hand about 60 percent of the time, 250 gp. She knew the kind of work Jerard was doing.', 'Friendly');
@@ -1050,20 +1051,21 @@ async function main() {
     await npc(cave4, 'Badushna', 'Keep the tribe and get Starisel out of the caves.', 'She will deal. The complex can stay theirs if he is gone.', 'Wary');
     await npc(cave4, 'Onyg', 'Break the man who held him still.', 'Ogre. He follows Badushna\'s bargains further than he would follow a stranger.', 'Angry');
 
-    async function clue(locationName, body, npcId, objectiveId) {
+    async function clue(locationName, body, npcId, objectiveId, worldTrue = true) {
       await client.query(
         `INSERT INTO campaign_clue
-           (campaign_id, location_id, npc_id, objective_id, body, discovered, base_discovered)
-         VALUES ($1,$2,$3,$4,$5,false,false)`,
-        [campaignId, locationName ? locationIds[locationName] : null, npcId, objectiveId, clip(body)]
+           (campaign_id, location_id, npc_id, objective_id, body, discovered, base_discovered, world_true)
+         VALUES ($1,$2,$3,$4,$5,false,false,$6)`,
+        [campaignId, locationName ? locationIds[locationName] : null, npcId, objectiveId, clip(body), worldTrue !== false]
       );
     }
     for (const rumor of model.rumors) {
       await clue(
         '13. Toothless Dragon',
-        `${rumor.text} ${rumor.falseRumor ? 'False.' : 'Treat as true for this campaign.'}`,
+        rumor.text,
         null,
-        null
+        null,
+        !rumor.falseRumor
       );
     }
     await clue('13. Toothless Dragon', 'Jerard rode south to an herb patch within sight of Stafeld and has been gone two days.', thelbain, findJerard);

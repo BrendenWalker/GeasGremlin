@@ -2654,10 +2654,12 @@ async function loadAdventuring(campaignId) {
   const creatureRows = locationIds.length === 0
     ? { rows: [] }
     : await pool.query(
-      `SELECT id, location_id, name, monster_id, hp, base_hp, disposition, note, in_fight
-       FROM campaign_creature
-       WHERE location_id = ANY($1::int[])
-       ORDER BY name, id`,
+      `SELECT c.id, c.location_id, c.name, c.monster_id, c.hp, c.base_hp, c.disposition, c.note, c.in_fight,
+              m.armor_class, m.attack_note
+       FROM campaign_creature c
+       LEFT JOIN monster m ON m.id = c.monster_id
+       WHERE c.location_id = ANY($1::int[])
+       ORDER BY c.name, c.id`,
       [locationIds]
     );
   const flagRows = locationIds.length === 0
@@ -2680,6 +2682,8 @@ async function loadAdventuring(campaignId) {
       disposition: row.disposition,
       note: row.note,
       in_fight: row.in_fight === true,
+      armor_class: row.armor_class == null ? null : Number(row.armor_class),
+      attack_note: row.attack_note || null,
     };
     const placeId = Number(row.location_id);
     if (!creaturesByLocation.has(placeId)) creaturesByLocation.set(placeId, []);
@@ -6491,7 +6495,7 @@ async function loadSituation(campaignId, concluded) {
       [campaignId]
     ),
     pool.query(
-      `SELECT id, location_id, npc_id, objective_id, body, discovered
+      `SELECT id, location_id, npc_id, objective_id, body, discovered, world_true
        FROM campaign_clue WHERE campaign_id = $1 ORDER BY id`,
       [campaignId]
     ),
@@ -6562,6 +6566,7 @@ async function loadSituation(campaignId, concluded) {
       objective_id: placeId(row.objective_id),
       body: row.body,
       discovered: row.discovered === true,
+      world_true: row.world_true !== false,
     })),
     encounters: encounters.rows.map((row) => ({
       id: Number(row.id),
@@ -6718,12 +6723,13 @@ app.delete('/api/campaigns/:campaignId/situation/npcs/:npcId', (req, res) => wit
 app.post('/api/campaigns/:campaignId/situation/clues', (req, res) => withSituation(req, res, 'Failed to add clue', async (client, request) => {
   const body = requiredProse(request.body?.body, 'body');
   const discovered = request.body?.discovered == null ? false : booleanField(request.body.discovered, 'discovered');
+  const worldTrue = request.body?.world_true == null ? true : booleanField(request.body.world_true, 'world_true');
   const loc = await ownedLocation(client, request.params.campaignId, request.body?.location_id);
   const npc = await ownedNpc(client, request.params.campaignId, request.body?.npc_id);
   const objective = await ownedObjective(client, request.params.campaignId, request.body?.objective_id);
   const inserted = await client.query(
-    `INSERT INTO campaign_clue (campaign_id, location_id, npc_id, objective_id, body, discovered, base_discovered)
-     VALUES ($1, $2, $3, $4, $5, $6, $6)
+    `INSERT INTO campaign_clue (campaign_id, location_id, npc_id, objective_id, body, discovered, base_discovered, world_true)
+     VALUES ($1, $2, $3, $4, $5, $6, $6, $7)
      RETURNING id`,
     [
       request.params.campaignId,
@@ -6732,6 +6738,7 @@ app.post('/api/campaigns/:campaignId/situation/clues', (req, res) => withSituati
       objective ? objective.id : null,
       body,
       discovered,
+      worldTrue,
     ]
   );
   const id = Number(inserted.rows[0].id);
@@ -6751,6 +6758,10 @@ app.patch('/api/campaigns/:campaignId/situation/clues/:clueId', (req, res) => wi
   if (Object.prototype.hasOwnProperty.call(body, 'discovered')) {
     values.push(booleanField(body.discovered, 'discovered'));
     sets.push(`discovered = $${values.length}`);
+  }
+  if (Object.prototype.hasOwnProperty.call(body, 'world_true')) {
+    values.push(booleanField(body.world_true, 'world_true'));
+    sets.push(`world_true = $${values.length}`);
   }
   if (Object.prototype.hasOwnProperty.call(body, 'location_id')) {
     const loc = await ownedLocation(client, request.params.campaignId, body.location_id);

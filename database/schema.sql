@@ -1459,6 +1459,7 @@ CREATE TABLE IF NOT EXISTS public.campaign_clue (
 	body text NOT NULL,
 	discovered boolean NOT NULL DEFAULT false,
 	base_discovered boolean NOT NULL DEFAULT false,
+	world_true boolean NOT NULL DEFAULT true,
 	CONSTRAINT campaign_clue_pkey PRIMARY KEY (id),
 	CONSTRAINT campaign_clue_campaign_fkey FOREIGN KEY (campaign_id) REFERENCES public.campaign(id) ON DELETE CASCADE,
 	CONSTRAINT campaign_clue_location_fkey FOREIGN KEY (location_id) REFERENCES public.campaign_location(id) ON DELETE SET NULL,
@@ -1472,6 +1473,10 @@ ALTER TABLE public.campaign_clue ALTER COLUMN base_discovered SET DEFAULT false;
 ALTER TABLE public.campaign_clue ALTER COLUMN base_discovered SET NOT NULL;
 ALTER TABLE public.campaign_clue ADD COLUMN IF NOT EXISTS npc_id int4;
 ALTER TABLE public.campaign_clue ADD COLUMN IF NOT EXISTS objective_id int4;
+ALTER TABLE public.campaign_clue ADD COLUMN IF NOT EXISTS world_true boolean;
+UPDATE public.campaign_clue SET world_true = true WHERE world_true IS NULL;
+ALTER TABLE public.campaign_clue ALTER COLUMN world_true SET DEFAULT true;
+ALTER TABLE public.campaign_clue ALTER COLUMN world_true SET NOT NULL;
 
 -- A prepared scene at a place. The open fight is campaign_creature.in_fight. This row has no hit points.
 CREATE TABLE IF NOT EXISTS public.campaign_encounter (

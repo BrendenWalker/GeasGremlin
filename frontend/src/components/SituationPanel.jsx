@@ -249,6 +249,7 @@ export default function SituationPanel({
   const [cluePlace, setCluePlace] = useState('');
   const [clueNpcId, setClueNpcId] = useState('');
   const [clueObjectiveId, setClueObjectiveId] = useState('');
+  const [clueWorldTrue, setClueWorldTrue] = useState(true);
   const [pickedEncounterId, setPickedEncounterId] = useState(null);
   const [encounterEditId, setEncounterEditId] = useState(null);
   const [confirmEncounter, setConfirmEncounter] = useState(false);
@@ -324,6 +325,7 @@ export default function SituationPanel({
     setCluePlace(scopeId);
     setClueNpcId('');
     setClueObjectiveId('');
+    setClueWorldTrue(true);
     setClueError(null);
   };
 
@@ -389,6 +391,7 @@ export default function SituationPanel({
     setCluePlace(place);
     setClueNpcId('');
     setClueObjectiveId('');
+    setClueWorldTrue(true);
     setClueError(null);
     setPickedEncounterId(null);
     setConfirmEncounter(false);
@@ -496,6 +499,7 @@ export default function SituationPanel({
       location_id: placePayload(cluePlace),
       npc_id: placePayload(clueNpcId),
       objective_id: placePayload(clueObjectiveId),
+      world_true: clueWorldTrue,
     };
     const action = clueEditId == null
       ? () => createClue(campaignId, payload)
@@ -634,6 +638,7 @@ export default function SituationPanel({
       <span>{row.body}</span>
       {row.npc_id ? <span className="muted">{` · ${((pack.npcs || []).find((npc) => sameId(npc.id, row.npc_id)) || {}).name || 'NPC'}`}</span> : null}
       <span className="muted">{row.discovered ? ' · discovered' : ' · not discovered'}</span>
+      <span className="muted">{row.world_true === false ? ' · false' : ' · true'}</span>
       <button type="button" className="btn btn-secondary" style={{ ...TINY, marginLeft: 8 }} disabled={busy} onClick={() => run(() => updateClue(campaignId, row.id, { discovered: !row.discovered }))}>
         {row.discovered ? 'Hide discovery' : 'Discovered'}
       </button>
@@ -841,12 +846,13 @@ export default function SituationPanel({
               setCluePlace(row.location_id ? String(row.location_id) : '');
               setClueNpcId(row.npc_id ? String(row.npc_id) : '');
               setClueObjectiveId(row.objective_id ? String(row.objective_id) : '');
+              setClueWorldTrue(row.world_true !== false);
               setClueError(null);
             }}
             onAskRemove={() => setConfirmClue(true)}
             onRemove={removeClue}
             onCancel={() => setConfirmClue(false)}
-            optionLabel={(row) => shortText(`${row.body}${row.discovered ? ' · discovered' : ''}`)}
+            optionLabel={(row) => shortText(`${row.body}${row.discovered ? ' · discovered' : ''}${row.world_true === false ? ' · false' : ''}`)}
             confirmLabel={(row) => shortText(row.body, 48)}
           />
           <EditorFrame
@@ -874,6 +880,10 @@ export default function SituationPanel({
                 <option value="">None</option>
                 {objectives.map((row) => <option key={row.id} value={row.id}>{shortText(row.body, 48)}</option>)}
               </select>
+            </label>
+            <label>
+              <input type="checkbox" checked={clueWorldTrue} onChange={(event) => setClueWorldTrue(event.target.checked)} />
+              {' '}True in this campaign
             </label>
           </EditorFrame>
         </>

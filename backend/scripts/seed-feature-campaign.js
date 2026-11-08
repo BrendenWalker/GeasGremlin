@@ -374,8 +374,8 @@ async function main() {
 
     async function clue(locationName, body, objectiveId) {
       await client.query(
-        `INSERT INTO campaign_clue (campaign_id, location_id, objective_id, body, discovered, base_discovered)
-         VALUES ($1, $2, $3, $4, false, false)`,
+        `INSERT INTO campaign_clue (campaign_id, location_id, objective_id, body, discovered, base_discovered, world_true)
+         VALUES ($1, $2, $3, $4, false, false, true)`,
         [campaignId, locationIds[locationName], objectiveId, body]
       );
     }
